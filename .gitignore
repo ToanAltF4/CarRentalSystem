@@ -9,6 +9,7 @@ Thumbs.db
 .env.*
 !.env.example
 
+
 ### Java / Spring Boot ###
 target/
 build/
