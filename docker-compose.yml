@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: ev-fleet-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ev_fleet
+      MYSQL_USER: evfleet
+      MYSQL_PASSWORD: evfleet123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ev-fleet-network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # phpMyAdmin Web Interface
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: ev-fleet-pma
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: evfleet
+      PMA_PASSWORD: evfleet123
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ev-fleet-network
+
+  # Spring Boot Application
+  app:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    container_name: ev-fleet-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ev_fleet
+      DB_USERNAME: evfleet
+      DB_PASSWORD: evfleet123
+      JPA_DDL_AUTO: validate
+      JPA_SHOW_SQL: "true"
+      FLYWAY_ENABLED: "true"
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ev-fleet-network
+
+networks:
+  ev-fleet-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
