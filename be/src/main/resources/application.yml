@@ -39,6 +39,15 @@ spring:
     locations: classpath:db/migration
     schemas: ${DB_NAME:ev_fleet}
 
+# Auth configuration
+app:
+  auth:
+    jwt:
+      secret: ${JWT_SECRET:ev-fleet-secret-key-minimum-32-characters-required-for-hs256}
+      expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    refresh-token:
+      expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS:7}
+
 logging:
   level:
     org.hibernate.SQL: ${LOG_LEVEL_SQL:info}
