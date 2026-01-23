@@ -35,6 +35,7 @@ public interface BookingMapper {
     @Mapping(source = "vehicle.brand", target = "vehicleBrand")
     @Mapping(source = "vehicle.model", target = "vehicleModel")
     @Mapping(source = "vehicle.licensePlate", target = "vehicleLicensePlate")
+    @Mapping(source = "vehicle.imageUrl", target = "vehicleImage")
     BookingResponseDTO toResponseDTO(BookingEntity entity);
 
     /**

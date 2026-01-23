@@ -15,8 +15,20 @@ const AdminAddVehiclePage = () => {
         try {
             console.log("Submitting Vehicle Data:", data);
 
-            // Prepare payload with model (copied from name)
-            const payload = { ...data, model: data.name };
+            // Ensure proper type conversion for API
+            const payload = {
+                name: data.name,
+                model: data.name, // Backend requires model
+                brand: data.brand,
+                licensePlate: data.licensePlate,
+                category: data.category,
+                dailyRate: parseFloat(data.dailyRate) || 0,
+                seats: parseInt(data.seats) || 5,
+                batteryCapacityKwh: data.batteryCapacityKwh ? parseFloat(data.batteryCapacityKwh) : null,
+                rangeKm: data.rangeKm ? parseInt(data.rangeKm) : null,
+                description: data.description || '',
+                imageUrl: data.imageUrl
+            };
 
             // Real Backend Call
             const response = await api.post('/vehicles', payload);

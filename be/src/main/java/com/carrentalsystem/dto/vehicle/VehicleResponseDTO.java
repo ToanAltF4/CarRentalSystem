@@ -28,6 +28,11 @@ public class VehicleResponseDTO {
     private VehicleStatus status;
     private String imageUrl;
 
+    // New fields for complete data
+    private Integer seats;
+    private String description;
+    private String categoryName; // Category name for display
+
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
