@@ -18,12 +18,14 @@ const AdminEditVehiclePage = () => {
         const fetchVehicle = async () => {
             try {
                 const data = await vehicleService.getById(id);
+                console.log('Loaded vehicle data:', data); // Debug log
+
                 // Populate form with existing data
                 reset({
                     name: data.name,
                     brand: data.brand,
                     licensePlate: data.licensePlate,
-                    category: data.category?.name || 'Sedan',
+                    category: data.categoryName || 'Sedan',
                     dailyRate: data.dailyRate,
                     seats: data.seats || 5,
                     batteryCapacityKwh: data.batteryCapacityKwh,
@@ -47,7 +49,23 @@ const AdminEditVehiclePage = () => {
     const onSubmit = async (data) => {
         setSubmitting(true);
         try {
-            const payload = { ...data, model: data.name };
+            // Ensure proper type conversion for API
+            const payload = {
+                name: data.name,
+                model: data.name, // Backend requires model
+                brand: data.brand,
+                licensePlate: data.licensePlate,
+                category: data.category,
+                dailyRate: parseFloat(data.dailyRate) || 0,
+                seats: parseInt(data.seats) || 5,
+                batteryCapacityKwh: data.batteryCapacityKwh ? parseFloat(data.batteryCapacityKwh) : null,
+                rangeKm: data.rangeKm ? parseInt(data.rangeKm) : null,
+                description: data.description || '',
+                imageUrl: data.imageUrl || currentImage
+            };
+
+            console.log('Sending update payload:', payload); // Debug log
+
             await api.put(`/vehicles/${id}`, payload);
             alert("Vehicle Updated Successfully!");
             navigate('/admin/vehicles');

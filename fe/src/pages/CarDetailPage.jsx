@@ -1,27 +1,33 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     Star, MapPin, Zap, Fuel, Gauge, Armchair,
     Calendar, ShieldCheck, CheckCircle2, Share2,
-    Heart, ChevronRight, Truck
+    Heart, ChevronRight, Truck, Loader2, AlertCircle
 } from 'lucide-react';
 
-// Mock Data (Simulating API fetch)
 import vehicleService from '../services/vehicleService';
+import bookingService, { CURRENT_USER } from '../services/bookingService';
 
 const CarDetailPage = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [car, setCar] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState(0);
+    const [bookingLoading, setBookingLoading] = useState(false);
+    const [error, setError] = useState('');
 
     // Date picker state
     const [pickupDate, setPickupDate] = useState('');
     const [dropoffDate, setDropoffDate] = useState('');
 
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
     // Calculate rental days
     const calculateRentalDays = () => {
-        if (!pickupDate || !dropoffDate) return 1; // Default 1 day
+        if (!pickupDate || !dropoffDate) return 1;
         const start = new Date(pickupDate);
         const end = new Date(dropoffDate);
         const diffTime = end - start;
@@ -30,26 +36,81 @@ const CarDetailPage = () => {
     };
 
     const rentalDays = calculateRentalDays();
+    const rentalFee = car ? car.price * rentalDays : 0;
+    const insuranceFee = 15;
+    const serviceFee = 10;
+    const totalPrice = rentalFee + insuranceFee + serviceFee;
+
+    // Validate dates
+    const validateDates = () => {
+        if (!pickupDate || !dropoffDate) {
+            return 'Please select both pick-up and drop-off dates';
+        }
+        if (pickupDate < today) {
+            return 'Pick-up date cannot be in the past';
+        }
+        if (dropoffDate <= pickupDate) {
+            return 'Drop-off date must be after pick-up date';
+        }
+        return null;
+    };
+
+    // Handle booking submission
+    const handleBookNow = async () => {
+        const validationError = validateDates();
+        if (validationError) {
+            setError(validationError);
+            return;
+        }
+
+        setError('');
+        setBookingLoading(true);
+
+        try {
+            const bookingData = {
+                vehicleId: parseInt(id),
+                customerName: CURRENT_USER.name,
+                customerEmail: CURRENT_USER.email,
+                customerPhone: CURRENT_USER.phone,
+                startDate: pickupDate,
+                endDate: dropoffDate,
+                notes: `Booked via web - ${car.name}`
+            };
+
+            const result = await bookingService.createBooking(bookingData);
+
+            // Navigate to success page with booking info
+            navigate('/booking-success', {
+                state: {
+                    booking: result,
+                    vehicle: car
+                }
+            });
+        } catch (err) {
+            console.error('Booking failed:', err);
+            setError(err.response?.data?.message || 'Failed to create booking. Please try again.');
+        } finally {
+            setBookingLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchCar = async () => {
             setLoading(true);
             try {
                 const data = await vehicleService.getById(id);
-                // Map API response to Component State
                 const mappedCar = {
                     ...data,
-                    // Map backend fields to UI props
                     price: data.dailyRate,
                     range: data.rangeKm,
-                    battery: data.batteryCapacityKwh ? `${data.batteryCapacityKwh} kWh` : "75 kWh", // Fallback
+                    battery: data.batteryCapacityKwh ? `${data.batteryCapacityKwh} kWh` : "75 kWh",
                     seats: data.seats || 5,
-                    transmission: "Automatic", // EV Default
-                    charging: "Type 2 / CCS2", // Default
-                    images: [data.imageUrl || "https://images.unsplash.com/photo-1593941707882-a5bba14938c7"], // Gallery support
-                    rating: 5.0, // Default
-                    reviews: 0, // Default
-                    year: 2024 // Default
+                    transmission: "Automatic",
+                    charging: "Type 2 / CCS2",
+                    images: [data.imageUrl || "https://images.unsplash.com/photo-1593941707882-a5bba14938c7"],
+                    rating: 5.0,
+                    reviews: 0,
+                    year: 2024
                 };
                 setCar(mappedCar);
             } catch (err) {
@@ -174,12 +235,12 @@ const CarDetailPage = () => {
                     <div>
                         <h3 className="mb-4 text-lg font-bold text-secondary">Description</h3>
                         <p className="leading-relaxed text-gray-600">
-                            {car.description}
+                            {car.description || `Experience the future of driving with the ${car.name}. This premium electric vehicle offers exceptional range, cutting-edge technology, and sustainable transportation for your journey.`}
                         </p>
                     </div>
                 </div>
 
-                {/* Right Column: Sticky Widget */}
+                {/* Right Column: Booking Widget */}
                 <div className="lg:col-span-1">
                     <div className="sticky top-24 rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
                         <div className="mb-6">
@@ -188,6 +249,21 @@ const CarDetailPage = () => {
                                 <span className="text-3xl font-bold text-primary">${car.price}</span>
                                 <span className="text-sm text-gray-400">/ day</span>
                             </div>
+                        </div>
+
+                        {/* Error Message */}
+                        {error && (
+                            <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                                <AlertCircle size={16} />
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Customer Info (Read-only) */}
+                        <div className="mb-4 rounded-lg bg-blue-50 p-3">
+                            <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Booking as</p>
+                            <p className="font-medium text-gray-900">{CURRENT_USER.name}</p>
+                            <p className="text-sm text-gray-500">{CURRENT_USER.email}</p>
                         </div>
 
                         {/* Date Picker */}
@@ -199,8 +275,11 @@ const CarDetailPage = () => {
                                     <input
                                         type="date"
                                         value={pickupDate}
-                                        onChange={(e) => setPickupDate(e.target.value)}
-                                        min={new Date().toISOString().split('T')[0]}
+                                        onChange={(e) => {
+                                            setPickupDate(e.target.value);
+                                            setError('');
+                                        }}
+                                        min={today}
                                         className="w-full bg-transparent text-sm outline-none"
                                     />
                                 </div>
@@ -212,8 +291,11 @@ const CarDetailPage = () => {
                                     <input
                                         type="date"
                                         value={dropoffDate}
-                                        onChange={(e) => setDropoffDate(e.target.value)}
-                                        min={pickupDate || new Date().toISOString().split('T')[0]}
+                                        onChange={(e) => {
+                                            setDropoffDate(e.target.value);
+                                            setError('');
+                                        }}
+                                        min={pickupDate || today}
                                         className="w-full bg-transparent text-sm outline-none"
                                     />
                                 </div>
@@ -224,26 +306,39 @@ const CarDetailPage = () => {
                         <div className="mb-6 space-y-3 border-t border-gray-100 pt-4 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Rental Fee ({rentalDays} {rentalDays === 1 ? 'day' : 'days'})</span>
-                                <span className="font-medium text-gray-900">${car.price * rentalDays}</span>
+                                <span className="font-medium text-gray-900">${rentalFee}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Insurance</span>
-                                <span className="font-medium text-gray-900">$15</span>
+                                <span className="font-medium text-gray-900">${insuranceFee}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Service Fee</span>
-                                <span className="font-medium text-gray-900">$10</span>
+                                <span className="font-medium text-gray-900">${serviceFee}</span>
                             </div>
                             <div className="border-t border-dashed border-gray-200 pt-3 flex justify-between text-base font-bold">
                                 <span>Total</span>
-                                <span className="text-primary">${car.price * rentalDays + 25}</span>
+                                <span className="text-primary">${totalPrice}</span>
                             </div>
                         </div>
 
-                        {/* Action */}
-                        <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-primary-hover hover:shadow-primary/30 active:scale-[0.98]">
-                            <CheckCircle2 size={20} />
-                            Rent Now
+                        {/* Book Now Button */}
+                        <button
+                            onClick={handleBookNow}
+                            disabled={bookingLoading}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-primary-hover hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {bookingLoading ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 size={20} />
+                                    Book Now
+                                </>
+                            )}
                         </button>
 
                         <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">

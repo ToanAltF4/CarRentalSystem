@@ -26,6 +26,7 @@ public class BookingResponseDTO {
     private String vehicleBrand;
     private String vehicleModel;
     private String vehicleLicensePlate;
+    private String vehicleImage;
 
     // Customer info
     private String customerName;
