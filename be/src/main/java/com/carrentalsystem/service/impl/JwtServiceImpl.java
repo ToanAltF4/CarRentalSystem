@@ -32,8 +32,8 @@ public class JwtServiceImpl implements JwtService {
     public String generateAccessToken(UserEntity user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
-        claims.put("username", user.getUsername());
-        claims.put("role", user.getRole().name());
+        claims.put("email", user.getEmail());
+        claims.put("role", user.getRole() != null ? user.getRole().getRoleName() : "ROLE_CUSTOMER");
         claims.put("fullName", user.getFullName());
 
         Date now = new Date();
@@ -43,13 +43,13 @@ public class JwtServiceImpl implements JwtService {
 
         String token = Jwts.builder()
                 .claims(claims)
-                .subject(user.getUsername())
+                .subject(user.getEmail())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
 
-        log.debug("Generated JWT for user: {}", user.getUsername());
+        log.debug("Generated JWT for user: {}", user.getEmail());
         return token;
     }
 

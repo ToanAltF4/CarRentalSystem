@@ -6,31 +6,32 @@ import api from './api';
  */
 const authService = {
     /**
-     * Login user with username and password
-     * @param {string} username 
+     * Login user with email and password
+     * @param {string} email 
      * @param {string} password 
      * @returns {Promise} User data with tokens
      */
-    async login(username, password) {
+    async login(email, password) {
         const response = await api.post('/auth/login', {
-            username,
+            email,
             password
         });
 
-        const { accessToken, userId, role, fullName } = response.data;
+        const { accessToken, userId, role, fullName, email: userEmail } = response.data;
 
         // Store access token and user info (refresh token is in HttpOnly cookie)
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('userId', userId);
         localStorage.setItem('userRole', role);
         localStorage.setItem('userName', fullName);
+        localStorage.setItem('userEmail', userEmail || email);
 
         return response.data;
     },
 
     /**
      * Register new user
-     * @param {Object} userData - {username, password, fullName, email}
+     * @param {Object} userData - {email, password, fullName, phoneNumber, address, licenseNumber}
      * @returns {Promise} Registration response
      */
     async register(userData) {
@@ -74,7 +75,8 @@ const authService = {
         return {
             userId: localStorage.getItem('userId'),
             role: localStorage.getItem('userRole'),
-            fullName: localStorage.getItem('userName')
+            fullName: localStorage.getItem('userName'),
+            email: localStorage.getItem('userEmail')
         };
     },
 

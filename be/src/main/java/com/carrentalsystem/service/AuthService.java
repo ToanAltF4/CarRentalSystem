@@ -29,9 +29,9 @@ public interface AuthService {
     /**
      * Logout user by revoking refresh token.
      * 
-     * @param username Username to logout
+     * @param email User email to logout
      */
-    void logout(String username);
+    void logout(String email);
 
     /**
      * Register new user with minimal validation.
