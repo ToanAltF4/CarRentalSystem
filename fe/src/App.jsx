@@ -12,6 +12,8 @@ import BookingSuccessPage from './pages/BookingSuccessPage';
 
 // Customer Pages (require auth)
 import MyBookingsPage from './pages/MyBookingsPage';
+import ProfilePage from './pages/ProfilePage';
+import DriverLicenseUploadPage from './pages/DriverLicenseUploadPage';
 
 // Admin Pages (require ADMIN or MANAGER role)
 import AdminAddVehiclePage from './pages/admin/AdminAddVehiclePage';
@@ -46,6 +48,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyBookingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="driver-license"
+            element={
+              <ProtectedRoute>
+                <DriverLicenseUploadPage />
               </ProtectedRoute>
             }
           />

@@ -33,6 +33,7 @@ public class JwtServiceImpl implements JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("email", user.getEmail());
+        claims.put("username", user.getEmail());
         claims.put("role", user.getRole() != null ? user.getRole().getRoleName() : "ROLE_CUSTOMER");
         claims.put("fullName", user.getFullName());
 
@@ -68,7 +69,11 @@ public class JwtServiceImpl implements JwtService {
     @Override
     public String getUsername(String token) {
         Claims claims = getClaims(token);
-        return claims.get("username", String.class);
+        String username = claims.get("username", String.class);
+        if (username == null || username.isBlank()) {
+            username = claims.getSubject();
+        }
+        return username;
     }
 
     @Override

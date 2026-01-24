@@ -41,9 +41,9 @@ const Header = () => {
                     {/* Auth Buttons */}
                     {isAuthenticated ? (
                         <div className="flex items-center space-x-4">
-                            <span className="text-gray-700">
+                            <Link to="/profile" className="text-gray-700 hover:text-blue-600">
                                 Welcome, {user?.fullName || 'User'}
-                            </span>
+                            </Link>
                             <button
                                 onClick={handleLogout}
                                 className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
