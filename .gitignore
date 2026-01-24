@@ -65,6 +65,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Upload artifacts
+uploads/
+
 # Tooling / Cache
 .npm
 .eslintcache

@@ -47,7 +47,14 @@ app:
       expiration-ms: ${JWT_EXPIRATION_MS:3600000}
     refresh-token:
       expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS:7}
-
+  r2:
+    account-id: ${R2_ACCOUNT_ID:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    bucket: ${R2_BUCKET:ev-rental-images}
+    public-base-url: ${R2_PUBLIC_BASE_URL:}
+    endpoint: ${R2_ENDPOINT:https://${R2_ACCOUNT_ID:}.r2.cloudflarestorage.com}
+  
 logging:
   level:
     org.hibernate.SQL: ${LOG_LEVEL_SQL:info}

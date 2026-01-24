@@ -43,6 +43,7 @@ public class WebSecurityConfig {
                 // 4. Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/vehicles/**").permitAll()
                         // Swagger UI endpoints
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()

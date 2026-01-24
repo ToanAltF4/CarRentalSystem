@@ -42,8 +42,8 @@ public class UserEntity {
     @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
-    @Column(name = "license_number", length = 50)
-    private String licenseNumber;
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
 
     /**
      * Account status: ACTIVE, INACTIVE, BANNED
