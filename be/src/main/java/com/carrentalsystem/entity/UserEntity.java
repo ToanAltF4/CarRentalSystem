@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "users", indexes = {
-        @Index(name = "idx_users_username", columnList = "username"),
         @Index(name = "idx_users_email", columnList = "email"),
         @Index(name = "idx_users_status", columnList = "status")
 })
@@ -28,30 +27,35 @@ public class UserEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "username", nullable = false, unique = true, length = 50)
-    private String username;
+    @Column(name = "full_name", nullable = false, length = 255)
+    private String fullName;
+
+    @Column(name = "email", nullable = false, unique = true, length = 255)
+    private String email;
 
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    @Column(name = "email", nullable = false, unique = true, length = 100)
-    private String email;
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
 
-    @Column(name = "full_name", nullable = false, length = 100)
-    private String fullName;
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
-    @Builder.Default
-    private UserRole role = UserRole.CUSTOMER;
+    @Column(name = "license_number", length = 50)
+    private String licenseNumber;
 
     /**
-     * Account status: ACTIVE, INACTIVE, LOCKED
+     * Account status: ACTIVE, INACTIVE, BANNED
      * Only ACTIVE users can login and receive refresh tokens
      */
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
     private String status = "ACTIVE";
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id")
+    private RoleEntity role;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private RefreshTokenEntity refreshToken;

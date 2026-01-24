@@ -20,7 +20,7 @@ public class AuthResponse {
 
     // User info for frontend
     private Long userId;
-    private String username;
+    private String email;
     private String fullName;
     private String role;
 }

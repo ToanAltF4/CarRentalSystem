@@ -32,7 +32,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public RefreshTokenEntity createOrUpdateRefreshToken(UserEntity user) {
-        log.info("Creating or updating refresh token for user: {}", user.getUsername());
+        log.info("Creating or updating refresh token for user: {}", user.getEmail());
 
         // Check if user already has a refresh token (enforce 1 user = 1 token)
         Optional<RefreshTokenEntity> existingToken = refreshTokenRepository.findByUserId(user.getId());
@@ -46,7 +46,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             refreshToken.setExpiryDate(calculateExpiryDate());
             refreshToken.setRevoked(false);
             refreshToken.setRevokedAt(null);
-            log.info("Updated existing refresh token for user: {}", user.getUsername());
+            log.info("Updated existing refresh token for user: {}", user.getEmail());
         } else {
             // INSERT new token
             refreshToken = RefreshTokenEntity.builder()
@@ -55,7 +55,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
                     .expiryDate(calculateExpiryDate())
                     .revoked(false)
                     .build();
-            log.info("Created new refresh token for user: {}", user.getUsername());
+            log.info("Created new refresh token for user: {}", user.getEmail());
         }
 
         return refreshTokenRepository.save(refreshToken);
@@ -72,24 +72,24 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
         // Check if revoked
         if (refreshToken.isRevoked()) {
-            log.warn("Refresh token has been revoked for user: {}", refreshToken.getUser().getUsername());
+            log.warn("Refresh token has been revoked for user: {}", refreshToken.getUser().getEmail());
             throw new IllegalArgumentException("Refresh token has been revoked");
         }
 
         // Check if expired
         if (refreshToken.getExpiryDate() != null && refreshToken.getExpiryDate().isBefore(Instant.now())) {
-            log.warn("Refresh token has expired for user: {}", refreshToken.getUser().getUsername());
+            log.warn("Refresh token has expired for user: {}", refreshToken.getUser().getEmail());
             throw new IllegalArgumentException("Refresh token has expired");
         }
 
-        log.debug("Refresh token is valid for user: {}", refreshToken.getUser().getUsername());
+        log.debug("Refresh token is valid for user: {}", refreshToken.getUser().getEmail());
         return refreshToken;
     }
 
     @Override
     @Transactional
     public void revokeByUser(UserEntity user) {
-        log.info("Revoking refresh token for user: {}", user.getUsername());
+        log.info("Revoking refresh token for user: {}", user.getEmail());
 
         Optional<RefreshTokenEntity> tokenOptional = refreshTokenRepository.findByUserId(user.getId());
 
@@ -105,9 +105,9 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             token.setExpiryDate(null);
 
             refreshTokenRepository.save(token);
-            log.info("Successfully revoked refresh token for user: {}", user.getUsername());
+            log.info("Successfully revoked refresh token for user: {}", user.getEmail());
         } else {
-            log.warn("No refresh token found for user: {}", user.getUsername());
+            log.warn("No refresh token found for user: {}", user.getEmail());
         }
     }
 

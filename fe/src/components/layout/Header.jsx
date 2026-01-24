@@ -31,8 +31,8 @@ const Header = () => {
                         </Link>
                     )}
 
-                    {/* Admin Link - only for ADMIN/MANAGER */}
-                    {isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+                    {/* Admin Link - only for ROLE_ADMIN/ROLE_MANAGER/ROLE_STAFF */}
+                    {isAuthenticated && (user?.role === 'ROLE_ADMIN' || user?.role === 'ROLE_MANAGER' || user?.role === 'ROLE_STAFF') && (
                         <Link to="/admin" className="hover:text-blue-600">
                             Admin Panel
                         </Link>

@@ -41,8 +41,8 @@ public class AuthController {
      *         cookie)
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request, HttpServletResponse response) {
-        log.info("POST /api/auth/login - username: {}", request.getUsername());
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        log.info("POST /api/auth/login - email: {}", request.getEmail());
         AuthResponse authResponse = authService.login(request);
 
         // Set refresh token as HttpOnly cookie
@@ -71,7 +71,7 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("POST /api/auth/register - username: {}", request.getUsername());
+        log.info("POST /api/auth/register - email: {}", request.getEmail());
         authService.register(request);
 
         RegisterResponse response = RegisterResponse.builder()
@@ -136,14 +136,14 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<String> logout(Principal principal, HttpServletResponse response) {
-        String username = principal != null ? principal.getName() : "unknown";
-        log.info("POST /api/auth/logout - user: {}", username);
+        String email = principal != null ? principal.getName() : "unknown";
+        log.info("POST /api/auth/logout - user: {}", email);
 
         if (principal == null) {
             return ResponseEntity.badRequest().body("User not authenticated");
         }
 
-        authService.logout(username);
+        authService.logout(email);
 
         // Clear refresh token cookie
         Cookie clearCookie = new Cookie("refreshToken", null);
