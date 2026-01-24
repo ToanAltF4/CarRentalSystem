@@ -1,5 +1,6 @@
-package com.carrentalsystem.security;
+package com.carrentalsystem.config;
 
+import com.carrentalsystem.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -42,6 +43,10 @@ public class WebSecurityConfig {
                 // 4. Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Swagger UI endpoints
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()
+                        .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
                         .anyRequest().authenticated())
 
                 // 5. Gắn JWT filter TRƯỚC UsernamePasswordAuthenticationFilter

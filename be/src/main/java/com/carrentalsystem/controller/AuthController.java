@@ -2,10 +2,13 @@ package com.carrentalsystem.controller;
 
 import com.carrentalsystem.dto.auth.AuthResponse;
 import com.carrentalsystem.dto.auth.LoginRequest;
-import com.carrentalsystem.dto.auth.RefreshTokenRequest;
 import com.carrentalsystem.dto.auth.RegisterRequest;
 import com.carrentalsystem.dto.auth.RegisterResponse;
 import com.carrentalsystem.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,6 +29,7 @@ import java.security.Principal;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "API endpoints for user authentication and authorization")
 public class AuthController {
 
     private final AuthService authService;
@@ -40,6 +44,12 @@ public class AuthController {
      * @return AuthResponse with access token and user info (refresh token in
      *         cookie)
      */
+    @Operation(summary = "User login", description = "Authenticates user and returns JWT access token. Refresh token is set as HttpOnly cookie.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid credentials"),
+            @ApiResponse(responseCode = "403", description = "Account is inactive")
+    })
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
         log.info("POST /api/auth/login - email: {}", request.getEmail());
@@ -69,6 +79,12 @@ public class AuthController {
      * @param request Registration data (validated)
      * @return Success message with 201 Created
      */
+    @Operation(summary = "User registration", description = "Registers a new user account with CUSTOMER role")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "User registered successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "409", description = "Email already exists")
+    })
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         log.info("POST /api/auth/register - email: {}", request.getEmail());
@@ -89,6 +105,11 @@ public class AuthController {
      * @param response HTTP response to set new cookie
      * @return AuthResponse with new access token
      */
+    @Operation(summary = "Refresh access token", description = "Generates a new access token using the refresh token from HttpOnly cookie")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         log.info("POST /api/auth/refresh");
@@ -134,6 +155,12 @@ public class AuthController {
      * @param response  HTTP response to clear cookie
      * @return Success message
      */
+    @Operation(summary = "User logout", description = "Logs out the current user and revokes refresh token. Requires authentication.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logout successful"),
+            @ApiResponse(responseCode = "400", description = "User not authenticated"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @PostMapping("/logout")
     public ResponseEntity<String> logout(Principal principal, HttpServletResponse response) {
         String email = principal != null ? principal.getName() : "unknown";
