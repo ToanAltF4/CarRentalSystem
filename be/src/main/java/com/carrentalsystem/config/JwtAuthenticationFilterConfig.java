@@ -1,5 +1,6 @@
-package com.carrentalsystem.security;
+package com.carrentalsystem.config;
 
+import com.carrentalsystem.security.JwtAuthenticationFilter;
 import com.carrentalsystem.service.JwtService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
