@@ -105,10 +105,8 @@ public class VehicleServiceImpl implements VehicleService {
             throw new IllegalArgumentException("Start date cannot be in the past");
         }
 
-        // TODO: Once Rental entity is implemented, update this query to check for
-        // booking conflicts
-        // Current implementation returns all vehicles with AVAILABLE status
-        List<VehicleEntity> availableVehicles = vehicleRepository.findAvailableVehicles(startDate, endDate);
+        // TODO: Once Rental entity is implemented, update this query to check for booking conflicts.
+        List<VehicleEntity> availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE);
 
         return vehicleMapper.toResponseDTOList(availableVehicles);
     }

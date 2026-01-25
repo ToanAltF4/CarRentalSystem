@@ -2,9 +2,6 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,11 +36,9 @@ public class VehicleCategoryEntity {
     @Builder.Default
     private List<PricingEntity> pricings = new ArrayList<>();
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Transient
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

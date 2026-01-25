@@ -2,9 +2,6 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -16,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "invoices", indexes = {
         @Index(name = "idx_invoice_booking", columnList = "booking_id"),
         @Index(name = "idx_invoice_number", columnList = "invoice_number"),
-        @Index(name = "idx_invoice_payment_status", columnList = "payment_status")
+        @Index(name = "idx_invoice_payment_status", columnList = "payment_status_id")
 })
 @Getter
 @Setter
@@ -36,19 +33,22 @@ public class InvoiceEntity {
     @JoinColumn(name = "booking_id", nullable = false, unique = true)
     private BookingEntity booking;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inspection_id")
+    @Transient
     private InspectionEntity inspection;
 
     // Fee breakdown
     @Column(name = "rental_fee", nullable = false, precision = 12, scale = 2)
     private BigDecimal rentalFee;
 
-    @Column(name = "overtime_hours")
+    @Column(name = "driver_fee", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal driverFee = BigDecimal.ZERO;
+
+    @Transient
     @Builder.Default
     private Integer overtimeHours = 0;
 
-    @Column(name = "overtime_fee", precision = 10, scale = 2)
+    @Transient
     @Builder.Default
     private BigDecimal overtimeFee = BigDecimal.ZERO;
 
@@ -60,52 +60,50 @@ public class InvoiceEntity {
     @Builder.Default
     private BigDecimal deliveryFee = BigDecimal.ZERO;
 
-    @Column(name = "discount_amount", precision = 10, scale = 2)
+    @Transient
     @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
-    @Column(name = "tax_amount", precision = 10, scale = 2)
+    @Transient
     @Builder.Default
     private BigDecimal taxAmount = BigDecimal.ZERO;
 
     // Totals
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Transient
     private BigDecimal subtotal;
 
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
     // Payment info
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_status")
+    @Convert(converter = com.carrentalsystem.entity.converter.PaymentStatusConverter.class)
+    @Column(name = "payment_status_id")
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
-    @Column(name = "payment_method", length = 50)
+    @Transient
     private String paymentMethod;
 
-    @Column(name = "paid_at")
+    @Transient
     private LocalDateTime paidAt;
 
     // Dates
-    @Column(name = "actual_return_date", nullable = false)
+    @Transient
     private LocalDateTime actualReturnDate;
 
-    @Column(name = "issued_at")
+    @Transient
     @Builder.Default
     private LocalDateTime issuedAt = LocalDateTime.now();
 
-    @Column(name = "due_date")
+    @Transient
     private LocalDate dueDate;
 
-    @Column(columnDefinition = "TEXT")
+    @Transient
     private String notes;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Transient
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

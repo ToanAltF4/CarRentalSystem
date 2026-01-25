@@ -24,13 +24,13 @@ public interface RefreshTokenService {
      * 
      * @param token The refresh token string to validate
      * @return The valid refresh token entity
-     * @throws IllegalArgumentException if token is invalid, revoked, or expired
+     * @throws IllegalArgumentException if token is invalid or expired
      */
     RefreshTokenEntity validateRefreshToken(String token);
 
     /**
      * Revoke refresh token for a user.
-     * Sets revoked=true and revokedAt timestamp.
+     * Deletes refresh token for the user.
      * Nullifies token and expiryDate for absolute security.
      * 
      * @param user The user whose token should be revoked

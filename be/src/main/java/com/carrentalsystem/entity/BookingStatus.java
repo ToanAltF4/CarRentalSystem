@@ -7,25 +7,47 @@ public enum BookingStatus {
     /**
      * Initial status when booking is created
      */
-    PENDING,
+    PENDING(1),
 
     /**
      * Booking has been confirmed/approved
      */
-    CONFIRMED,
+    CONFIRMED(2),
 
     /**
      * Rental is currently in progress
      */
-    IN_PROGRESS,
+    IN_PROGRESS(3),
 
     /**
      * Rental completed, vehicle returned
      */
-    COMPLETED,
+    COMPLETED(4),
 
     /**
      * Booking was cancelled
      */
-    CANCELLED
+    CANCELLED(5);
+
+    private final int id;
+
+    BookingStatus(int id) {
+        this.id = id;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public static BookingStatus fromId(Integer id) {
+        if (id == null) {
+            return null;
+        }
+        for (BookingStatus status : values()) {
+            if (status.id == id) {
+                return status;
+            }
+        }
+        throw new IllegalArgumentException("Unknown booking status id: " + id);
+    }
 }

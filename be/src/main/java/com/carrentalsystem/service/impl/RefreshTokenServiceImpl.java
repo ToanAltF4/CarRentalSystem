@@ -44,8 +44,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             refreshToken = existingToken.get();
             refreshToken.setToken(generateRefreshToken());
             refreshToken.setExpiryDate(calculateExpiryDate());
-            refreshToken.setRevoked(false);
-            refreshToken.setRevokedAt(null);
             log.info("Updated existing refresh token for user: {}", user.getEmail());
         } else {
             // INSERT new token
@@ -53,7 +51,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
                     .user(user)
                     .token(generateRefreshToken())
                     .expiryDate(calculateExpiryDate())
-                    .revoked(false)
                     .build();
             log.info("Created new refresh token for user: {}", user.getEmail());
         }
@@ -70,12 +67,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         RefreshTokenEntity refreshToken = refreshTokenRepository.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
 
-        // Check if revoked
-        if (refreshToken.isRevoked()) {
-            log.warn("Refresh token has been revoked for user: {}", refreshToken.getUser().getEmail());
-            throw new IllegalArgumentException("Refresh token has been revoked");
-        }
-
         // Check if expired
         if (refreshToken.getExpiryDate() != null && refreshToken.getExpiryDate().isBefore(Instant.now())) {
             log.warn("Refresh token has expired for user: {}", refreshToken.getUser().getEmail());
@@ -91,20 +82,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public void revokeByUser(UserEntity user) {
         log.info("Revoking refresh token for user: {}", user.getEmail());
 
-        Optional<RefreshTokenEntity> tokenOptional = refreshTokenRepository.findByUserId(user.getId());
-
-        if (tokenOptional.isPresent()) {
-            RefreshTokenEntity token = tokenOptional.get();
-
-            // Set revocation flags
-            token.setRevoked(true);
-            token.setRevokedAt(Instant.now());
-
-            // Nullify token and expiry for absolute security (as per leader's requirement)
-            token.setToken(null);
-            token.setExpiryDate(null);
-
-            refreshTokenRepository.save(token);
+        if (refreshTokenRepository.findByUserId(user.getId()).isPresent()) {
+            refreshTokenRepository.deleteByUserId(user.getId());
             log.info("Successfully revoked refresh token for user: {}", user.getEmail());
         } else {
             log.warn("No refresh token found for user: {}", user.getEmail());

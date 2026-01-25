@@ -157,7 +157,7 @@
         <groupId>org.flywaydb</groupId>
         <artifactId>flyway-maven-plugin</artifactId>
         <configuration>
-          <url>jdbc:mysql://localhost:3307/ev_fleet</url>
+          <url>jdbc:mysql://localhost:3306/ev_fleet</url>
           <user>evfleet</user>
           <password>evfleet123</password>
           <cleanDisabled>false</cleanDisabled>

@@ -2,11 +2,7 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 /**
  * JPA Entity representing a refresh token for JWT authentication.
@@ -16,8 +12,7 @@ import java.time.LocalDateTime;
  * Security model:
  * - One user can only have ONE active refresh token (single session)
  * - When user logs in again, existing token is replaced (upsert operation)
- * - On logout: revoked=true AND token/expiryDate are nullified for absolute
- * security
+ * - On logout: refresh token row is deleted
  */
 @Entity
 @Table(name = "refresh_tokens", indexes = {
@@ -54,25 +49,4 @@ public class RefreshTokenEntity {
      */
     @Column(name = "expiry_date")
     private Instant expiryDate;
-
-    /**
-     * Revocation flag. Set to true on logout or when token is invalidated.
-     */
-    @Column(name = "revoked", nullable = false)
-    @Builder.Default
-    private boolean revoked = false;
-
-    /**
-     * Timestamp when token was revoked. Used for audit trail.
-     */
-    @Column(name = "revoked_at")
-    private Instant revokedAt;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 }

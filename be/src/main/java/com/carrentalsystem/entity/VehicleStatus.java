@@ -7,15 +7,32 @@ public enum VehicleStatus {
     /**
      * Vehicle is available for rental
      */
-    AVAILABLE,
+    AVAILABLE(1),
 
     /**
      * Vehicle is currently rented
      */
-    RENTED,
+    RENTED(2);
 
-    /**
-     * Vehicle is under maintenance
-     */
-    MAINTENANCE
+    private final int id;
+
+    VehicleStatus(int id) {
+        this.id = id;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public static VehicleStatus fromId(Integer id) {
+        if (id == null) {
+            return null;
+        }
+        for (VehicleStatus status : values()) {
+            if (status.id == id) {
+                return status;
+            }
+        }
+        throw new IllegalArgumentException("Unknown vehicle status id: " + id);
+    }
 }

@@ -114,7 +114,7 @@ public class AuthServiceImpl implements AuthService {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
-        // Revoke refresh token (sets revoked=true, nullifies token)
+        // Revoke refresh token (delete row)
         refreshTokenService.revokeByUser(user);
 
         log.info("User logged out successfully: {}", email);
@@ -153,7 +153,7 @@ public class AuthServiceImpl implements AuthService {
 
     private String resolveLicenseStatus(Long userId) {
         return driverLicenseRepository.findByUserId(userId)
-                .map(license -> license.getStatus())
+                .map(license -> license.getStatus().name())
                 .orElse("NONE");
     }
 }

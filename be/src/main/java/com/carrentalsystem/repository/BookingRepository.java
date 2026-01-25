@@ -28,25 +28,29 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
      * Only considers active bookings (not CANCELLED or COMPLETED).
      */
     @Query("SELECT COUNT(b) > 0 FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED') " +
+            "AND b.status NOT IN (:cancelled, :completed) " +
             "AND b.startDate <= :endDate " +
             "AND b.endDate >= :startDate")
     boolean hasOverlappingBookings(
             @Param("vehicleId") Long vehicleId,
             @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate);
+            @Param("endDate") LocalDate endDate,
+            @Param("cancelled") BookingStatus cancelled,
+            @Param("completed") BookingStatus completed);
 
     /**
      * Find all overlapping bookings for a vehicle (for detailed error info).
      */
     @Query("SELECT b FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED') " +
+            "AND b.status NOT IN (:cancelled, :completed) " +
             "AND b.startDate <= :endDate " +
             "AND b.endDate >= :startDate")
     List<BookingEntity> findOverlappingBookings(
             @Param("vehicleId") Long vehicleId,
             @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate);
+            @Param("endDate") LocalDate endDate,
+            @Param("cancelled") BookingStatus cancelled,
+            @Param("completed") BookingStatus completed);
 
     /**
      * Find bookings by vehicle ID.
@@ -56,25 +60,28 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     /**
      * Find bookings by status.
      */
-    List<BookingEntity> findByStatusOrderByCreatedAtDesc(BookingStatus status);
+    List<BookingEntity> findByStatusOrderByStartDateDesc(BookingStatus status);
 
     /**
      * Find bookings by customer email.
      */
-    List<BookingEntity> findByCustomerEmailOrderByCreatedAtDesc(String customerEmail);
+    List<BookingEntity> findByCustomerEmailOrderByStartDateDesc(String customerEmail);
 
     /**
      * Find upcoming bookings (start date >= today, not cancelled).
      */
     @Query("SELECT b FROM BookingEntity b WHERE b.startDate >= :today " +
-            "AND b.status != 'CANCELLED' " +
+            "AND b.status != :cancelled " +
             "ORDER BY b.startDate ASC")
-    List<BookingEntity> findUpcomingBookings(@Param("today") LocalDate today);
+    List<BookingEntity> findUpcomingBookings(@Param("today") LocalDate today,
+            @Param("cancelled") BookingStatus cancelled);
 
     /**
      * Count active bookings for a vehicle.
      */
     @Query("SELECT COUNT(b) FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED')")
-    long countActiveBookingsByVehicle(@Param("vehicleId") Long vehicleId);
+            "AND b.status NOT IN (:cancelled, :completed)")
+    long countActiveBookingsByVehicle(@Param("vehicleId") Long vehicleId,
+            @Param("cancelled") BookingStatus cancelled,
+            @Param("completed") BookingStatus completed);
 }

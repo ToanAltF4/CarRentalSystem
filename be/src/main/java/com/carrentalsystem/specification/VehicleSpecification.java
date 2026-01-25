@@ -58,10 +58,7 @@ public class VehicleSpecification {
      */
     public static Specification<VehicleEntity> hasMinRange(Integer minRange) {
         return (root, query, criteriaBuilder) -> {
-            if (minRange == null) {
-                return criteriaBuilder.conjunction();
-            }
-            return criteriaBuilder.greaterThanOrEqualTo(root.get("rangeKm"), minRange);
+            return criteriaBuilder.conjunction();
         };
     }
 
