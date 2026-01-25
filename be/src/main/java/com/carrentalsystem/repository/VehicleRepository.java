@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,15 +46,6 @@ public interface VehicleRepository extends JpaRepository<VehicleEntity, Long>,
             "LOWER(v.model) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(v.brand) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<VehicleEntity> searchByKeyword(@Param("keyword") String keyword);
-
-    /**
-     * Find available vehicles that are not rented during the specified date range.
-     * This query will be updated once the Rental entity is implemented.
-     * For now, it returns all vehicles with AVAILABLE status.
-     */
-    @Query("SELECT v FROM VehicleEntity v WHERE v.status = 'AVAILABLE'")
-    List<VehicleEntity> findAvailableVehicles(@Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate);
 
     /**
      * Get distinct brands for filtering

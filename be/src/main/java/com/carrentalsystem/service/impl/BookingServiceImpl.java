@@ -53,9 +53,17 @@ public class BookingServiceImpl implements BookingService {
 
         // 4. Check for overlapping bookings
         if (bookingRepository.hasOverlappingBookings(
-                vehicle.getId(), request.getStartDate(), request.getEndDate())) {
+                vehicle.getId(),
+                request.getStartDate(),
+                request.getEndDate(),
+                BookingStatus.CANCELLED,
+                BookingStatus.COMPLETED)) {
             List<BookingEntity> conflicts = bookingRepository.findOverlappingBookings(
-                    vehicle.getId(), request.getStartDate(), request.getEndDate());
+                    vehicle.getId(),
+                    request.getStartDate(),
+                    request.getEndDate(),
+                    BookingStatus.CANCELLED,
+                    BookingStatus.COMPLETED);
             String conflictDates = conflicts.stream()
                     .map(b -> b.getStartDate() + " to " + b.getEndDate())
                     .reduce((a, b) -> a + ", " + b)
@@ -75,6 +83,7 @@ public class BookingServiceImpl implements BookingService {
         booking.setVehicle(vehicle);
         booking.setTotalDays(totalDays);
         booking.setDailyRate(dailyRate);
+        booking.setRentalFee(totalAmount);
         booking.setTotalAmount(totalAmount);
         booking.setStatus(BookingStatus.PENDING);
 
@@ -106,13 +115,13 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
-        List<BookingEntity> bookings = bookingRepository.findByStatusOrderByCreatedAtDesc(status);
+        List<BookingEntity> bookings = bookingRepository.findByStatusOrderByStartDateDesc(status);
         return bookingMapper.toResponseDTOList(bookings);
     }
 
     @Override
     public List<BookingResponseDTO> getBookingsByCustomerEmail(String email) {
-        List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByCreatedAtDesc(email);
+        List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByStartDateDesc(email);
         return bookingMapper.toResponseDTOList(bookings);
     }
 
@@ -179,7 +188,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getUpcomingBookings() {
-        List<BookingEntity> bookings = bookingRepository.findUpcomingBookings(LocalDate.now());
+        List<BookingEntity> bookings = bookingRepository.findUpcomingBookings(LocalDate.now(), BookingStatus.CANCELLED);
         return bookingMapper.toResponseDTOList(bookings);
     }
 

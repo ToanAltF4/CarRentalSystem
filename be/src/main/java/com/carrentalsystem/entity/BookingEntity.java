@@ -2,9 +2,6 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -16,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "bookings", indexes = {
         @Index(name = "idx_booking_vehicle", columnList = "vehicle_id"),
         @Index(name = "idx_booking_dates", columnList = "start_date, end_date"),
-        @Index(name = "idx_booking_status", columnList = "status"),
+        @Index(name = "idx_booking_status", columnList = "status_id"),
         @Index(name = "idx_booking_code", columnList = "booking_code")
 })
 @Getter
@@ -37,13 +34,26 @@ public class BookingEntity {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private VehicleEntity vehicle;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private UserEntity user;
+
+    @Column(name = "rental_type_id")
+    private Integer rentalTypeId;
+
+    @Column(name = "pickup_method_id")
+    private Integer pickupMethodId;
+
+    @Column(name = "driver_id")
+    private Long driverId;
+
     @Column(name = "customer_name", nullable = false, length = 100)
     private String customerName;
 
     @Column(name = "customer_email", nullable = false, length = 100)
     private String customerEmail;
 
-    @Column(name = "customer_phone", length = 20)
+    @Transient
     private String customerPhone;
 
     @Column(name = "start_date", nullable = false)
@@ -52,28 +62,35 @@ public class BookingEntity {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    @Column(name = "total_days", nullable = false)
-    private Integer totalDays;
-
     @Column(name = "daily_rate", nullable = false, precision = 10, scale = 2)
     private BigDecimal dailyRate;
 
-    @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
+    @Column(name = "rental_fee", precision = 12, scale = 2)
+    private BigDecimal rentalFee;
+
+    @Column(name = "driver_fee", precision = 12, scale = 2)
+    private BigDecimal driverFee;
+
+    @Column(name = "delivery_fee", precision = 12, scale = 2)
+    private BigDecimal deliveryFee;
+
+    @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Convert(converter = com.carrentalsystem.entity.converter.BookingStatusConverter.class)
+    @Column(name = "status_id")
     @Builder.Default
     private BookingStatus status = BookingStatus.PENDING;
 
-    @Column(columnDefinition = "TEXT")
+    @Transient
     private String notes;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Transient
+    private Integer totalDays;
+
+    @Transient
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

@@ -2,8 +2,6 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
 /**
@@ -35,17 +33,17 @@ public class InspectionEntity {
     @Column(nullable = false)
     private Integer odometer;
 
-    @Column(name = "charging_cable_present")
+    @Transient
     @Builder.Default
     private Boolean chargingCablePresent = true;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "exterior_condition")
+    @Convert(converter = com.carrentalsystem.entity.converter.ConditionRatingConverter.class)
+    @Column(name = "exterior_condition_id")
     @Builder.Default
     private ConditionRating exteriorCondition = ConditionRating.GOOD;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "interior_condition")
+    @Convert(converter = com.carrentalsystem.entity.converter.ConditionRatingConverter.class)
+    @Column(name = "interior_condition_id")
     @Builder.Default
     private ConditionRating interiorCondition = ConditionRating.GOOD;
 
@@ -54,24 +52,23 @@ public class InspectionEntity {
     @Builder.Default
     private Boolean hasDamage = false;
 
-    @Column(name = "damage_description", columnDefinition = "TEXT")
+    @Transient
     private String damageDescription;
 
-    @Column(name = "damage_photos", columnDefinition = "TEXT")
+    @Transient
     private String damagePhotos;
 
     // Inspector info
-    @Column(name = "inspected_by", length = 100)
+    @Transient
     private String inspectedBy;
 
-    @Column(name = "inspection_notes", columnDefinition = "TEXT")
+    @Transient
     private String inspectionNotes;
 
-    @Column(name = "inspected_at")
+    @Transient
     @Builder.Default
     private LocalDateTime inspectedAt = LocalDateTime.now();
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Transient
     private LocalDateTime createdAt;
 }

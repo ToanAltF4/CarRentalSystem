@@ -10,7 +10,11 @@ const getDefaultProfile = (user) => ({
     email: user?.email || '',
     phoneNumber: '',
     accountStatus: 'ACTIVE',
-    licenseStatus: 'NONE'
+    licenseStatus: 'NONE',
+    licenseType: '',
+    licenseNumber: '',
+    dateOfBirth: '',
+    licenseFrontImageUrl: ''
 });
 
 const statusBadgeStyles = {
@@ -22,7 +26,7 @@ const statusBadgeStyles = {
 const licenseBadgeStyles = {
     NONE: 'bg-gray-100 text-gray-600',
     PENDING: 'bg-yellow-100 text-yellow-700',
-    VERIFIED: 'bg-green-100 text-green-700',
+    APPROVED: 'bg-green-100 text-green-700',
     REJECTED: 'bg-red-100 text-red-700'
 };
 
@@ -44,12 +48,12 @@ const ProfilePage = () => {
             try {
                 const data = await profileService.getProfile();
                 if (!isMounted) return;
-                const nextProfile = {
-                    ...getDefaultProfile(user),
-                    ...data,
-                    email: data.email || user?.email || '',
-                    fullName: data.fullName || user?.fullName || ''
-                };
+                    const nextProfile = {
+                        ...getDefaultProfile(user),
+                        ...data,
+                        email: data.email || user?.email || '',
+                        fullName: data.fullName || user?.fullName || ''
+                    };
                 setProfile(nextProfile);
                 setDraft(nextProfile);
             } catch (error) {
@@ -273,9 +277,31 @@ const ProfilePage = () => {
                         <p>
                             {profile.licenseStatus === 'NONE' && 'No license on file. Upload now to unlock rentals.'}
                             {profile.licenseStatus === 'PENDING' && 'Your upload is under review.'}
-                            {profile.licenseStatus === 'VERIFIED' && 'Your license is verified.'}
+                            {profile.licenseStatus === 'APPROVED' && 'Your license is approved.'}
                             {profile.licenseStatus === 'REJECTED' && 'Please upload a new photo.'}
                         </p>
+                        {(profile.licenseType || profile.licenseNumber || profile.dateOfBirth) && (
+                            <div className="space-y-2 text-sm text-gray-700">
+                                {profile.licenseType && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-500">License Type</span>
+                                        <span className="font-medium">{profile.licenseType}</span>
+                                    </div>
+                                )}
+                                {profile.licenseNumber && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-500">License Number</span>
+                                        <span className="font-medium">{profile.licenseNumber}</span>
+                                    </div>
+                                )}
+                                {profile.dateOfBirth && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-500">Date of Birth</span>
+                                        <span className="font-medium">{profile.dateOfBirth}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {profile.licenseFrontImageUrl && (
                             <div className="pt-2">
                                 <p className="text-xs font-semibold text-gray-500 mb-2">Front Image</p>

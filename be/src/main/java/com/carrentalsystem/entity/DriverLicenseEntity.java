@@ -2,16 +2,12 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "driver_licenses", indexes = {
         @Index(name = "idx_driver_licenses_user", columnList = "user_id"),
-        @Index(name = "idx_driver_licenses_status", columnList = "status")
+        @Index(name = "idx_driver_licenses_status", columnList = "status_id")
 })
 @Getter
 @Setter
@@ -28,27 +24,20 @@ public class DriverLicenseEntity {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private UserEntity user;
 
-    @Column(name = "license_type", nullable = false, length = 50)
+    @Column(name = "license_type", length = 50)
     private String licenseType;
 
-    @Column(name = "license_number", nullable = false, length = 50)
+    @Column(name = "license_number", length = 50)
     private String licenseNumber;
 
-    @Column(name = "date_of_birth", nullable = false)
+    @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
-    @Column(name = "front_image_url", nullable = false, length = 500)
+    @Column(name = "front_image_url", length = 500)
     private String frontImageUrl;
 
-    @Column(name = "status", nullable = false, length = 20)
+    @Convert(converter = com.carrentalsystem.entity.converter.LicenseStatusConverter.class)
+    @Column(name = "status_id")
     @Builder.Default
-    private String status = "PENDING";
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private LicenseStatus status = LicenseStatus.PENDING;
 }

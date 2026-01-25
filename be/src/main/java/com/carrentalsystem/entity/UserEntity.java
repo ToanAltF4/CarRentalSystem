@@ -2,9 +2,6 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
 /**
@@ -13,8 +10,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "users", indexes = {
-        @Index(name = "idx_users_email", columnList = "email"),
-        @Index(name = "idx_users_status", columnList = "status")
+        @Index(name = "idx_users_email", columnList = "email")
 })
 @Getter
 @Setter
@@ -36,20 +32,20 @@ public class UserEntity {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    @Column(name = "phone_number", length = 20)
+    @Transient
     private String phoneNumber;
 
-    @Column(name = "address", columnDefinition = "TEXT")
+    @Transient
     private String address;
 
-    @Column(name = "avatar_url", length = 500)
+    @Transient
     private String avatarUrl;
 
     /**
      * Account status: ACTIVE, INACTIVE, BANNED
      * Only ACTIVE users can login and receive refresh tokens
      */
-    @Column(name = "status", nullable = false, length = 20)
+    @Transient
     @Builder.Default
     private String status = "ACTIVE";
 
@@ -60,11 +56,9 @@ public class UserEntity {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private RefreshTokenEntity refreshToken;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Transient
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

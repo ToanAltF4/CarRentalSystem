@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -43,11 +42,11 @@ public class DashboardServiceImpl implements DashboardService {
                 long totalBookings = bookingRepository.count();
 
                 // Count active rentals (IN_PROGRESS status)
-                long activeRentals = bookingRepository.findByStatusOrderByCreatedAtDesc(BookingStatus.IN_PROGRESS)
+                long activeRentals = bookingRepository.findByStatusOrderByStartDateDesc(BookingStatus.IN_PROGRESS)
                                 .size();
 
                 // Count pending bookings
-                long pendingBookings = bookingRepository.findByStatusOrderByCreatedAtDesc(BookingStatus.PENDING).size();
+                long pendingBookings = bookingRepository.findByStatusOrderByStartDateDesc(BookingStatus.PENDING).size();
 
                 // Count available vehicles
                 long availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE).size();
@@ -58,7 +57,7 @@ public class DashboardServiceImpl implements DashboardService {
                 // Get recent bookings (last 5)
                 List<BookingEntity> allBookings = bookingRepository.findAll();
                 List<DashboardStatsDTO.RecentBookingDTO> recentBookings = allBookings.stream()
-                                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                                .sorted((a, b) -> b.getStartDate().compareTo(a.getStartDate()))
                                 .limit(5)
                                 .map(b -> DashboardStatsDTO.RecentBookingDTO.builder()
                                                 .id(b.getId())
@@ -66,7 +65,7 @@ public class DashboardServiceImpl implements DashboardService {
                                                 .customerName(b.getCustomerName())
                                                 .vehicleName(b.getVehicle().getName() + " " + b.getVehicle().getModel())
                                                 .status(b.getStatus().name())
-                                                .createdAt(b.getCreatedAt().format(
+                                                .createdAt(b.getStartDate().atStartOfDay().format(
                                                                 DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
                                                 .build())
                                 .collect(Collectors.toList());
@@ -94,8 +93,8 @@ public class DashboardServiceImpl implements DashboardService {
 
                         // Filter bookings for this month and year
                         List<BookingEntity> monthlyBookings = allBookings.stream()
-                                        .filter(b -> b.getCreatedAt().getYear() == year)
-                                        .filter(b -> b.getCreatedAt().getMonthValue() == currentMonth)
+                                        .filter(b -> b.getStartDate().getYear() == year)
+                                        .filter(b -> b.getStartDate().getMonthValue() == currentMonth)
                                         .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
                                         .collect(Collectors.toList());
 

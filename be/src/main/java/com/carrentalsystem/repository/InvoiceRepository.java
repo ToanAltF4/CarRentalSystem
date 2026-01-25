@@ -20,5 +20,5 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, Long> {
 
     boolean existsByBookingId(Long bookingId);
 
-    List<InvoiceEntity> findByPaymentStatusOrderByCreatedAtDesc(PaymentStatus status);
+    List<InvoiceEntity> findByPaymentStatusOrderByIdDesc(PaymentStatus status);
 }

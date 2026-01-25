@@ -1,6 +1,7 @@
 package com.carrentalsystem.service.impl;
 
 import com.carrentalsystem.entity.DriverLicenseEntity;
+import com.carrentalsystem.entity.LicenseStatus;
 import com.carrentalsystem.entity.UserEntity;
 import com.carrentalsystem.repository.DriverLicenseRepository;
 import com.carrentalsystem.repository.UserRepository;
@@ -64,7 +65,7 @@ public class FileUploadServiceImpl implements FileUploadService {
                             .licenseType(licenseType)
                             .licenseNumber(licenseNumber)
                             .dateOfBirth(dateOfBirth)
-                            .status("PENDING")
+                            .status(LicenseStatus.PENDING)
                             .build();
                 });
 
@@ -84,7 +85,7 @@ public class FileUploadServiceImpl implements FileUploadService {
         }
 
         license.setFrontImageUrl(licenseUrl);
-        license.setStatus("PENDING");
+        license.setStatus(LicenseStatus.PENDING);
         driverLicenseRepository.save(license);
 
         log.info("License image uploaded for user: {}", email);

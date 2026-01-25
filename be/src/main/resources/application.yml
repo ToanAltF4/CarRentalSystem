@@ -25,7 +25,7 @@ spring:
     password: ${DB_PASSWORD:evfleet123}
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:none}
     show-sql: ${JPA_SHOW_SQL:true}
     open-in-view: false
     properties:
@@ -34,7 +34,7 @@ spring:
         format_sql: true
 
   flyway:
-    enabled: ${FLYWAY_ENABLED:false}
+    enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
     locations: classpath:db/migration
     schemas: ${DB_NAME:ev_fleet}

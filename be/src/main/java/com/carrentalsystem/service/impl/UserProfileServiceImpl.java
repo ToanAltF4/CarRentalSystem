@@ -4,6 +4,7 @@ import com.carrentalsystem.dto.profile.DriverLicenseUpdateRequest;
 import com.carrentalsystem.dto.profile.ProfileResponse;
 import com.carrentalsystem.dto.profile.ProfileUpdateRequest;
 import com.carrentalsystem.entity.DriverLicenseEntity;
+import com.carrentalsystem.entity.LicenseStatus;
 import com.carrentalsystem.entity.UserEntity;
 import com.carrentalsystem.exception.ResourceNotFoundException;
 import com.carrentalsystem.repository.DriverLicenseRepository;
@@ -88,7 +89,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         license.setLicenseNumber(request.getLicenseNumber());
         license.setDateOfBirth(request.getDateOfBirth());
         license.setFrontImageUrl(uploadedUrl);
-        license.setStatus("PENDING");
+        license.setStatus(LicenseStatus.PENDING);
 
         DriverLicenseEntity saved = driverLicenseRepository.save(license);
         return toProfileResponse(user, saved);
@@ -100,7 +101,9 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     private ProfileResponse toProfileResponse(UserEntity user, DriverLicenseEntity license) {
-        String licenseStatus = license != null ? license.getStatus() : "NONE";
+        String licenseStatus = license != null && license.getStatus() != null
+                ? license.getStatus().name()
+                : "NONE";
         return ProfileResponse.builder()
                 .fullName(user.getFullName())
                 .email(user.getEmail())
