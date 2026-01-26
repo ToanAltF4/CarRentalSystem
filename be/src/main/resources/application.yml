@@ -54,6 +54,16 @@ app:
     bucket: ${R2_BUCKET:ev-rental-images}
     public-base-url: ${R2_PUBLIC_BASE_URL:https://pub-d0dfae1987fc47a4adf266c21181f5e1.r2.dev}
     endpoint: ${R2_ENDPOINT:https://1805af38c0c83596fce6f4489d37fb73.r2.cloudflarestorage.com}
+  vnpay:
+    tmn-code: ${VNP_TMN_CODE:U92KGD9Y}
+    hash-secret: ${VNP_HASH_SECRET:MDNVAVMJU76P29P852HX7OSJ841ZKSBM}
+    url: ${VNP_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    return-url: ${VNP_RETURN_URL:http://localhost:8080/api/payments/vnpay/return}
+    return-frontend: ${VNP_RETURN_FE_URL:http://localhost:5173/payment/vnpay-return}
+    version: ${VNP_VERSION:2.1.0}
+    command: ${VNP_COMMAND:pay}
+    curr-code: ${VNP_CURR_CODE:VND}
+    locale: ${VNP_LOCALE:vn}
   
 logging:
   level:
