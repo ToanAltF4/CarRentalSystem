@@ -1,9 +1,9 @@
 -- CarRentalSystem - Complete Database Schema
--- Consolidated Migration V1 - All tables in final state
+-- Consolidated Migration V1 - FIXED: bookings table has pickup_method_id as INT
 
 -- ================== VEHICLES SYSTEM ==================
 
--- Vehicle Categories for pricing tiers
+-- Vehicle Categories
 CREATE TABLE vehicle_categories (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -14,7 +14,7 @@ CREATE TABLE vehicle_categories (
     INDEX idx_category_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Pricing table based on vehicle category
+-- Pricing
 CREATE TABLE pricing (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     vehicle_category_id BIGINT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE pricing (
     INDEX idx_pricing_active (is_active, effective_from, effective_to)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Vehicles table
+-- Vehicles
 CREATE TABLE vehicles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE vehicles (
 
 -- ================== AUTHENTICATION SYSTEM ==================
 
--- Roles table
+-- Roles
 CREATE TABLE roles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     role_name VARCHAR(50) UNIQUE NOT NULL,
@@ -72,7 +72,7 @@ CREATE TABLE roles (
     INDEX idx_role_name (role_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Users table (NO username column - email is the identifier)
+-- Users
 CREATE TABLE users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(255) NOT NULL,
@@ -91,10 +91,9 @@ CREATE TABLE users (
     INDEX idx_users_email (email),
     INDEX idx_users_status (status),
     INDEX idx_users_role (role_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-COMMENT = 'User authentication and profile table';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Refresh tokens table (1 user = 1 session)
+-- Refresh tokens
 CREATE TABLE refresh_tokens (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL UNIQUE,
@@ -110,12 +109,11 @@ CREATE TABLE refresh_tokens (
         ON DELETE CASCADE,
     INDEX idx_refresh_tokens_user (user_id),
     INDEX idx_refresh_tokens_token (token)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-COMMENT = 'Refresh tokens for JWT authentication - enforces 1 user = 1 session';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ================== BOOKING SYSTEM ==================
 
--- Bookings table
+-- Bookings (ĐÃ SỬA: THÊM pickup_method_id LÀ INT)
 CREATE TABLE bookings (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     booking_code VARCHAR(20) NOT NULL UNIQUE,
@@ -129,6 +127,10 @@ CREATE TABLE bookings (
     daily_rate DECIMAL(10,2) NOT NULL,
     total_amount DECIMAL(12,2) NOT NULL,
     status ENUM('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED') DEFAULT 'PENDING',
+    
+    -- QUAN TRỌNG: Thêm cột này với kiểu INT để khớp với Java Integer
+    pickup_method_id INT, 
+    
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -143,7 +145,7 @@ CREATE TABLE bookings (
 
 -- ================== RETURN & INSPECTION SYSTEM ==================
 
--- Inspections table - vehicle condition at return
+-- Inspections
 CREATE TABLE inspections (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     booking_id BIGINT NOT NULL UNIQUE,
@@ -165,7 +167,7 @@ CREATE TABLE inspections (
     INDEX idx_inspection_booking (booking_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Invoices table - final cost breakdown
+-- Invoices
 CREATE TABLE invoices (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     invoice_number VARCHAR(30) NOT NULL UNIQUE,
@@ -201,13 +203,11 @@ CREATE TABLE invoices (
 
 -- ================== INITIAL DATA ==================
 
--- Insert default roles
 INSERT INTO roles (role_name, description) VALUES
     ('ROLE_CUSTOMER', 'Regular customers who rent vehicles'),
     ('ROLE_ADMIN', 'System administrators with full access'),
     ('ROLE_STAFF', 'Staff members for vehicle and booking management');
 
--- Insert default vehicle categories
 INSERT INTO vehicle_categories (name, description) VALUES 
     ('ECONOMY', 'Budget-friendly electric vehicles'),
     ('STANDARD', 'Mid-range electric vehicles'),
@@ -216,7 +216,6 @@ INSERT INTO vehicle_categories (name, description) VALUES
     ('Sedan', 'Standard 4-door car'),
     ('SUV', 'Sports Utility Vehicle');
 
--- Insert default pricing (with overtime fees)
 INSERT INTO pricing (vehicle_category_id, daily_price, weekly_price, monthly_price, overtime_fee_per_hour, effective_from, is_active) VALUES
     (1, 50.00, 300.00, 1000.00, 5.00, '2024-01-01', TRUE),
     (2, 80.00, 500.00, 1800.00, 8.00, '2024-01-01', TRUE),

@@ -5,10 +5,12 @@ import {
     Loader2, AlertCircle, CreditCard, CheckCircle,
     ChevronRight, Eye
 } from 'lucide-react';
-import bookingService, { CURRENT_USER } from '../services/bookingService';
+import { useAuth } from '../context/AuthContext';
+import bookingService from '../services/bookingService';
 import PaymentModal from '../components/common/PaymentModal';
 
 const MyBookingsPage = () => {
+    const { user } = useAuth();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -18,8 +20,11 @@ const MyBookingsPage = () => {
     const fetchBookings = async () => {
         setLoading(true);
         try {
-            const data = await bookingService.getMyBookings();
-            setBookings(data);
+            // Use authenticated user's email
+            if (user?.email) {
+                const data = await bookingService.getByEmail(user.email);
+                setBookings(data);
+            }
         } catch (err) {
             console.error('Failed to fetch bookings:', err);
             setError('Failed to load your bookings');
@@ -29,8 +34,10 @@ const MyBookingsPage = () => {
     };
 
     useEffect(() => {
-        fetchBookings();
-    }, []);
+        if (user) {
+            fetchBookings();
+        }
+    }, [user]);
 
     const handleCancel = async (id) => {
         if (!window.confirm('Are you sure you want to cancel this booking?')) return;
@@ -85,7 +92,7 @@ const MyBookingsPage = () => {
                     <span className="font-medium text-gray-900">My Bookings</span>
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
-                <p className="text-gray-500 mt-1">Welcome back, {CURRENT_USER.name}!</p>
+                <p className="text-gray-500 mt-1">Welcome back, {user?.fullName || 'Guest'}!</p>
             </div>
 
             {error && (

@@ -12,7 +12,7 @@ services:
       MYSQL_USER: evfleet
       MYSQL_PASSWORD: evfleet123
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -56,7 +56,7 @@ services:
       DB_NAME: ev_fleet
       DB_USERNAME: evfleet
       DB_PASSWORD: evfleet123
-      JPA_DDL_AUTO: validate
+      JPA_DDL_AUTO: update
       JPA_SHOW_SQL: "true"
       FLYWAY_ENABLED: "true"
       FLYWAY_BASELINE_ON_MIGRATE: "true"
