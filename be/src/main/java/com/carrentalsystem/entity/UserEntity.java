@@ -2,6 +2,7 @@ package com.carrentalsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -48,6 +49,22 @@ public class UserEntity {
     @Transient
     @Builder.Default
     private String status = "ACTIVE";
+
+    @Column(name = "license_type", length = 50)
+    private String licenseType;
+
+    @Column(name = "license_number", length = 50)
+    private String licenseNumber;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "license_front_image_url", length = 500)
+    private String licenseFrontImageUrl;
+
+    @Convert(converter = com.carrentalsystem.entity.converter.LicenseStatusConverter.class)
+    @Column(name = "license_status", length = 30)
+    private LicenseStatus licenseStatus;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")

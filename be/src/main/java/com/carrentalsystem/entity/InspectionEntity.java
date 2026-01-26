@@ -38,12 +38,12 @@ public class InspectionEntity {
     private Boolean chargingCablePresent = true;
 
     @Convert(converter = com.carrentalsystem.entity.converter.ConditionRatingConverter.class)
-    @Column(name = "exterior_condition_id")
+    @Column(name = "exterior_condition", length = 30)
     @Builder.Default
     private ConditionRating exteriorCondition = ConditionRating.GOOD;
 
     @Convert(converter = com.carrentalsystem.entity.converter.ConditionRatingConverter.class)
-    @Column(name = "interior_condition_id")
+    @Column(name = "interior_condition", length = 30)
     @Builder.Default
     private ConditionRating interiorCondition = ConditionRating.GOOD;
 

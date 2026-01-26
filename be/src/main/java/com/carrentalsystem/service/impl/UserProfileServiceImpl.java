@@ -3,11 +3,9 @@ package com.carrentalsystem.service.impl;
 import com.carrentalsystem.dto.profile.DriverLicenseUpdateRequest;
 import com.carrentalsystem.dto.profile.ProfileResponse;
 import com.carrentalsystem.dto.profile.ProfileUpdateRequest;
-import com.carrentalsystem.entity.DriverLicenseEntity;
 import com.carrentalsystem.entity.LicenseStatus;
 import com.carrentalsystem.entity.UserEntity;
 import com.carrentalsystem.exception.ResourceNotFoundException;
-import com.carrentalsystem.repository.DriverLicenseRepository;
 import com.carrentalsystem.repository.UserRepository;
 import com.carrentalsystem.service.R2Service;
 import com.carrentalsystem.service.UserProfileService;
@@ -30,15 +28,13 @@ public class UserProfileServiceImpl implements UserProfileService {
             "Legacy license (paper-based)"
     );
     private final UserRepository userRepository;
-    private final DriverLicenseRepository driverLicenseRepository;
     private final R2Service r2Service;
 
     @Override
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(String email) {
         UserEntity user = getUserByEmail(email);
-        DriverLicenseEntity license = driverLicenseRepository.findByUser(user).orElse(null);
-        return toProfileResponse(user, license);
+        return toProfileResponse(user);
     }
 
     @Override
@@ -48,8 +44,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         user.setFullName(request.getFullName());
         user.setPhoneNumber(request.getPhoneNumber());
         UserEntity savedUser = userRepository.save(user);
-        DriverLicenseEntity license = driverLicenseRepository.findByUser(savedUser).orElse(null);
-        return toProfileResponse(savedUser, license);
+        return toProfileResponse(savedUser);
     }
 
     @Override
@@ -69,13 +64,8 @@ public class UserProfileServiceImpl implements UserProfileService {
             throw new IllegalArgumentException("Front image must be an image");
         }
 
-        DriverLicenseEntity license = driverLicenseRepository.findByUser(user)
-                .orElseGet(() -> DriverLicenseEntity.builder()
-                        .user(user)
-                        .build());
-
-        if (license.getFrontImageUrl() != null) {
-            r2Service.deleteFile(license.getFrontImageUrl());
+        if (user.getLicenseFrontImageUrl() != null) {
+            r2Service.deleteFile(user.getLicenseFrontImageUrl());
         }
 
         String uploadedUrl;
@@ -85,14 +75,14 @@ public class UserProfileServiceImpl implements UserProfileService {
             log.error("Failed to upload driver license image", ex);
             throw new IllegalArgumentException("Failed to upload driver license image");
         }
-        license.setLicenseType(request.getLicenseType());
-        license.setLicenseNumber(request.getLicenseNumber());
-        license.setDateOfBirth(request.getDateOfBirth());
-        license.setFrontImageUrl(uploadedUrl);
-        license.setStatus(LicenseStatus.PENDING);
+        user.setLicenseType(request.getLicenseType());
+        user.setLicenseNumber(request.getLicenseNumber());
+        user.setDateOfBirth(request.getDateOfBirth());
+        user.setLicenseFrontImageUrl(uploadedUrl);
+        user.setLicenseStatus(LicenseStatus.PENDING);
 
-        DriverLicenseEntity saved = driverLicenseRepository.save(license);
-        return toProfileResponse(user, saved);
+        UserEntity saved = userRepository.save(user);
+        return toProfileResponse(saved);
     }
 
     private UserEntity getUserByEmail(String email) {
@@ -100,9 +90,9 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
     }
 
-    private ProfileResponse toProfileResponse(UserEntity user, DriverLicenseEntity license) {
-        String licenseStatus = license != null && license.getStatus() != null
-                ? license.getStatus().name()
+    private ProfileResponse toProfileResponse(UserEntity user) {
+        String licenseStatus = user.getLicenseStatus() != null
+                ? user.getLicenseStatus().name()
                 : "NONE";
         return ProfileResponse.builder()
                 .fullName(user.getFullName())
@@ -110,10 +100,10 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .phoneNumber(user.getPhoneNumber())
                 .accountStatus(user.getStatus())
                 .licenseStatus(licenseStatus)
-                .licenseType(license != null ? license.getLicenseType() : null)
-                .licenseNumber(license != null ? license.getLicenseNumber() : null)
-                .dateOfBirth(license != null ? license.getDateOfBirth() : null)
-                .licenseFrontImageUrl(license != null ? license.getFrontImageUrl() : null)
+                .licenseType(user.getLicenseType())
+                .licenseNumber(user.getLicenseNumber())
+                .dateOfBirth(user.getDateOfBirth())
+                .licenseFrontImageUrl(user.getLicenseFrontImageUrl())
                 .build();
     }
 }
