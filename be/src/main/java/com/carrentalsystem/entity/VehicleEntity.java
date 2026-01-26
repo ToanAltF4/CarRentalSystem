@@ -37,13 +37,13 @@ public class VehicleEntity {
     @Column(name = "license_plate", nullable = false, unique = true, length = 20)
     private String licensePlate;
 
-    @Transient
+    @Column(name = "battery_capacity_kwh", precision = 5, scale = 2)
     private BigDecimal batteryCapacityKwh;
 
-    @Transient
+    @Column(name = "range_km")
     private Integer rangeKm;
 
-    @Transient
+    @Column(name = "charging_time_hours", precision = 4, scale = 2)
     private BigDecimal chargingTimeHours;
 
     @Column(name = "daily_rate", nullable = false, precision = 10, scale = 2)
@@ -54,14 +54,14 @@ public class VehicleEntity {
     @Builder.Default
     private VehicleStatus status = VehicleStatus.AVAILABLE;
 
-    @Transient
+    @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    @Transient
+    @Column(name = "seats")
     @Builder.Default
     private Integer seats = 5;
 
-    @Transient
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -19,7 +19,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:ev_fleet}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:ev_fleet}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8
     driverClassName: com.mysql.cj.jdbc.Driver
     username: ${DB_USERNAME:evfleet}
     password: ${DB_PASSWORD:evfleet123}
@@ -48,12 +48,12 @@ app:
     refresh-token:
       expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS:7}
   r2:
-    account-id: ${R2_ACCOUNT_ID:}
-    access-key-id: ${R2_ACCESS_KEY_ID:}
-    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    account-id: ${R2_ACCOUNT_ID:1805af38c0c83596fce6f4489d37fb73}
+    access-key-id: ${R2_ACCESS_KEY_ID:fd5f5d5075a240591bbab4f50e4d3458}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:b2572c6e7af3ef6b369b6a8b1ace160e74cbc3659a8d7cd03deb1df0765818cc}
     bucket: ${R2_BUCKET:ev-rental-images}
-    public-base-url: ${R2_PUBLIC_BASE_URL:}
-    endpoint: ${R2_ENDPOINT:https://${R2_ACCOUNT_ID:}.r2.cloudflarestorage.com}
+    public-base-url: ${R2_PUBLIC_BASE_URL:https://pub-d0dfae1987fc47a4adf266c21181f5e1.r2.dev}
+    endpoint: ${R2_ENDPOINT:https://1805af38c0c83596fce6f4489d37fb73.r2.cloudflarestorage.com}
   
 logging:
   level:

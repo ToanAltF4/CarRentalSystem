@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { User, ChevronDown, Menu, X } from 'lucide-react';
+import { User, ChevronDown, Menu, X, CarFront } from 'lucide-react';
 import { useState } from 'react';
 
+/**
+ * B2C Enterprise Header
+ * - No "Become a Host" feature (Company owns all vehicles)
+ * - Links: About Us, Corporate Services, Pricing
+ */
 const Header = () => {
     const { user, isAuthenticated, logout } = useAuth();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,27 +19,39 @@ const Header = () => {
     return (
         <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
             <div className="container mx-auto flex items-center justify-between px-4 py-3 lg:px-6">
-                {/* Logo */}
+                {/* Logo - E-Fleet */}
                 <Link to="/" className="flex items-center gap-2">
                     <div className="w-10 h-10 bg-[#5fcf86] rounded-xl flex items-center justify-center">
-                        <span className="text-white font-bold text-xl">M</span>
+                        <CarFront className="text-white" size={22} />
                     </div>
-                    <span className="text-2xl font-bold text-[#141414]">Mioto</span>
+                    <span className="text-2xl font-bold text-[#141414]">E-Fleet</span>
                 </Link>
 
                 {/* Desktop Navigation */}
                 <nav className="hidden lg:flex items-center gap-8">
                     <Link
+                        to="/vehicles"
+                        className="text-[#141414] hover:text-[#5fcf86] font-medium transition-colors"
+                    >
+                        Fleet
+                    </Link>
+                    <Link
+                        to="/pricing"
+                        className="text-[#141414] hover:text-[#5fcf86] font-medium transition-colors"
+                    >
+                        Pricing
+                    </Link>
+                    <Link
+                        to="/corporate"
+                        className="text-[#141414] hover:text-[#5fcf86] font-medium transition-colors"
+                    >
+                        Corporate Services
+                    </Link>
+                    <Link
                         to="/about"
                         className="text-[#141414] hover:text-[#5fcf86] font-medium transition-colors"
                     >
-                        Về Mioto
-                    </Link>
-                    <Link
-                        to="/become-host"
-                        className="border-2 border-[#5fcf86] text-[#5fcf86] px-5 py-2 rounded-lg font-semibold hover:bg-[#5fcf86] hover:text-white transition-all"
-                    >
-                        Trở thành chủ xe
+                        About Us
                     </Link>
                 </nav>
 
@@ -61,14 +78,14 @@ const Header = () => {
                                         className="block px-4 py-3 hover:bg-gray-50 text-[#141414]"
                                         onClick={() => setUserMenuOpen(false)}
                                     >
-                                        Chuyến của tôi
+                                        My Bookings
                                     </Link>
                                     <Link
                                         to="/profile"
                                         className="block px-4 py-3 hover:bg-gray-50 text-[#141414]"
                                         onClick={() => setUserMenuOpen(false)}
                                     >
-                                        Tài khoản của tôi
+                                        Profile
                                     </Link>
                                     {isAdmin && (
                                         <Link
@@ -76,7 +93,7 @@ const Header = () => {
                                             className="block px-4 py-3 hover:bg-gray-50 text-[#5fcf86] font-medium"
                                             onClick={() => setUserMenuOpen(false)}
                                         >
-                                            Quản trị viên
+                                            Admin Dashboard
                                         </Link>
                                     )}
                                     <hr className="my-2 border-gray-100" />
@@ -84,7 +101,7 @@ const Header = () => {
                                         onClick={() => { logout(); setUserMenuOpen(false); }}
                                         className="block w-full text-left px-4 py-3 hover:bg-gray-50 text-red-500"
                                     >
-                                        Đăng xuất
+                                        Logout
                                     </button>
                                 </div>
                             )}
@@ -92,10 +109,10 @@ const Header = () => {
                     ) : (
                         <Link
                             to="/login"
-                            className="flex items-center gap-2 bg-white border-2 border-[#5fcf86] text-[#5fcf86] px-5 py-2.5 rounded-lg font-semibold hover:bg-[#5fcf86] hover:text-white transition-all"
+                            className="flex items-center gap-2 bg-[#5fcf86] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#4bc076] transition-all shadow-md"
                         >
                             <User size={18} />
-                            Đăng ký / Đăng nhập
+                            Login
                         </Link>
                     )}
                 </div>
@@ -112,18 +129,20 @@ const Header = () => {
             {/* Mobile Menu */}
             {mobileMenuOpen && (
                 <div className="lg:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-4">
-                    <Link to="/about" className="block py-2 text-[#141414] font-medium">Về Mioto</Link>
-                    <Link to="/become-host" className="block py-2 text-[#5fcf86] font-medium">Trở thành chủ xe</Link>
+                    <Link to="/vehicles" className="block py-2 text-[#141414] font-medium">Fleet</Link>
+                    <Link to="/pricing" className="block py-2 text-[#141414] font-medium">Pricing</Link>
+                    <Link to="/corporate" className="block py-2 text-[#141414] font-medium">Corporate Services</Link>
+                    <Link to="/about" className="block py-2 text-[#141414] font-medium">About Us</Link>
                     <hr className="border-gray-100" />
                     {isAuthenticated ? (
                         <>
-                            <Link to="/my-bookings" className="block py-2 text-[#141414]">Chuyến của tôi</Link>
-                            <Link to="/profile" className="block py-2 text-[#141414]">Tài khoản</Link>
-                            {isAdmin && <Link to="/admin" className="block py-2 text-[#5fcf86]">Quản trị viên</Link>}
-                            <button onClick={logout} className="block py-2 text-red-500">Đăng xuất</button>
+                            <Link to="/my-bookings" className="block py-2 text-[#141414]">My Bookings</Link>
+                            <Link to="/profile" className="block py-2 text-[#141414]">Profile</Link>
+                            {isAdmin && <Link to="/admin" className="block py-2 text-[#5fcf86]">Admin Dashboard</Link>}
+                            <button onClick={logout} className="block py-2 text-red-500">Logout</button>
                         </>
                     ) : (
-                        <Link to="/login" className="block py-2 text-[#5fcf86] font-semibold">Đăng ký / Đăng nhập</Link>
+                        <Link to="/login" className="block py-2 text-[#5fcf86] font-semibold">Login</Link>
                     )}
                 </div>
             )}

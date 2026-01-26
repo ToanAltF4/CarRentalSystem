@@ -1,6 +1,7 @@
 import { useLocation, Link, Navigate } from 'react-router-dom';
 import { CheckCircle, Calendar, Car, Mail, Phone, User, Copy, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
+import { formatPrice } from '../utils/formatters';
 
 const BookingSuccessPage = () => {
     const location = useLocation();
@@ -94,11 +95,11 @@ const BookingSuccessPage = () => {
                         </div>
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-gray-600">Daily Rate</span>
-                            <span className="font-medium">${booking.dailyRate}</span>
+                            <span className="font-medium">{formatPrice(booking.dailyRate)}</span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between items-center">
                             <span className="font-semibold text-gray-900">Total Amount</span>
-                            <span className="text-xl font-bold text-primary">${booking.totalAmount}</span>
+                            <span className="text-xl font-bold text-primary">{formatPrice(booking.totalAmount)}</span>
                         </div>
                     </div>
 

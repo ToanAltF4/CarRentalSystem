@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Facebook, Youtube, Phone, Mail, MapPin } from 'lucide-react';
+import { Facebook, Youtube, Phone, Mail, MapPin, Zap } from 'lucide-react';
 
 const Footer = () => {
     return (
@@ -11,13 +11,13 @@ const Footer = () => {
                     <div className="lg:col-span-1">
                         <Link to="/" className="flex items-center gap-2 mb-4">
                             <div className="w-10 h-10 bg-[#5fcf86] rounded-xl flex items-center justify-center">
-                                <span className="text-white font-bold text-xl">M</span>
+                                <Zap className="text-white" size={22} />
                             </div>
-                            <span className="text-2xl font-bold">Mioto</span>
+                            <span className="text-2xl font-bold">E-Fleet</span>
                         </Link>
                         <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                            Mioto là nền tảng chia sẻ xe ô tô, kết nối người dùng với hàng nghìn chủ xe uy tín,
-                            giúp bạn dễ dàng thuê xe tự lái cho mọi hành trình.
+                            E-Fleet is the leading electric vehicle rental platform, connecting you with
+                            eco-friendly transportation for a sustainable future.
                         </p>
                         <div className="flex items-center gap-4">
                             <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-[#5fcf86] transition-colors">
@@ -31,48 +31,48 @@ const Footer = () => {
 
                     {/* Quick Links */}
                     <div>
-                        <h4 className="font-bold text-lg mb-4">Chính sách</h4>
+                        <h4 className="font-bold text-lg mb-4">Quick Links</h4>
                         <ul className="space-y-3">
                             <li>
-                                <Link to="/policy" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Chính sách và quy định
+                                <Link to="/vehicles" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Browse Vehicles
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/privacy" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Chính sách bảo mật
+                                <Link to="/about" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    About Us
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/dispute" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Giải quyết tranh chấp
+                                <Link to="/corporate" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Corporate Services
                                 </Link>
                             </li>
                         </ul>
                     </div>
 
-                    {/* For Customers */}
+                    {/* Support */}
                     <div>
-                        <h4 className="font-bold text-lg mb-4">Tìm hiểu thêm</h4>
+                        <h4 className="font-bold text-lg mb-4">Support</h4>
                         <ul className="space-y-3">
                             <li>
-                                <Link to="/guide" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Hướng dẫn chung
+                                <Link to="/faq" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    FAQs
                                 </Link>
                             </li>
                             <li>
                                 <Link to="/booking-guide" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Hướng dẫn đặt xe
+                                    How to Book
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/payment-guide" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Hướng dẫn thanh toán
+                                <Link to="/pricing" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Pricing & Policies
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/faq" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
-                                    Câu hỏi thường gặp
+                                <Link to="/privacy" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Privacy Policy
                                 </Link>
                             </li>
                         </ul>
@@ -80,19 +80,19 @@ const Footer = () => {
 
                     {/* Contact */}
                     <div>
-                        <h4 className="font-bold text-lg mb-4">Liên hệ</h4>
+                        <h4 className="font-bold text-lg mb-4">Contact Us</h4>
                         <ul className="space-y-3">
                             <li className="flex items-center gap-3 text-gray-400 text-sm">
                                 <Phone size={16} className="text-[#5fcf86]" />
-                                1900 9217
+                                1900 1234
                             </li>
                             <li className="flex items-center gap-3 text-gray-400 text-sm">
                                 <Mail size={16} className="text-[#5fcf86]" />
-                                support@mioto.vn
+                                support@efleet.vn
                             </li>
                             <li className="flex items-start gap-3 text-gray-400 text-sm">
                                 <MapPin size={16} className="text-[#5fcf86] mt-0.5" />
-                                <span>Tầng 5, Toà nhà A, Quận 1, TP.HCM</span>
+                                <span>Ho Chi Minh City, Vietnam</span>
                             </li>
                         </ul>
                     </div>
@@ -103,13 +103,13 @@ const Footer = () => {
             <div className="border-t border-white/10">
                 <div className="container mx-auto px-4 py-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
-                        <p>© 2024 Mioto Vietnam. All rights reserved.</p>
+                        <p>© 2024 E-Fleet Vietnam. All rights reserved.</p>
                         <div className="flex items-center gap-6">
                             <Link to="/terms" className="hover:text-[#5fcf86] transition-colors">
-                                Điều khoản sử dụng
+                                Terms of Use
                             </Link>
                             <Link to="/privacy" className="hover:text-[#5fcf86] transition-colors">
-                                Chính sách bảo mật
+                                Privacy Policy
                             </Link>
                         </div>
                     </div>
