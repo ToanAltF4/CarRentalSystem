@@ -7,7 +7,6 @@ import com.carrentalsystem.entity.RefreshTokenEntity;
 import com.carrentalsystem.entity.RoleEntity;
 import com.carrentalsystem.entity.UserEntity;
 import com.carrentalsystem.exception.ResourceNotFoundException;
-import com.carrentalsystem.repository.DriverLicenseRepository;
 import com.carrentalsystem.repository.RoleRepository;
 import com.carrentalsystem.repository.UserRepository;
 import com.carrentalsystem.service.AuthService;
@@ -33,8 +32,6 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
-    private final DriverLicenseRepository driverLicenseRepository;
-
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -74,7 +71,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(user.getFullName())
                 .role(user.getRole() != null ? user.getRole().getRoleName() : "ROLE_CUSTOMER")
                 .accountStatus(user.getStatus())
-                .licenseStatus(resolveLicenseStatus(user.getId()))
+                .licenseStatus(resolveLicenseStatus(user))
                 .build();
     }
 
@@ -102,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(user.getFullName())
                 .role(user.getRole() != null ? user.getRole().getRoleName() : "ROLE_CUSTOMER")
                 .accountStatus(user.getStatus())
-                .licenseStatus(resolveLicenseStatus(user.getId()))
+                .licenseStatus(resolveLicenseStatus(user))
                 .build();
     }
 
@@ -142,6 +139,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
                 .address(request.getAddress())
+                .licenseNumber(request.getLicenseNumber())
                 .role(customerRole) // Always CUSTOMER for public registration
                 .status("ACTIVE") // New users are ACTIVE by default
                 .build();
@@ -151,9 +149,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("User registered successfully: {}", request.getEmail());
     }
 
-    private String resolveLicenseStatus(Long userId) {
-        return driverLicenseRepository.findByUserId(userId)
-                .map(license -> license.getStatus().name())
-                .orElse("NONE");
+    private String resolveLicenseStatus(UserEntity user) {
+        return user.getLicenseStatus() != null ? user.getLicenseStatus().name() : "NONE";
     }
 }

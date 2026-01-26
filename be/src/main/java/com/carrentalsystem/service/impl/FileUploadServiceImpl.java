@@ -1,9 +1,7 @@
 package com.carrentalsystem.service.impl;
 
-import com.carrentalsystem.entity.DriverLicenseEntity;
 import com.carrentalsystem.entity.LicenseStatus;
 import com.carrentalsystem.entity.UserEntity;
-import com.carrentalsystem.repository.DriverLicenseRepository;
 import com.carrentalsystem.repository.UserRepository;
 import com.carrentalsystem.service.FileUploadService;
 import com.carrentalsystem.service.R2Service;
@@ -23,7 +21,6 @@ public class FileUploadServiceImpl implements FileUploadService {
 
     private final R2Service r2Service;
     private final UserRepository userRepository;
-    private final DriverLicenseRepository driverLicenseRepository;
 
     @Override
     @Transactional
@@ -53,40 +50,35 @@ public class FileUploadServiceImpl implements FileUploadService {
 
         validateImageFile(file);
 
-        DriverLicenseEntity license = driverLicenseRepository.findByUserId(user.getId())
-                .orElseGet(() -> {
-                    if (licenseType == null || licenseType.isBlank()
-                            || licenseNumber == null || licenseNumber.isBlank()
-                            || dateOfBirth == null) {
-                        throw new IllegalArgumentException("License details are required before uploading the image");
-                    }
-                    return DriverLicenseEntity.builder()
-                            .user(user)
-                            .licenseType(licenseType)
-                            .licenseNumber(licenseNumber)
-                            .dateOfBirth(dateOfBirth)
-                            .status(LicenseStatus.PENDING)
-                            .build();
-                });
+        boolean hasExistingDetails = user.getLicenseType() != null
+                && user.getLicenseNumber() != null
+                && user.getDateOfBirth() != null;
+        if (!hasExistingDetails) {
+            if (licenseType == null || licenseType.isBlank()
+                    || licenseNumber == null || licenseNumber.isBlank()
+                    || dateOfBirth == null) {
+                throw new IllegalArgumentException("License details are required before uploading the image");
+            }
+        }
 
-        if (license.getFrontImageUrl() != null && !license.getFrontImageUrl().isBlank()) {
-            r2Service.deleteFile(license.getFrontImageUrl());
+        if (user.getLicenseFrontImageUrl() != null && !user.getLicenseFrontImageUrl().isBlank()) {
+            r2Service.deleteFile(user.getLicenseFrontImageUrl());
         }
 
         String licenseUrl = r2Service.uploadFile(file, "licenses", "license_" + user.getId());
         if (licenseType != null && !licenseType.isBlank()) {
-            license.setLicenseType(licenseType);
+            user.setLicenseType(licenseType);
         }
         if (licenseNumber != null && !licenseNumber.isBlank()) {
-            license.setLicenseNumber(licenseNumber);
+            user.setLicenseNumber(licenseNumber);
         }
         if (dateOfBirth != null) {
-            license.setDateOfBirth(dateOfBirth);
+            user.setDateOfBirth(dateOfBirth);
         }
 
-        license.setFrontImageUrl(licenseUrl);
-        license.setStatus(LicenseStatus.PENDING);
-        driverLicenseRepository.save(license);
+        user.setLicenseFrontImageUrl(licenseUrl);
+        user.setLicenseStatus(LicenseStatus.PENDING);
+        userRepository.save(user);
 
         log.info("License image uploaded for user: {}", email);
         return licenseUrl;

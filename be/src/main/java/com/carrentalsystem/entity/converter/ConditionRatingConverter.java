@@ -5,15 +5,15 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = false)
-public class ConditionRatingConverter implements AttributeConverter<ConditionRating, Byte> {
+public class ConditionRatingConverter implements AttributeConverter<ConditionRating, String> {
 
     @Override
-    public Byte convertToDatabaseColumn(ConditionRating attribute) {
-        return attribute != null ? (byte) attribute.getId() : null;
+    public String convertToDatabaseColumn(ConditionRating attribute) {
+        return attribute != null ? attribute.name() : null;
     }
 
     @Override
-    public ConditionRating convertToEntityAttribute(Byte dbData) {
-        return ConditionRating.fromId(dbData != null ? dbData.intValue() : null);
+    public ConditionRating convertToEntityAttribute(String dbData) {
+        return dbData != null ? ConditionRating.valueOf(dbData) : null;
     }
 }

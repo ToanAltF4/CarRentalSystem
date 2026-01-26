@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "vehicles", indexes = {
-        @Index(name = "idx_vehicles_status", columnList = "status_id"),
+        @Index(name = "idx_vehicles_status", columnList = "status"),
         @Index(name = "idx_vehicles_brand", columnList = "brand"),
         @Index(name = "idx_vehicles_name_model", columnList = "name, model")
 })
@@ -50,7 +50,7 @@ public class VehicleEntity {
     private BigDecimal dailyRate;
 
     @Convert(converter = com.carrentalsystem.entity.converter.VehicleStatusConverter.class)
-    @Column(name = "status_id")
+    @Column(name = "status", length = 30)
     @Builder.Default
     private VehicleStatus status = VehicleStatus.AVAILABLE;
 
