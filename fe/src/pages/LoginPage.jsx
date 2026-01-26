@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import authService from '../services/authService';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 function LoginPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { login } = useAuth();
+
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -11,6 +14,9 @@ function LoginPage() {
     const [errors, setErrors] = useState({});
     const [generalError, setGeneralError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Get return URL from location state or default
+    const from = location.state?.from || '/vehicles';
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -34,14 +40,14 @@ function LoginPage() {
         setLoading(true);
 
         try {
-            const userData = await authService.login(formData.email, formData.password);
+            const userData = await login(formData.email, formData.password);
 
-            // Redirect based on role
+            // Redirect based on role or return to previous page
             const role = userData.role;
-            if (role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER') {
+            if (role === 'ADMIN' || role === 'MANAGER' || role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER') {
                 navigate('/admin');
             } else {
-                navigate('/vehicles');
+                navigate(from);
             }
         } catch (err) {
             console.error('Login error:', err);

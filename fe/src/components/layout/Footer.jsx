@@ -1,77 +1,117 @@
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Facebook, Youtube, Phone, Mail, MapPin } from 'lucide-react';
 
 const Footer = () => {
     return (
-        <footer className="bg-white border-t border-gray-100 pt-16 pb-8">
-            <div className="container mx-auto px-4 md:px-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-                    {/* Brand */}
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
-                                <span className="font-bold">E</span>
+        <footer className="bg-[#141414] text-white">
+            {/* Main Footer */}
+            <div className="container mx-auto px-4 py-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {/* Brand Column */}
+                    <div className="lg:col-span-1">
+                        <Link to="/" className="flex items-center gap-2 mb-4">
+                            <div className="w-10 h-10 bg-[#5fcf86] rounded-xl flex items-center justify-center">
+                                <span className="text-white font-bold text-xl">M</span>
                             </div>
-                            <span className="text-lg font-bold text-secondary">E-Rental</span>
-                        </div>
-                        <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                            Experience the future of transportation with our premium electric vehicle fleet.
-                            Zero emissions, maximum performance.
+                            <span className="text-2xl font-bold">Mioto</span>
+                        </Link>
+                        <p className="text-gray-400 text-sm mb-4 leading-relaxed">
+                            Mioto là nền tảng chia sẻ xe ô tô, kết nối người dùng với hàng nghìn chủ xe uy tín,
+                            giúp bạn dễ dàng thuê xe tự lái cho mọi hành trình.
                         </p>
-                        <div className="flex gap-4">
-                            <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-500 hover:bg-primary hover:text-white transition-colors"><Facebook size={18} /></a>
-                            <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-500 hover:bg-primary hover:text-white transition-colors"><Instagram size={18} /></a>
-                            <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-500 hover:bg-primary hover:text-white transition-colors"><Twitter size={18} /></a>
+                        <div className="flex items-center gap-4">
+                            <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-[#5fcf86] transition-colors">
+                                <Facebook size={18} />
+                            </a>
+                            <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-[#5fcf86] transition-colors">
+                                <Youtube size={18} />
+                            </a>
                         </div>
                     </div>
 
                     {/* Quick Links */}
                     <div>
-                        <h4 className="font-bold text-secondary mb-6">Company</h4>
+                        <h4 className="font-bold text-lg mb-4">Chính sách</h4>
                         <ul className="space-y-3">
-                            <li><Link to="/about" className="text-gray-500 hover:text-primary text-sm">About Us</Link></li>
-                            <li><Link to="/careers" className="text-gray-500 hover:text-primary text-sm">Careers</Link></li>
-                            <li><Link to="/blog" className="text-gray-500 hover:text-primary text-sm">Blog</Link></li>
-                            <li><Link to="/press" className="text-gray-500 hover:text-primary text-sm">Press</Link></li>
+                            <li>
+                                <Link to="/policy" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Chính sách và quy định
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/privacy" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Chính sách bảo mật
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/dispute" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Giải quyết tranh chấp
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
-                    {/* Support */}
+                    {/* For Customers */}
                     <div>
-                        <h4 className="font-bold text-secondary mb-6">Support</h4>
+                        <h4 className="font-bold text-lg mb-4">Tìm hiểu thêm</h4>
                         <ul className="space-y-3">
-                            <li><Link to="/help" className="text-gray-500 hover:text-primary text-sm">Help Center</Link></li>
-                            <li><Link to="/terms" className="text-gray-500 hover:text-primary text-sm">Terms of Service</Link></li>
-                            <li><Link to="/privacy" className="text-gray-500 hover:text-primary text-sm">Privacy Policy</Link></li>
-                            <li><Link to="/contact" className="text-gray-500 hover:text-primary text-sm">Contact Us</Link></li>
+                            <li>
+                                <Link to="/guide" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Hướng dẫn chung
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/booking-guide" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Hướng dẫn đặt xe
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/payment-guide" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Hướng dẫn thanh toán
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/faq" className="text-gray-400 hover:text-[#5fcf86] transition-colors text-sm">
+                                    Câu hỏi thường gặp
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
                     {/* Contact */}
                     <div>
-                        <h4 className="font-bold text-secondary mb-6">Contact</h4>
-                        <ul className="space-y-4">
-                            <li className="flex items-start gap-3 text-sm text-gray-500">
-                                <MapPin size={18} className="text-primary shrink-0 mt-0.5" />
-                                <span>123 EV Street, Tech City, TC 90210</span>
+                        <h4 className="font-bold text-lg mb-4">Liên hệ</h4>
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-3 text-gray-400 text-sm">
+                                <Phone size={16} className="text-[#5fcf86]" />
+                                1900 9217
                             </li>
-                            <li className="flex items-center gap-3 text-sm text-gray-500">
-                                <Phone size={18} className="text-primary shrink-0" />
-                                <span>+84 90 123 4567</span>
+                            <li className="flex items-center gap-3 text-gray-400 text-sm">
+                                <Mail size={16} className="text-[#5fcf86]" />
+                                support@mioto.vn
                             </li>
-                            <li className="flex items-center gap-3 text-sm text-gray-500">
-                                <Mail size={18} className="text-primary shrink-0" />
-                                <span>support@erental.com</span>
+                            <li className="flex items-start gap-3 text-gray-400 text-sm">
+                                <MapPin size={16} className="text-[#5fcf86] mt-0.5" />
+                                <span>Tầng 5, Toà nhà A, Quận 1, TP.HCM</span>
                             </li>
                         </ul>
                     </div>
                 </div>
+            </div>
 
-                <div className="border-t border-gray-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-sm text-gray-400">© 2026 E-Rental System. All rights reserved.</p>
-                    <div className="flex gap-6">
-                        <span className="text-sm text-gray-400">English</span>
-                        <span className="text-sm text-gray-400">USD</span>
+            {/* Bottom Bar */}
+            <div className="border-t border-white/10">
+                <div className="container mx-auto px-4 py-6">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
+                        <p>© 2024 Mioto Vietnam. All rights reserved.</p>
+                        <div className="flex items-center gap-6">
+                            <Link to="/terms" className="hover:text-[#5fcf86] transition-colors">
+                                Điều khoản sử dụng
+                            </Link>
+                            <Link to="/privacy" className="hover:text-[#5fcf86] transition-colors">
+                                Chính sách bảo mật
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,168 +1,287 @@
-import { Search, MapPin, Calendar, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Zap, TrendingUp, MapPin } from 'lucide-react';
+import HeroSection from '../components/HeroSection';
+import PromoSection from '../components/PromoSection';
 import CarCard from '../components/ui/CarCard';
 import vehicleService from '../services/vehicleService';
-import { Loader2 } from 'lucide-react';
+
+// Mock data for featured cars (fallback)
+const mockCars = [
+    {
+        id: 1,
+        name: 'VinFast VF8 2023',
+        imageUrl: 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 1500,
+        rating: 5.0,
+        trips: 45,
+        location: 'Quận 7, TP.HCM',
+        discount: 15,
+        delivery: true,
+        isElectric: true
+    },
+    {
+        id: 2,
+        name: 'Tesla Model 3 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 2000,
+        rating: 4.9,
+        trips: 120,
+        location: 'Quận 1, TP.HCM',
+        discount: null,
+        delivery: true,
+        isElectric: true
+    },
+    {
+        id: 3,
+        name: 'Mercedes EQS 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 3500,
+        rating: 5.0,
+        trips: 28,
+        location: 'Quận 2, TP.HCM',
+        discount: 10,
+        delivery: true,
+        isElectric: true
+    },
+    {
+        id: 4,
+        name: 'VinFast VF9 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 2500,
+        rating: 4.8,
+        trips: 67,
+        location: 'Quận 3, TP.HCM',
+        discount: null,
+        delivery: true,
+        isElectric: true
+    },
+    {
+        id: 5,
+        name: 'BMW iX 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 2800,
+        rating: 4.9,
+        trips: 35,
+        location: 'Quận Bình Thạnh',
+        discount: 20,
+        delivery: false,
+        isElectric: true
+    },
+    {
+        id: 6,
+        name: 'Porsche Taycan 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f511a?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 4000,
+        rating: 5.0,
+        trips: 15,
+        location: 'Quận 7, TP.HCM',
+        discount: null,
+        delivery: true,
+        isElectric: true
+    },
+    {
+        id: 7,
+        name: 'Hyundai Ioniq 5 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 1800,
+        rating: 4.7,
+        trips: 89,
+        location: 'Thủ Đức, TP.HCM',
+        discount: null,
+        delivery: true,
+        isElectric: true
+    },
+    {
+        id: 8,
+        name: 'Kia EV6 2024',
+        imageUrl: 'https://images.unsplash.com/photo-1606611013016-969c19ba27aa?auto=format&fit=crop&q=80&w=800',
+        dailyRate: 1700,
+        rating: 4.8,
+        trips: 52,
+        location: 'Gò Vấp, TP.HCM',
+        discount: 5,
+        delivery: true,
+        isElectric: true
+    }
+];
+
+// Location data
+const locations = [
+    { name: 'TP. Hồ Chí Minh', count: '2,500+ xe', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&q=80&w=400' },
+    { name: 'Hà Nội', count: '1,800+ xe', image: 'https://images.unsplash.com/photo-1509030450996-dd1a26dda07a?auto=format&fit=crop&q=80&w=400' },
+    { name: 'Đà Nẵng', count: '800+ xe', image: 'https://images.unsplash.com/photo-1559592413-7d6ffba9e360?auto=format&fit=crop&q=80&w=400' },
+    { name: 'Nha Trang', count: '500+ xe', image: 'https://images.unsplash.com/photo-1559628233-100c798642d4?auto=format&fit=crop&q=80&w=400' }
+];
 
 const HomePage = () => {
-    const [location, setLocation] = useState('HCMC');
-    const [featuredCars, setFeaturedCars] = useState([]);
+    const [featuredCars, setFeaturedCars] = useState(mockCars);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchVehicles = async () => {
+        const fetchCars = async () => {
             try {
                 const data = await vehicleService.getAll();
-                // Map to frontend format
-                const mappedCars = data.map(vehicleService.mapToCarCard);
-                setFeaturedCars(mappedCars);
-            } catch (err) {
-                console.error("Failed to fetch vehicles:", err);
-                setError("Could not load vehicles. Please try again later.");
+                if (data && data.length > 0) {
+                    // Map API data to match our card format
+                    const mappedCars = data.slice(0, 8).map(car => ({
+                        ...car,
+                        trips: Math.floor(Math.random() * 100) + 10,
+                        location: 'TP.HCM',
+                        discount: Math.random() > 0.6 ? Math.floor(Math.random() * 20) + 5 : null,
+                        delivery: Math.random() > 0.3,
+                        isElectric: true
+                    }));
+                    setFeaturedCars(mappedCars);
+                }
+            } catch (error) {
+                console.error('Failed to fetch vehicles:', error);
+                // Keep mock data on error
             } finally {
                 setLoading(false);
             }
         };
-
-        fetchVehicles();
+        fetchCars();
     }, []);
 
     return (
-        <div className="flex flex-col gap-12 pb-12">
-            {/* Hero Section */}
-            <section className="relative h-[500px] md:h-[600px] w-full bg-secondary">
-                {/* Background Image */}
-                <div className="absolute inset-0">
-                    <img
-                        src="https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=2072&auto=format&fit=crop"
-                        alt="Hero EV"
-                        className="h-full w-full object-cover opacity-60"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-secondary/90 via-secondary/40 to-transparent"></div>
-                </div>
+        <div className="bg-white">
+            {/* Hero Section with Search */}
+            <HeroSection />
 
-                {/* Hero Content */}
-                <div className="container relative mx-auto flex h-full flex-col justify-center px-4 md:px-6">
-                    <div className="max-w-2xl text-white">
-                        <h1 className="mb-4 text-4xl font-extrabold leading-tight md:text-6xl">
-                            Drive the Future. <br />
-                            <span className="text-primary">Zero Emissions.</span>
-                        </h1>
-                        <p className="mb-8 text-lg font-medium text-gray-200 md:text-xl">
-                            Rent premium electric vehicles for your next journey. Self-driving options available.
-                        </p>
+            {/* Featured Cars Section */}
+            <section className="py-16 bg-white">
+                <div className="container mx-auto px-4">
+                    {/* Section Header */}
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <div className="flex items-center gap-2 text-[#5fcf86] mb-2">
+                                <Zap size={20} />
+                                <span className="font-semibold text-sm uppercase tracking-wide">Xe điện</span>
+                            </div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-[#141414]">
+                                Xe nổi bật
+                            </h2>
+                        </div>
+                        <Link
+                            to="/vehicles"
+                            className="hidden md:flex items-center gap-2 text-[#5fcf86] font-semibold hover:underline"
+                        >
+                            Xem tất cả
+                            <ChevronRight size={18} />
+                        </Link>
                     </div>
 
-                    {/* Search Widget - Floating */}
-                    <div className="absolute -bottom-16 left-4 right-4 z-20 mx-auto max-w-4xl rounded-2xl bg-white p-4 shadow-xl md:left-6 md:right-6 md:p-6">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-6">
-                            {/* Location */}
-                            <div className="relative md:col-span-1">
-                                <label className="mb-1 block text-xs font-bold uppercase text-gray-500">Location</label>
-                                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors focus-within:border-primary focus-within:bg-white">
-                                    <MapPin size={18} className="text-primary" />
-                                    <select
-                                        className="w-full bg-transparent text-sm font-medium text-gray-900 outline-none"
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                    >
-                                        <option value="HCMC">Ho Chi Minh City</option>
-                                        <option value="HN">Ha Noi</option>
-                                        <option value="DN">Da Nang</option>
-                                    </select>
-                                </div>
-                            </div>
+                    {/* Cars Grid */}
+                    {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[...Array(8)].map((_, i) => (
+                                <div key={i} className="bg-gray-100 rounded-2xl h-80 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {featuredCars.map((car) => (
+                                <CarCard key={car.id} car={car} />
+                            ))}
+                        </div>
+                    )}
 
-                            {/* Start Date */}
-                            <div className="relative md:col-span-1">
-                                <label className="mb-1 block text-xs font-bold uppercase text-gray-500">Pick-up</label>
-                                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors focus-within:border-primary focus-within:bg-white">
-                                    <Calendar size={18} className="text-gray-400" />
-                                    <input type="datetime-local" className="w-full bg-transparent text-sm font-medium text-gray-900 outline-none" />
-                                </div>
-                            </div>
+                    {/* Mobile View All */}
+                    <Link
+                        to="/vehicles"
+                        className="md:hidden mt-8 flex items-center justify-center gap-2 text-[#5fcf86] font-semibold"
+                    >
+                        Xem tất cả xe
+                        <ChevronRight size={18} />
+                    </Link>
+                </div>
+            </section>
 
-                            {/* End Date */}
-                            <div className="relative md:col-span-1">
-                                <label className="mb-1 block text-xs font-bold uppercase text-gray-500">Drop-off</label>
-                                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors focus-within:border-primary focus-within:bg-white">
-                                    <Calendar size={18} className="text-gray-400" />
-                                    <input type="datetime-local" className="w-full bg-transparent text-sm font-medium text-gray-900 outline-none" />
-                                </div>
+            {/* Locations Section */}
+            <section className="py-16 bg-[#f6f6f6]">
+                <div className="container mx-auto px-4">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <div className="flex items-center gap-2 text-[#5fcf86] mb-2">
+                                <MapPin size={20} />
+                                <span className="font-semibold text-sm uppercase tracking-wide">Địa điểm</span>
                             </div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-[#141414]">
+                                Địa điểm nổi bật
+                            </h2>
+                        </div>
+                    </div>
 
-                            {/* Button */}
-                            <div className="flex items-end md:col-span-1">
-                                <button className="flex h-[46px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 text-base font-bold text-white shadow-lg transition-all hover:bg-primary-hover hover:shadow-primary/30">
-                                    <Search size={20} />
-                                    Find Car
-                                </button>
-                            </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                        {locations.map((loc, index) => (
+                            <Link
+                                key={index}
+                                to={`/vehicles?location=${loc.name}`}
+                                className="group relative aspect-[4/3] rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all"
+                            >
+                                <img
+                                    src={loc.image}
+                                    alt={loc.name}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                                <div className="absolute bottom-4 left-4 text-white">
+                                    <h3 className="font-bold text-lg">{loc.name}</h3>
+                                    <p className="text-white/80 text-sm">{loc.count}</p>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Stats Section */}
+            <section className="py-12 bg-[#5fcf86]">
+                <div className="container mx-auto px-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
+                        <div>
+                            <div className="text-4xl md:text-5xl font-bold mb-2">8000+</div>
+                            <div className="text-white/80">Xe cho thuê</div>
+                        </div>
+                        <div>
+                            <div className="text-4xl md:text-5xl font-bold mb-2">50+</div>
+                            <div className="text-white/80">Tỉnh thành</div>
+                        </div>
+                        <div>
+                            <div className="text-4xl md:text-5xl font-bold mb-2">100K+</div>
+                            <div className="text-white/80">Chuyến thành công</div>
+                        </div>
+                        <div>
+                            <div className="text-4xl md:text-5xl font-bold mb-2">4.9⭐</div>
+                            <div className="text-white/80">Đánh giá</div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Spacer for Search Widget */}
-            <div className="h-10 md:h-12"></div>
+            {/* Features/Promo Section */}
+            <PromoSection />
 
-            {/* Featured Section */}
-            <section className="container mx-auto px-4 md:px-6">
-                <div className="mb-8 flex items-end justify-between">
-                    <div>
-                        <h2 className="text-3xl font-bold text-secondary">Featured Vehicles</h2>
-                        <p className="mt-2 text-gray-500">Top rated electric cars for your best experience</p>
-                    </div>
-                    <a href="/vehicles" className="group flex items-center gap-1 font-semibold text-primary hover:text-primary-hover">
-                        View all <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-                    </a>
-                </div>
-
-                {loading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                ) : error ? (
-                    <div className="text-center py-20 text-red-500">{error}</div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                        {featuredCars.length > 0 ? (
-                            featuredCars.map(car => (
-                                <CarCard key={car.id} car={car} />
-                            ))
-                        ) : (
-                            <div className="col-span-full text-center py-20 text-gray-500">
-                                No vehicles found. Check back soon!
-                            </div>
-                        )}
-                    </div>
-                )}
-            </section>
-
-            {/* Promo Banner */}
-            <section className="container mx-auto px-4 md:px-6">
-                <div className="relative overflow-hidden rounded-3xl bg-secondary px-6 py-12 text-center md:px-12 md:text-left">
-                    <div className="relative z-10 flex flex-col items-center justify-between gap-8 md:flex-row">
-                        <div className="max-w-xl">
-                            <span className="mb-2 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary backdrop-blur-sm">
-                                Limited Offer
-                            </span>
-                            <h2 className="mb-4 text-3xl font-bold text-white md:text-4xl">
-                                First time renting an EV?
+            {/* CTA Section */}
+            <section className="py-16 bg-white">
+                <div className="container mx-auto px-4">
+                    <div className="bg-gradient-to-r from-[#5fcf86] to-[#4bc076] rounded-3xl p-8 md:p-12 text-white text-center md:text-left md:flex md:items-center md:justify-between">
+                        <div className="mb-6 md:mb-0">
+                            <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                                Bạn có xe nhàn rỗi?
                             </h2>
-                            <p className="mb-0 text-lg text-gray-300">
-                                Get <span className="font-bold text-white">15% OFF</span> your first booking using code <span className="rounded bg-white/10 px-2 py-0.5 font-mono font-bold text-primary">EVFIRST</span>
+                            <p className="text-white/90">
+                                Đăng ký ngay để gia nhập cộng đồng hơn 5,000 chủ xe kiếm thêm thu nhập
                             </p>
                         </div>
-                        <button className="flex items-center gap-2 rounded-full bg-white px-8 py-3 text-lg font-bold text-secondary shadow-lg transition-transform hover:scale-105 active:scale-95">
-                            Claim Offer
-                        </button>
+                        <Link
+                            to="/become-host"
+                            className="inline-block bg-white text-[#5fcf86] font-bold px-8 py-4 rounded-xl hover:bg-gray-100 transition-colors shadow-lg"
+                        >
+                            Trở thành chủ xe
+                        </Link>
                     </div>
-
-                    {/* Background Pattern */}
-                    <div className="absolute top-0 right-0 -m-16 h-64 w-64 rounded-full bg-primary/20 blur-3xl"></div>
-                    <div className="absolute bottom-0 left-0 -m-16 h-64 w-64 rounded-full bg-primary/10 blur-3xl"></div>
                 </div>
             </section>
         </div>
