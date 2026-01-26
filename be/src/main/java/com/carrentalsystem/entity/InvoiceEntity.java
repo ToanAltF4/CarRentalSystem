@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "invoices", indexes = {
         @Index(name = "idx_invoice_booking", columnList = "booking_id"),
         @Index(name = "idx_invoice_number", columnList = "invoice_number"),
-        @Index(name = "idx_invoice_payment_status", columnList = "payment_status_id")
+        @Index(name = "idx_invoice_payment_status", columnList = "payment_status")
 })
 @Getter
 @Setter
@@ -77,7 +77,7 @@ public class InvoiceEntity {
 
     // Payment info
     @Convert(converter = com.carrentalsystem.entity.converter.PaymentStatusConverter.class)
-    @Column(name = "payment_status_id")
+    @Column(name = "payment_status", length = 30)
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
