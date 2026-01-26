@@ -1,96 +1,148 @@
 package com.carrentalsystem.controller;
 
-import com.carrentalsystem.dto.BaseResponse;
-import com.carrentalsystem.service.FileUploadService;
+import com.carrentalsystem.service.R2StorageService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.format.annotation.DateTimeFormat;
 
-import java.io.IOException;
-import java.security.Principal;
-import java.time.LocalDate;
+import java.util.Map;
 
 /**
- * Controller for file upload operations to Cloudflare R2.
+ * REST Controller for File Upload operations
+ * Uses Cloudflare R2 for storage
  */
 @RestController
-@RequestMapping("/api/files")
+@RequestMapping("/api/v1/upload")
 @RequiredArgsConstructor
-@Tag(name = "File Upload", description = "API endpoints for uploading files to Cloudflare R2")
+@Slf4j
+@Tag(name = "File Upload", description = "File upload API using Cloudflare R2")
 public class FileUploadController {
 
-    private final FileUploadService fileUploadService;
+        private final R2StorageService r2StorageService;
 
-    /**
-     * Upload user avatar image.
-     */
-    @Operation(summary = "Upload avatar", description = "Uploads user avatar image to Cloudflare R2")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Avatar uploaded successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid file or file is empty"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized")
-    })
-    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BaseResponse<String>> uploadAvatar(
-            @NotNull @RequestParam("file") MultipartFile file,
-            Principal principal) throws IOException {
-        
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(BaseResponse.<String>builder()
-                            .message("User not authenticated")
-                            .build());
+        @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @Operation(summary = "Upload a file", description = "Upload an image file to Cloudflare R2 storage")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "File uploaded successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid file or empty"),
+                        @ApiResponse(responseCode = "500", description = "Upload failed")
+        })
+        public ResponseEntity<?> uploadFile(
+                        @Parameter(description = "File to upload") @RequestParam("file") MultipartFile file) {
+
+                log.info("Received file upload request: {} ({})",
+                                file.getOriginalFilename(),
+                                file.getSize());
+
+                // Validate file
+                if (file.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("error", "File cannot be empty"));
+                }
+
+                // Validate file type (images only)
+                String contentType = file.getContentType();
+                if (contentType == null || !contentType.startsWith("image/")) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("error", "Only image files are allowed"));
+                }
+
+                // Validate file size (max 10MB)
+                if (file.getSize() > 10 * 1024 * 1024) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("error", "File size exceeds 10MB limit"));
+                }
+
+                try {
+                        String url = r2StorageService.uploadFile(file);
+                        log.info("File uploaded successfully: {}", url);
+
+                        return ResponseEntity.ok(Map.of(
+                                        "url", url,
+                                        "filename", file.getOriginalFilename(),
+                                        "size", file.getSize()));
+                } catch (Exception e) {
+                        log.error("Failed to upload file: {}", e.getMessage());
+                        return ResponseEntity.internalServerError()
+                                        .body(Map.of("error", "Upload failed: " + e.getMessage()));
+                }
         }
 
-        String email = principal.getName();
-        String avatarUrl = fileUploadService.uploadAvatar(email, file);
+        @PostMapping(value = "/{folder}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @Operation(summary = "Upload a file to specific folder", description = "Upload a file to a specific folder in R2")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "File uploaded successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid file or empty"),
+                        @ApiResponse(responseCode = "500", description = "Upload failed")
+        })
+        public ResponseEntity<?> uploadFileToFolder(
+                        @Parameter(description = "Folder name (e.g., vehicles, licenses)") @PathVariable String folder,
+                        @Parameter(description = "File to upload") @RequestParam("file") MultipartFile file) {
 
-        return ResponseEntity.ok(BaseResponse.<String>builder()
-                .message("Avatar uploaded successfully")
-                .data(avatarUrl)
-                .build());
-    }
+                log.info("Received file upload request to folder {}: {} ({})",
+                                folder,
+                                file.getOriginalFilename(),
+                                file.getSize());
 
-    /**
-     * Upload driver's license image.
-     */
-    @Operation(summary = "Upload license", description = "Uploads driver's license image to Cloudflare R2")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "License image uploaded successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid file or file is empty"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized")
-    })
-    @PostMapping(value = "/license", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BaseResponse<String>> uploadLicense(
-            @NotNull @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "licenseType", required = false) String licenseType,
-            @RequestParam(value = "licenseNumber", required = false) String licenseNumber,
-            @RequestParam(value = "dateOfBirth", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateOfBirth,
-            Principal principal) throws IOException {
-        
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(BaseResponse.<String>builder()
-                            .message("User not authenticated")
-                            .build());
+                // Validate file
+                if (file.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("error", "File cannot be empty"));
+                }
+
+                // Validate file size (max 10MB)
+                if (file.getSize() > 10 * 1024 * 1024) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("error", "File size exceeds 10MB limit"));
+                }
+
+                try {
+                        String url = r2StorageService.uploadFile(file, folder);
+                        log.info("File uploaded successfully to {}: {}", folder, url);
+
+                        return ResponseEntity.ok(Map.of(
+                                        "url", url,
+                                        "filename", file.getOriginalFilename(),
+                                        "folder", folder,
+                                        "size", file.getSize()));
+                } catch (Exception e) {
+                        log.error("Failed to upload file: {}", e.getMessage());
+                        return ResponseEntity.internalServerError()
+                                        .body(Map.of("error", "Upload failed: " + e.getMessage()));
+                }
         }
 
-        String email = principal.getName();
-        String licenseUrl = fileUploadService.uploadLicense(email, file, licenseType, licenseNumber, dateOfBirth);
+        @DeleteMapping
+        @Operation(summary = "Delete a file", description = "Delete a file from R2 storage by URL")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "File deleted successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid URL")
+        })
+        public ResponseEntity<?> deleteFile(
+                        @Parameter(description = "File URL to delete") @RequestParam("url") String url) {
 
-        return ResponseEntity.ok(BaseResponse.<String>builder()
-                .message("License image uploaded successfully")
-                .data(licenseUrl)
-                .build());
-    }
+                log.info("Received file delete request: {}", url);
+
+                if (url == null || url.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("error", "URL cannot be empty"));
+                }
+
+                try {
+                        r2StorageService.deleteFile(url);
+                        return ResponseEntity.ok(Map.of("message", "File deleted successfully"));
+                } catch (Exception e) {
+                        log.error("Failed to delete file: {}", e.getMessage());
+                        return ResponseEntity.internalServerError()
+                                        .body(Map.of("error", "Delete failed: " + e.getMessage()));
+                }
+        }
 }

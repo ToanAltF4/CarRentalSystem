@@ -10,6 +10,9 @@ import RegisterPage from './pages/RegisterPage';
 import CarDetailPage from './pages/CarDetailPage';
 import VehicleListPage from './pages/VehicleListPage';
 import BookingSuccessPage from './pages/BookingSuccessPage';
+import PricingPage from './pages/PricingPage';
+import CorporatePage from './pages/CorporatePage';
+import AboutPage from './pages/AboutPage';
 
 // Customer Pages (require auth)
 import MyBookingsPage from './pages/MyBookingsPage';
@@ -35,6 +38,9 @@ function App() {
             <Route path="register" element={<RegisterPage />} />
             <Route path="vehicles" element={<VehicleListPage />} />
             <Route path="vehicles/:id" element={<CarDetailPage />} />
+            <Route path="pricing" element={<PricingPage />} />
+            <Route path="corporate" element={<CorporatePage />} />
+            <Route path="about" element={<AboutPage />} />
 
             {/* Protected Customer Routes */}
             <Route

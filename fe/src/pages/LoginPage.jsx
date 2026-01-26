@@ -7,10 +7,24 @@ function LoginPage() {
     const location = useLocation();
     const { login } = useAuth();
 
+    // Demo accounts for testing
+    const demoAccounts = {
+        admin: { email: 'admin@carrentalsystem.com', password: 'password123', label: 'Admin' },
+        staff: { email: 'staff@carrentalsystem.com', password: 'password123', label: 'Staff' },
+        customer: { email: 'minhpn@gmail.com', password: 'password123', label: 'Customer' }
+    };
+
     const [formData, setFormData] = useState({
-        email: '',
-        password: ''
+        email: demoAccounts.customer.email,
+        password: demoAccounts.customer.password
     });
+
+    const fillDemoAccount = (type) => {
+        const account = demoAccounts[type];
+        setFormData({ email: account.email, password: account.password });
+        setErrors({});
+        setGeneralError('');
+    };
     const [errors, setErrors] = useState({});
     const [generalError, setGeneralError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -76,6 +90,22 @@ function LoginPage() {
             <div style={styles.card}>
                 <h2 style={styles.title}>Welcome Back</h2>
                 <p style={styles.subtitle}>Login to your account</p>
+
+                {/* Demo Account Buttons */}
+                <div style={styles.demoSection}>
+                    <p style={styles.demoLabel}>Quick Login (Demo):</p>
+                    <div style={styles.demoButtons}>
+                        <button type="button" onClick={() => fillDemoAccount('customer')} style={{ ...styles.demoBtn, ...styles.demoBtnCustomer }}>
+                            👤 Customer
+                        </button>
+                        <button type="button" onClick={() => fillDemoAccount('staff')} style={{ ...styles.demoBtn, ...styles.demoBtnStaff }}>
+                            🛠️ Staff
+                        </button>
+                        <button type="button" onClick={() => fillDemoAccount('admin')} style={{ ...styles.demoBtn, ...styles.demoBtnAdmin }}>
+                            👑 Admin
+                        </button>
+                    </div>
+                </div>
 
                 {generalError && (
                     <div style={styles.errorBox}>
@@ -284,6 +314,45 @@ const styles = {
         color: '#667eea',
         textDecoration: 'none',
         fontWeight: '600'
+    },
+    demoSection: {
+        marginBottom: '20px',
+        padding: '16px',
+        backgroundColor: '#f7fafc',
+        borderRadius: '8px',
+        border: '1px dashed #cbd5e0'
+    },
+    demoLabel: {
+        fontSize: '12px',
+        color: '#718096',
+        marginBottom: '10px',
+        textAlign: 'center'
+    },
+    demoButtons: {
+        display: 'flex',
+        gap: '8px',
+        justifyContent: 'center'
+    },
+    demoBtn: {
+        padding: '8px 12px',
+        fontSize: '12px',
+        fontWeight: '500',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        transition: 'all 0.2s'
+    },
+    demoBtnCustomer: {
+        backgroundColor: '#48bb78',
+        color: 'white'
+    },
+    demoBtnStaff: {
+        backgroundColor: '#ed8936',
+        color: 'white'
+    },
+    demoBtnAdmin: {
+        backgroundColor: '#9f7aea',
+        color: 'white'
     }
 };
 

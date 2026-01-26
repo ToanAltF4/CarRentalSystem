@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import PaymentModal from '../components/common/PaymentModal';
+import { formatPrice } from '../utils/formatters';
 
 const MyBookingsPage = () => {
     const { user } = useAuth();
@@ -168,7 +169,7 @@ const MyBookingsPage = () => {
                                                     <DollarSign size={16} className="text-gray-400" />
                                                     <div>
                                                         <p className="text-xs text-gray-400">Total</p>
-                                                        <p className="font-semibold text-primary">${booking.totalAmount}</p>
+                                                        <p className="font-semibold text-primary">{formatPrice(booking.totalAmount)}</p>
                                                     </div>
                                                 </div>
                                             </div>

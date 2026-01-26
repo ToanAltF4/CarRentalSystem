@@ -66,7 +66,7 @@ const AdminEditVehiclePage = () => {
 
             console.log('Sending update payload:', payload); // Debug log
 
-            await api.put(`/vehicles/${id}`, payload);
+            await api.put(`/v1/vehicles/${id}`, payload);
             alert("Vehicle Updated Successfully!");
             navigate('/admin/vehicles');
         } catch (error) {
@@ -136,9 +136,14 @@ const AdminEditVehiclePage = () => {
                                         <option value="">Select Brand</option>
                                         <option value="Tesla">Tesla</option>
                                         <option value="VinFast">VinFast</option>
+                                        <option value="BYD">BYD</option>
                                         <option value="Hyundai">Hyundai</option>
+                                        <option value="Kia">Kia</option>
+                                        <option value="Mercedes">Mercedes</option>
                                         <option value="BMW">BMW</option>
+                                        <option value="Audi">Audi</option>
                                         <option value="Porsche">Porsche</option>
+                                        <option value="MG">MG</option>
                                     </select>
                                     {errors.brand && <span className="text-xs text-red-500 mt-1">{errors.brand.message}</span>}
                                 </div>
@@ -158,9 +163,12 @@ const AdminEditVehiclePage = () => {
                                         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
                                     >
                                         <option value="">Select Category</option>
-                                        <option value="Sedan">Sedan</option>
+                                        <option value="ECONOMY">Economy</option>
+                                        <option value="STANDARD">Standard</option>
+                                        <option value="PREMIUM">Premium</option>
+                                        <option value="LUXURY">Luxury</option>
                                         <option value="SUV">SUV</option>
-                                        <option value="Luxury">Luxury</option>
+                                        <option value="COMPACT">Compact</option>
                                     </select>
                                     {errors.category && <span className="text-xs text-red-500 mt-1">{errors.category.message}</span>}
                                 </div>
@@ -174,7 +182,7 @@ const AdminEditVehiclePage = () => {
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Price / Day ($)</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Price / Day (VND)</label>
                                             <input
                                                 type="number"
                                                 {...register("dailyRate", { required: true, min: 0 })}
