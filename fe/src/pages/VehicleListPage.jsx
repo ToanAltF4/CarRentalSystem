@@ -21,11 +21,11 @@ const VehicleListPage = () => {
     const brands = ['ALL', 'Tesla', 'VinFast', 'Hyundai', 'BMW', 'Porsche', 'Mercedes', 'Kia'];
     const categories = ['ALL', 'Sedan', 'SUV', 'Luxury', 'Compact'];
     const priceRanges = [
-        { value: 'ALL', label: 'Tất cả giá' },
-        { value: '0-1000', label: 'Dưới 1.000K' },
-        { value: '1000-2000', label: '1.000K - 2.000K' },
-        { value: '2000-3000', label: '2.000K - 3.000K' },
-        { value: '3000+', label: 'Trên 3.000K' }
+        { value: 'ALL', label: 'All Prices' },
+        { value: '0-1000', label: 'Under 1,000K' },
+        { value: '1000-2000', label: '1,000K - 2,000K' },
+        { value: '2000-3000', label: '2,000K - 3,000K' },
+        { value: '3000+', label: 'Over 3,000K' }
     ];
 
     useEffect(() => {
@@ -41,7 +41,7 @@ const VehicleListPage = () => {
             setVehicles(availableVehicles);
         } catch (err) {
             console.error("Error fetching vehicles:", err);
-            setError("Không thể tải danh sách xe.");
+            setError("Failed to load vehicles.");
         } finally {
             setLoading(false);
         }
@@ -81,10 +81,10 @@ const VehicleListPage = () => {
         })
         .map(v => ({
             ...v,
-            trips: Math.floor(Math.random() * 100) + 10,
-            location: 'TP.HCM',
-            discount: Math.random() > 0.7 ? Math.floor(Math.random() * 20) + 5 : null,
-            delivery: Math.random() > 0.3,
+            trips: 0,
+            location: 'Ho Chi Minh City',
+            discount: null,
+            delivery: false,
             isElectric: true
         }));
 
@@ -104,15 +104,15 @@ const VehicleListPage = () => {
             <div className="bg-white border-b border-gray-100">
                 <div className="container mx-auto px-4 py-6">
                     <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-                        <Link to="/" className="hover:text-[#5fcf86]">Trang chủ</Link>
+                        <Link to="/" className="hover:text-[#5fcf86]">Home</Link>
                         <ChevronRight size={14} />
-                        <span className="font-medium text-[#141414]">Danh sách xe</span>
+                        <span className="font-medium text-[#141414]">All Vehicles</span>
                     </div>
                     <h1 className="text-2xl md:text-3xl font-bold text-[#141414]">
-                        Xe tự lái tại Việt Nam
+                        Premium EV Fleet
                     </h1>
                     <p className="text-gray-500 mt-1">
-                        {filteredVehicles.length} xe có sẵn
+                        {filteredVehicles.length} vehicles available
                     </p>
                 </div>
             </div>
@@ -123,13 +123,13 @@ const VehicleListPage = () => {
                     <aside className="hidden lg:block w-72 flex-shrink-0">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-bold text-[#141414] text-lg">Bộ lọc</h3>
+                                <h3 className="font-bold text-[#141414] text-lg">Filters</h3>
                                 {hasActiveFilters && (
                                     <button
                                         onClick={clearFilters}
                                         className="text-sm text-[#5fcf86] hover:underline"
                                     >
-                                        Xóa tất cả
+                                        Clear All
                                     </button>
                                 )}
                             </div>
@@ -137,13 +137,13 @@ const VehicleListPage = () => {
                             {/* Search */}
                             <div className="mb-6">
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Tìm kiếm
+                                    Search
                                 </label>
                                 <div className="relative">
                                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="text"
-                                        placeholder="Tên xe, hãng xe..."
+                                        placeholder="Vehicle name, brand..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#5fcf86] focus:ring-2 focus:ring-[#5fcf86]/20 outline-none transition-all"
@@ -154,7 +154,7 @@ const VehicleListPage = () => {
                             {/* Brand Filter */}
                             <div className="mb-6">
                                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    Hãng xe
+                                    Brand
                                 </label>
                                 <div className="flex flex-wrap gap-2">
                                     {brands.map(brand => (
@@ -162,11 +162,11 @@ const VehicleListPage = () => {
                                             key={brand}
                                             onClick={() => setSelectedBrand(brand)}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedBrand === brand
-                                                    ? 'bg-[#5fcf86] text-white'
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                ? 'bg-[#5fcf86] text-white'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                 }`}
                                         >
-                                            {brand === 'ALL' ? 'Tất cả' : brand}
+                                            {brand === 'ALL' ? 'All' : brand}
                                         </button>
                                     ))}
                                 </div>
@@ -175,7 +175,7 @@ const VehicleListPage = () => {
                             {/* Category Filter */}
                             <div className="mb-6">
                                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    Loại xe
+                                    Category
                                 </label>
                                 <div className="space-y-2">
                                     {categories.map(cat => (
@@ -188,7 +188,7 @@ const VehicleListPage = () => {
                                                 className="w-4 h-4 text-[#5fcf86] border-gray-300 focus:ring-[#5fcf86]"
                                             />
                                             <span className="text-sm text-gray-700">
-                                                {cat === 'ALL' ? 'Tất cả' : cat}
+                                                {cat === 'ALL' ? 'All' : cat}
                                             </span>
                                         </label>
                                     ))}
@@ -198,7 +198,7 @@ const VehicleListPage = () => {
                             {/* Price Range */}
                             <div className="mb-6">
                                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    Mức giá
+                                    Price Range
                                 </label>
                                 <div className="space-y-2">
                                     {priceRanges.map(range => (
@@ -227,7 +227,7 @@ const VehicleListPage = () => {
                                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="text"
-                                        placeholder="Tìm kiếm..."
+                                        placeholder="Search..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#5fcf86] outline-none"
@@ -236,12 +236,12 @@ const VehicleListPage = () => {
                                 <button
                                     onClick={() => setShowFilters(!showFilters)}
                                     className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-medium ${hasActiveFilters
-                                            ? 'border-[#5fcf86] text-[#5fcf86] bg-[#5fcf86]/5'
-                                            : 'border-gray-200 text-gray-600'
+                                        ? 'border-[#5fcf86] text-[#5fcf86] bg-[#5fcf86]/5'
+                                        : 'border-gray-200 text-gray-600'
                                         }`}
                                 >
                                     <SlidersHorizontal size={18} />
-                                    Lọc
+                                    Filter
                                 </button>
                             </div>
 
@@ -255,7 +255,7 @@ const VehicleListPage = () => {
                                     >
                                         {brands.map(brand => (
                                             <option key={brand} value={brand}>
-                                                {brand === 'ALL' ? 'Tất cả hãng xe' : brand}
+                                                {brand === 'ALL' ? 'All Brands' : brand}
                                             </option>
                                         ))}
                                     </select>
@@ -273,7 +273,7 @@ const VehicleListPage = () => {
                                             onClick={clearFilters}
                                             className="w-full py-2.5 text-sm text-[#5fcf86] font-medium"
                                         >
-                                            Xóa bộ lọc
+                                            Clear Filters
                                         </button>
                                     )}
                                 </div>
@@ -283,19 +283,19 @@ const VehicleListPage = () => {
                         {/* Sort Bar */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex items-center justify-between">
                             <p className="text-gray-600 text-sm">
-                                <span className="font-bold text-[#141414]">{filteredVehicles.length}</span> xe được tìm thấy
+                                <span className="font-bold text-[#141414]">{filteredVehicles.length}</span> vehicles found
                             </p>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500 hidden sm:inline">Sắp xếp:</span>
+                                <span className="text-sm text-gray-500 hidden sm:inline">Sort by:</span>
                                 <select
                                     value={sortBy}
                                     onChange={(e) => setSortBy(e.target.value)}
                                     className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-[#5fcf86] outline-none bg-white"
                                 >
-                                    <option value="popular">Phổ biến nhất</option>
-                                    <option value="price-low">Giá thấp đến cao</option>
-                                    <option value="price-high">Giá cao đến thấp</option>
-                                    <option value="newest">Mới nhất</option>
+                                    <option value="popular">Most Popular</option>
+                                    <option value="price-low">Price: Low to High</option>
+                                    <option value="price-high">Price: High to Low</option>
+                                    <option value="newest">Newest</option>
                                 </select>
                             </div>
                         </div>
@@ -304,7 +304,7 @@ const VehicleListPage = () => {
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <Loader2 className="h-10 w-10 animate-spin text-[#5fcf86] mb-4" />
-                                <p className="text-gray-500">Đang tải danh sách xe...</p>
+                                <p className="text-gray-500">Loading vehicles...</p>
                             </div>
                         ) : error ? (
                             <div className="text-center py-20">
@@ -314,7 +314,7 @@ const VehicleListPage = () => {
                                     onClick={fetchVehicles}
                                     className="px-6 py-2 bg-[#5fcf86] text-white rounded-lg font-semibold hover:bg-[#4bc076] transition-colors"
                                 >
-                                    Thử lại
+                                    Retry
                                 </button>
                             </div>
                         ) : filteredVehicles.length > 0 ? (
@@ -326,13 +326,13 @@ const VehicleListPage = () => {
                         ) : (
                             <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
                                 <Car className="mx-auto h-16 w-16 text-gray-300 mb-4" />
-                                <h3 className="text-xl font-bold text-[#141414] mb-2">Không tìm thấy xe</h3>
-                                <p className="text-gray-500 mb-6">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                                <h3 className="text-xl font-bold text-[#141414] mb-2">No vehicles found</h3>
+                                <p className="text-gray-500 mb-6">Try changing your filters or search terms</p>
                                 <button
                                     onClick={clearFilters}
                                     className="px-6 py-3 bg-[#5fcf86] text-white rounded-xl font-semibold hover:bg-[#4bc076] transition-colors"
                                 >
-                                    Xóa bộ lọc
+                                    Clear Filters
                                 </button>
                             </div>
                         )}

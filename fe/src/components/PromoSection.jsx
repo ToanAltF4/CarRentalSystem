@@ -4,33 +4,33 @@ const PromoSection = () => {
     const features = [
         {
             icon: Shield,
-            title: 'An toàn tối đa',
-            description: 'Xe được trang bị bảo hiểm vật chất và mọi vấn đề pháp lý'
+            title: 'Maximum Safety',
+            description: 'Vehicles fully insured with comprehensive coverage'
         },
         {
             icon: BadgeCheck,
-            title: 'Chủ xe uy tín',
-            description: '100% chủ xe được xác minh danh tính và thông tin xe'
+            title: 'Verified Hosts',
+            description: '100% of hosts and vehicle information are verified'
         },
         {
             icon: Headphones,
-            title: 'Hỗ trợ 24/7',
-            description: 'Đội ngũ hỗ trợ khách hàng nhiệt tình và nhanh chóng'
+            title: '24/7 Support',
+            description: 'Dedicated customer support team always ready to help'
         },
         {
             icon: Wallet,
-            title: 'Giá tốt nhất',
-            description: 'Giá thuê xe cạnh tranh, không phí ẩn, minh bạch rõ ràng'
+            title: 'Best Prices',
+            description: 'Competitive rates, no hidden fees, transparent pricing'
         },
         {
             icon: Clock,
-            title: 'Thủ tục đơn giản',
-            description: 'Đặt xe chỉ 2 phút, nhận xe ngay không cần chờ đợi'
+            title: 'Simple Process',
+            description: 'Book in 2 minutes, instant confirmation'
         },
         {
             icon: ThumbsUp,
-            title: 'Trải nghiệm tốt',
-            description: 'Hơn 100,000+ khách hàng hài lòng trên toàn quốc'
+            title: 'Great Experience',
+            description: 'Over 100,000+ satisfied customers nationwide'
         }
     ];
 
@@ -40,10 +40,10 @@ const PromoSection = () => {
                 {/* Section Header */}
                 <div className="text-center mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold text-[#141414] mb-4">
-                        Ưu điểm của Mioto
+                        Why Choose E-Fleet?
                     </h2>
                     <p className="text-gray-500 max-w-2xl mx-auto">
-                        Những tính năng giúp bạn an tâm thuê xe và tận hưởng chuyến đi
+                        Best-in-class features for your peace of mind
                     </p>
                 </div>
 

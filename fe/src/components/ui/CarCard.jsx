@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Star, MapPin, Zap, Truck } from 'lucide-react';
+import { formatPrice } from '../../utils/formatters';
 
 const CarCard = ({ car }) => {
     // Default values for missing data
@@ -19,13 +20,7 @@ const CarCard = ({ car }) => {
         year = 2024
     } = car || {};
 
-    // Format price in Vietnamese style (e.g., 1,500K)
-    const formatPrice = (price) => {
-        if (price >= 1000) {
-            return `${(price / 1000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}K`;
-        }
-        return `${price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}K`;
-    };
+
 
     // Generate display name
     const displayName = name || `${brand} ${model} ${year}`.trim();

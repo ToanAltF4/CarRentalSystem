@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Search, Filter, Loader2 } from 'lucide-react';
 import vehicleService from '../../services/vehicleService';
+import { formatPrice } from '../../utils/formatters';
 
 const AdminVehicleList = () => {
     const [vehicles, setVehicles] = useState([]);
@@ -174,7 +175,7 @@ const AdminVehicleList = () => {
                                                     {vehicle.licensePlate}
                                                 </td>
                                                 <td className="px-6 py-4 font-bold text-primary">
-                                                    ${vehicle.dailyRate}
+                                                    {formatPrice(vehicle.dailyRate)}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(vehicle.status)}`}>

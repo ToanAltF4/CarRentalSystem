@@ -5,15 +5,15 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = false)
-public class VehicleStatusConverter implements AttributeConverter<VehicleStatus, Integer> {
+public class VehicleStatusConverter implements AttributeConverter<VehicleStatus, Byte> {
 
     @Override
-    public Integer convertToDatabaseColumn(VehicleStatus attribute) {
-        return attribute != null ? attribute.getId() : null;
+    public Byte convertToDatabaseColumn(VehicleStatus attribute) {
+        return attribute != null ? (byte) attribute.getId() : null;
     }
 
     @Override
-    public VehicleStatus convertToEntityAttribute(Integer dbData) {
-        return VehicleStatus.fromId(dbData);
+    public VehicleStatus convertToEntityAttribute(Byte dbData) {
+        return VehicleStatus.fromId(dbData != null ? dbData.intValue() : null);
     }
 }
