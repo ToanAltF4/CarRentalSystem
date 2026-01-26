@@ -1,72 +1,106 @@
-import { Zap, Fuel, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Star, MapPin, Zap, Truck } from 'lucide-react';
 
 const CarCard = ({ car }) => {
+    // Default values for missing data
+    const {
+        id,
+        name = 'Unknown Vehicle',
+        imageUrl = 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800',
+        dailyRate = 0,
+        rating = 5.0,
+        trips = 0,
+        location = 'Quận 1, TP.HCM',
+        discount = null,
+        delivery = true,
+        isElectric = true,
+        brand = '',
+        model = '',
+        year = 2024
+    } = car || {};
+
+    // Format price in Vietnamese style (e.g., 1,500K)
+    const formatPrice = (price) => {
+        if (price >= 1000) {
+            return `${(price / 1000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}K`;
+        }
+        return `${price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}K`;
+    };
+
+    // Generate display name
+    const displayName = name || `${brand} ${model} ${year}`.trim();
+
     return (
-        <div className="group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-all hover:shadow-lg hover:-translate-y-1 border border-gray-100">
-            {/* Image */}
+        <Link
+            to={`/vehicles/${id}`}
+            className="group block bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
+        >
+            {/* Image Section */}
             <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                 <img
-                    src={car.image}
-                    alt={car.name}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    src={imageUrl}
+                    alt={displayName}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
                 />
-                <div className="absolute top-3 left-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-primary shadow-sm backdrop-blur-sm">
-                    Electric
-                </div>
-                {car.isNew && (
-                    <div className="absolute top-3 right-3 rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
-                        New
+
+                {/* Discount Badge - Top Left */}
+                {discount && (
+                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md">
+                        Giảm {discount}%
+                    </div>
+                )}
+
+                {/* Electric Badge - Top Right */}
+                {isElectric && (
+                    <div className="absolute top-3 right-3 bg-[#5fcf86] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md flex items-center gap-1">
+                        <Zap size={12} />
+                        Điện
+                    </div>
+                )}
+
+                {/* Delivery Badge - Bottom Right */}
+                {delivery && (
+                    <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm text-[#5fcf86] text-xs font-semibold px-3 py-1.5 rounded-lg shadow-md flex items-center gap-1.5">
+                        <Truck size={14} />
+                        Giao xe tận nơi
                     </div>
                 )}
             </div>
 
-            {/* Content */}
-            <div className="flex flex-1 flex-col p-4">
-                <div className="flex items-start justify-between mb-2">
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{car.name}</h3>
-                        <p className="text-xs text-gray-500">{car.brand} • {car.year}</p>
+            {/* Info Section */}
+            <div className="p-4">
+                {/* Car Name */}
+                <h3 className="text-base font-bold text-[#141414] uppercase tracking-wide mb-2 line-clamp-1 group-hover:text-[#5fcf86] transition-colors">
+                    {displayName}
+                </h3>
+
+                {/* Rating & Trips */}
+                <div className="flex items-center gap-2 text-sm mb-3">
+                    <div className="flex items-center gap-1 text-yellow-500">
+                        <Star size={14} fill="currentColor" strokeWidth={0} />
+                        <span className="font-semibold text-[#141414]">{rating.toFixed(1)}</span>
                     </div>
-                    <div className="flex items-center gap-1 rounded-md bg-yellow-50 px-1.5 py-0.5 text-xs font-medium text-yellow-700">
-                        <Star size={12} className="fill-yellow-500 text-yellow-500" />
-                        <span>{car.rating}</span>
-                    </div>
+                    <span className="text-gray-400">•</span>
+                    <span className="text-gray-500">{trips} chuyến</span>
                 </div>
 
-                {/* Features */}
-                <div className="mb-4 mt-auto flex items-center gap-3 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                        <Zap size={14} className="text-primary" />
-                        <span>{car.range}km</span>
+                {/* Price & Location */}
+                <div className="flex items-end justify-between mt-auto pt-2 border-t border-gray-100">
+                    {/* Location */}
+                    <div className="flex items-center gap-1 text-gray-400 text-xs">
+                        <MapPin size={12} />
+                        <span className="line-clamp-1">{location}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <Fuel size={14} className="text-blue-500" />
-                        <span>Ev</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">Auto</span>
-                    </div>
-                </div>
 
-                {/* Price & Action */}
-                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                    <div className="flex flex-col">
-                        <span className="text-xs text-gray-500">Daily Rate</span>
-                        <span className="text-lg font-bold text-primary">
-                            ${car.price}
-                            <span className="text-xs font-normal text-gray-400">/day</span>
-                        </span>
+                    {/* Price */}
+                    <div className="text-right">
+                        <span className="text-lg font-bold text-[#5fcf86]">{formatPrice(dailyRate)}</span>
+                        <span className="text-gray-400 text-xs">/ngày</span>
                     </div>
-                    <Link
-                        to={`/vehicles/${car.id}`}
-                        className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-                    >
-                        Book
-                    </Link>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 };
 

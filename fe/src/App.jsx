@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
-import ProtectedRoute from './components/ProtectedRoute';
+import PrivateRoute from './components/PrivateRoute';
 
 // Public Pages
 import HomePage from './pages/HomePage';
@@ -25,107 +26,109 @@ import AdminBookingList from './pages/admin/AdminBookingList';
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<MainLayout />}>
-          {/* Public Routes */}
-          <Route index element={<HomePage />} />
-          <Route path="login" element={<LoginPage />} />
-          <Route path="register" element={<RegisterPage />} />
-          <Route path="vehicles" element={<VehicleListPage />} />
-          <Route path="vehicles/:id" element={<CarDetailPage />} />
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            {/* Public Routes */}
+            <Route index element={<HomePage />} />
+            <Route path="login" element={<LoginPage />} />
+            <Route path="register" element={<RegisterPage />} />
+            <Route path="vehicles" element={<VehicleListPage />} />
+            <Route path="vehicles/:id" element={<CarDetailPage />} />
 
-          {/* Protected Customer Routes */}
-          <Route
-            path="booking-success"
-            element={
-              <ProtectedRoute>
-                <BookingSuccessPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="my-bookings"
-            element={
-              <ProtectedRoute>
-                <MyBookingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="driver-license"
-            element={
-              <ProtectedRoute>
-                <DriverLicenseUploadPage />
-              </ProtectedRoute>
-            }
-          />
+            {/* Protected Customer Routes */}
+            <Route
+              path="booking-success"
+              element={
+                <PrivateRoute>
+                  <BookingSuccessPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="my-bookings"
+              element={
+                <PrivateRoute>
+                  <MyBookingsPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <PrivateRoute>
+                  <ProfilePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="driver-license"
+              element={
+                <PrivateRoute>
+                  <DriverLicenseUploadPage />
+                </PrivateRoute>
+              }
+            />
 
-          {/* Protected Admin Routes - ADMIN and MANAGER only */}
-          <Route
-            path="admin"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-                <AdminDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="admin/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-                <AdminDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="admin/vehicles"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-                <AdminVehicleList />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="admin/vehicles/add"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-                <AdminAddVehiclePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="admin/vehicles/edit/:id"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-                <AdminEditVehiclePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="admin/bookings"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-                <AdminBookingList />
-              </ProtectedRoute>
-            }
-          />
+            {/* Protected Admin Routes - ADMIN and MANAGER only */}
+            <Route
+              path="admin"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminDashboardPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/dashboard"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminDashboardPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/vehicles"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminVehicleList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/vehicles/add"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminAddVehiclePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/vehicles/edit/:id"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminEditVehiclePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/bookings"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminBookingList />
+                </PrivateRoute>
+              }
+            />
 
-          {/* 404 Page */}
-          <Route path="*" element={
-            <div className="flex h-[50vh] items-center justify-center text-gray-500">
-              404 - Page Not Found
-            </div>
-          } />
-        </Route>
-      </Routes>
+            {/* 404 Page */}
+            <Route path="*" element={
+              <div className="flex h-[50vh] items-center justify-center text-gray-500">
+                404 - Page Not Found
+              </div>
+            } />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
