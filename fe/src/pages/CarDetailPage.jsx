@@ -6,12 +6,15 @@ import {
     Heart, ChevronRight, Truck, Loader2, AlertCircle
 } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
 import vehicleService from '../services/vehicleService';
-import bookingService, { CURRENT_USER } from '../services/bookingService';
+import bookingService from '../services/bookingService';
 
 const CarDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user, isAuthenticated } = useAuth();
+
     const [car, setCar] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState(0);
@@ -57,6 +60,13 @@ const CarDetailPage = () => {
 
     // Handle booking submission
     const handleBookNow = async () => {
+        // Check if user is authenticated
+        if (!isAuthenticated || !user) {
+            // Save intended destination and redirect to login
+            navigate('/login', { state: { from: `/vehicles/${id}` } });
+            return;
+        }
+
         const validationError = validateDates();
         if (validationError) {
             setError(validationError);
@@ -69,9 +79,10 @@ const CarDetailPage = () => {
         try {
             const bookingData = {
                 vehicleId: parseInt(id),
-                customerName: CURRENT_USER.name,
-                customerEmail: CURRENT_USER.email,
-                customerPhone: CURRENT_USER.phone,
+                userId: user.id,
+                customerName: user.fullName,
+                customerEmail: user.email,
+                customerPhone: user.phone || '',
                 startDate: pickupDate,
                 endDate: dropoffDate,
                 notes: `Booked via web - ${car.name}`
@@ -259,11 +270,22 @@ const CarDetailPage = () => {
                             </div>
                         )}
 
-                        {/* Customer Info (Read-only) */}
+                        {/* Customer Info - Show authenticated user or login prompt */}
                         <div className="mb-4 rounded-lg bg-blue-50 p-3">
-                            <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Booking as</p>
-                            <p className="font-medium text-gray-900">{CURRENT_USER.name}</p>
-                            <p className="text-sm text-gray-500">{CURRENT_USER.email}</p>
+                            {isAuthenticated && user ? (
+                                <>
+                                    <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Booking as</p>
+                                    <p className="font-medium text-gray-900">{user.fullName}</p>
+                                    <p className="text-sm text-gray-500">{user.email}</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-xs font-semibold text-orange-600 uppercase mb-1">Not logged in</p>
+                                    <p className="text-sm text-gray-600">
+                                        Please <Link to="/login" className="text-primary font-medium hover:underline">login</Link> to book this vehicle
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         {/* Date Picker */}
@@ -336,7 +358,7 @@ const CarDetailPage = () => {
                             ) : (
                                 <>
                                     <CheckCircle2 size={20} />
-                                    Book Now
+                                    {isAuthenticated ? 'Book Now' : 'Login to Book'}
                                 </>
                             )}
                         </button>

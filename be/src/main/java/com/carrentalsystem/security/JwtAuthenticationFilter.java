@@ -54,10 +54,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String role = jwtService.getRole(token);
 
             // 6. Tạo Authentication
+            // Handle role with or without ROLE_ prefix
+            String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     username,
                     null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    List.of(new SimpleGrantedAuthority(authority)));
 
             authentication.setDetails(
                     new WebAuthenticationDetailsSource().buildDetails(request));

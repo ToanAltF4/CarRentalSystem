@@ -1,19 +1,5 @@
 import api from './api';
 
-// Mock current user (since Auth is handled by another team)
-export const CURRENT_USER = {
-    id: 3,
-    name: 'Nguyen Minh Phuong',
-    email: 'minhpn@gmail.com',
-    phone: '0901234567'
-};
-
-export const ADMIN_USER = {
-    id: 1,
-    name: 'Admin',
-    email: 'admin@evrental.com'
-};
-
 const bookingService = {
     // Create a new booking
     createBooking: async (bookingData) => {
@@ -67,11 +53,6 @@ const bookingService = {
     cancel: async (id) => {
         const response = await api.post(`/bookings/${id}/cancel`);
         return response.data;
-    },
-
-    // Get my bookings (current user)
-    getMyBookings: async () => {
-        return bookingService.getByEmail(CURRENT_USER.email);
     }
 };
 
