@@ -13,8 +13,9 @@ public class NoopR2ServiceImpl implements R2Service {
 
     @Override
     public String uploadFile(MultipartFile file, String folder, String fileName) throws IOException {
-        log.warn("R2 storage not configured. uploadFile called for folder={}, fileName={}", folder, fileName);
-        throw new IllegalArgumentException("R2 storage is not configured");
+        log.warn("R2 storage not configured. Using placeholder for folder={}, fileName={}", folder, fileName);
+        // Return a functional placeholder image for testing
+        return "https://placehold.co/600x400?text=" + folder + "+" + fileName;
     }
 
     @Override

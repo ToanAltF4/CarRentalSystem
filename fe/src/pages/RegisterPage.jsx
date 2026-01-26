@@ -153,7 +153,7 @@ function RegisterPage() {
                                     ...styles.input,
                                     ...(errors.fullName ? styles.inputError : {})
                                 }}
-                                placeholder="Nguyễn Văn A"
+                                placeholder="John Doe"
                             />
                             {errors.fullName && (
                                 <p style={styles.fieldError}>{errors.fullName}</p>
