@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, CreditCard, CheckCircle, Loader2, Smartphone } from 'lucide-react';
-import bookingService from '../../services/bookingService';
+import paymentService from '../../services/paymentService';
+import { formatPrice } from '../../utils/formatters';
 
 const PaymentModal = ({ booking, onClose, onSuccess }) => {
     const [processing, setProcessing] = useState(false);
@@ -8,29 +9,29 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
     const [selectedMethod, setSelectedMethod] = useState('vnpay');
 
     const paymentMethods = [
-        { id: 'vnpay', name: 'VNPay', icon: '💳', color: 'bg-blue-500' },
-        { id: 'momo', name: 'MoMo', icon: '📱', color: 'bg-pink-500' },
-        { id: 'zalopay', name: 'ZaloPay', icon: '💰', color: 'bg-blue-600' }
+        { id: 'vnpay', name: 'VNPay', icon: <CreditCard size={20} />, color: 'bg-blue-500' },
+        { id: 'momo', name: 'MoMo', icon: <Smartphone size={20} />, color: 'bg-pink-500', disabled: true },
+        { id: 'zalopay', name: 'ZaloPay', icon: <CreditCard size={20} />, color: 'bg-blue-600', disabled: true }
     ];
 
     const handlePayment = async () => {
         setProcessing(true);
 
-        // Simulate payment processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
         try {
-            // Update booking status to IN_PROGRESS after payment
-            await bookingService.updateStatus(booking.id, 'IN_PROGRESS');
-            setSuccess(true);
-
-            // Auto close after success
-            setTimeout(() => {
-                onSuccess();
-            }, 2000);
+            if (selectedMethod !== 'vnpay') {
+                alert('Only VNPay is supported at the moment.');
+                setProcessing(false);
+                return;
+            }
+            const { paymentUrl } = await paymentService.createVnpayPayment(booking);
+            if (!paymentUrl) {
+                throw new Error('Missing payment URL');
+            }
+            window.location.href = paymentUrl;
         } catch (err) {
             console.error('Payment failed:', err);
-            alert('Payment failed. Please try again.');
+            const message = err?.response?.data?.message || err?.message || 'Payment failed. Please try again.';
+            alert(message);
             setProcessing(false);
         }
     };
@@ -71,7 +72,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                                 />
                                 <div className="flex-1">
                                     <h4 className="font-semibold text-gray-900">{booking.vehicleName}</h4>
-                                    <p className="text-sm text-gray-500">{booking.startDate} → {booking.endDate}</p>
+                                    <p className="text-sm text-gray-500">{booking.startDate} ? {booking.endDate}</p>
                                 </div>
                             </div>
                         </div>
@@ -84,7 +85,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                                     <button
                                         key={method.id}
                                         onClick={() => setSelectedMethod(method.id)}
-                                        disabled={processing}
+                                        disabled={processing || method.disabled}
                                         className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${selectedMethod === method.id
                                                 ? 'border-primary bg-primary/5'
                                                 : 'border-gray-200 hover:border-gray-300'
@@ -104,7 +105,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                         <div className="px-6 py-4 border-t border-gray-100">
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-600">Total Amount</span>
-                                <span className="text-2xl font-bold text-primary">${booking.totalAmount}</span>
+                                <span className="text-2xl font-bold text-primary">{formatPrice(booking.totalAmount)}</span>
                             </div>
                         </div>
 
@@ -123,12 +124,12 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                                 ) : (
                                     <>
                                         <CreditCard size={20} />
-                                        Pay ${booking.totalAmount}
+                                        Pay {formatPrice(booking.totalAmount)}
                                     </>
                                 )}
                             </button>
                             <p className="text-xs text-center text-gray-400 mt-3">
-                                This is a simulated payment for demo purposes
+                                You will be redirected to VNPay for payment
                             </p>
                         </div>
                     </>

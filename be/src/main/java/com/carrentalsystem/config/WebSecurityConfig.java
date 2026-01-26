@@ -63,6 +63,10 @@ public class WebSecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()
                         .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
 
+                        // VNPAY callbacks and payment create
+                        .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/return").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/vnpay/create").authenticated()
+
                         // Vehicles - View fleet is public
                         .requestMatchers(HttpMethod.GET, "/api/v1/vehicles/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/vehicles").permitAll()

@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS bookings;
 DROP TABLE IF EXISTS delivery_pricing;
 DROP TABLE IF EXISTS driver_pricing;
 DROP TABLE IF EXISTS drivers;
+DROP TABLE IF EXISTS driver_licenses;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS roles;
@@ -18,8 +19,17 @@ DROP TABLE IF EXISTS vehicle_categories;
 DROP TABLE IF EXISTS pickup_methods;
 DROP TABLE IF EXISTS rental_types;
 DROP TABLE IF EXISTS payment_methods;
+DROP TABLE IF EXISTS booking_statuses;
+DROP TABLE IF EXISTS condition_types;
+DROP TABLE IF EXISTS invoice_payment_statuses;
+DROP TABLE IF EXISTS payment_statuses;
+DROP TABLE IF EXISTS driver_statuses;
+DROP TABLE IF EXISTS license_statuses;
+DROP TABLE IF EXISTS vehicle_statuses;
+DROP TABLE IF EXISTS vehicle_last_location;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
 
 -- Lookup / danh m?c
 CREATE TABLE payment_methods (

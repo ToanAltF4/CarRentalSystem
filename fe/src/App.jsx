@@ -10,6 +10,7 @@ import RegisterPage from './pages/RegisterPage';
 import CarDetailPage from './pages/CarDetailPage';
 import VehicleListPage from './pages/VehicleListPage';
 import BookingSuccessPage from './pages/BookingSuccessPage';
+import VnpayReturnPage from './pages/VnpayReturnPage';
 import PricingPage from './pages/PricingPage';
 import CorporatePage from './pages/CorporatePage';
 import AboutPage from './pages/AboutPage';
@@ -51,6 +52,7 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route path="payment/vnpay-return" element={<VnpayReturnPage />} />
             <Route
               path="my-bookings"
               element={
