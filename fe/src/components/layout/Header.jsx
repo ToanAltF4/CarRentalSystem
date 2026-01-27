@@ -107,13 +107,21 @@ const Header = () => {
                             )}
                         </div>
                     ) : (
-                        <Link
-                            to="/login"
-                            className="flex items-center gap-2 bg-[#5fcf86] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#4bc076] transition-all shadow-md"
-                        >
-                            <User size={18} />
-                            Login
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <Link
+                                to="/login"
+                                className="flex items-center gap-2 bg-[#5fcf86] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#4bc076] transition-all shadow-md border-2 border-transparent"
+                            >
+                                <User size={18} />
+                                Login
+                            </Link>
+                            <Link
+                                to="/register"
+                                className="px-5 py-2.5 rounded-lg font-semibold text-[#5fcf86] border-2 border-[#5fcf86] hover:bg-[#5fcf86] hover:text-white transition-all duration-300"
+                            >
+                                Register
+                            </Link>
+                        </div>
                     )}
                 </div>
 
@@ -142,7 +150,10 @@ const Header = () => {
                             <button onClick={logout} className="block py-2 text-red-500">Logout</button>
                         </>
                     ) : (
-                        <Link to="/login" className="block py-2 text-[#5fcf86] font-semibold">Login</Link>
+                        <>
+                            <Link to="/login" className="block py-2 text-[#5fcf86] font-semibold">Login</Link>
+                            <Link to="/register" className="block py-2 text-[#141414] font-medium">Register</Link>
+                        </>
                     )}
                 </div>
             )}

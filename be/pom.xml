@@ -106,6 +106,12 @@
       <version>2.7.0</version>
     </dependency>
 
+    <!-- Spring Boot Mail for sending emails -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
     <!-- AWS SDK for S3 (Cloudflare R2 compatible) -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>

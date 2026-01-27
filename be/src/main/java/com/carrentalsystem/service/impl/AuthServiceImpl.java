@@ -11,6 +11,7 @@ import com.carrentalsystem.repository.RoleRepository;
 import com.carrentalsystem.repository.UserRepository;
 import com.carrentalsystem.service.AuthService;
 import com.carrentalsystem.service.JwtService;
+import com.carrentalsystem.service.OtpService;
 import com.carrentalsystem.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,8 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final OtpService otpService;
+
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -45,6 +48,13 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             log.warn("Invalid password for user: {}", request.getEmail());
             throw new IllegalArgumentException("Invalid email or password");
+        }
+
+        // Check if email verification is pending
+        if ("PENDING_VERIFICATION".equals(user.getStatus())) {
+            log.warn("Login denied for user {}: email not verified", request.getEmail());
+            throw new IllegalArgumentException(
+                    "Vui lòng xác thực email trước khi đăng nhập. Kiểm tra hộp thư của bạn.");
         }
 
         // Validate account status (ACTIVE, INACTIVE, BANNED)
@@ -132,7 +142,7 @@ public class AuthServiceImpl implements AuthService {
         RoleEntity customerRole = roleRepository.findByRoleName("ROLE_CUSTOMER")
                 .orElseThrow(() -> new IllegalStateException("Default role ROLE_CUSTOMER not found in database"));
 
-        // Create new user entity
+        // Create new user entity with PENDING_VERIFICATION status
         UserEntity newUser = UserEntity.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword())) // Hash password
@@ -141,12 +151,15 @@ public class AuthServiceImpl implements AuthService {
                 .address(request.getAddress())
                 .licenseNumber(request.getLicenseNumber())
                 .role(customerRole) // Always CUSTOMER for public registration
-                .status("ACTIVE") // New users are ACTIVE by default
+                .status("PENDING_VERIFICATION") // Require email verification
                 .build();
 
         userRepository.save(newUser);
 
-        log.info("User registered successfully: {}", request.getEmail());
+        // Generate and send OTP
+        otpService.generateAndSendOtp(request.getEmail(), request.getFullName());
+
+        log.info("User registered successfully, OTP sent to: {}", request.getEmail());
     }
 
     private String resolveLicenseStatus(UserEntity user) {

@@ -183,6 +183,12 @@ function LoginPage() {
                     </button>
                 </form>
 
+                <div style={styles.forgotPassword}>
+                    <a href="/forgot-password" style={styles.forgotLink}>
+                        Quên mật khẩu?
+                    </a>
+                </div>
+
                 <p style={styles.footer}>
                     Don't have an account?{' '}
                     <a href="/register" style={styles.link}>
@@ -353,6 +359,16 @@ const styles = {
     demoBtnAdmin: {
         backgroundColor: '#9f7aea',
         color: 'white'
+    },
+    forgotPassword: {
+        marginTop: '16px',
+        textAlign: 'center'
+    },
+    forgotLink: {
+        color: '#667eea',
+        textDecoration: 'none',
+        fontSize: '14px',
+        fontWeight: '500'
     }
 };
 

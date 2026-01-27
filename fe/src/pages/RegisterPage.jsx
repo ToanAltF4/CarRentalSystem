@@ -53,10 +53,9 @@ function RegisterPage() {
             console.log('Sending registration data:', registrationData);
 
             await authService.register(registrationData);
-            setSuccess(true);
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
+            navigate('/verify-otp', {
+                state: { email: formData.email }
+            });
         } catch (err) {
             console.error('Registration error:', err);
             console.error('Error response:', err.response?.data);
@@ -89,7 +88,7 @@ function RegisterPage() {
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                         <h2 style={styles.successTitle}>Registration Successful!</h2>
-                        <p style={styles.successText}>Redirecting to login page...</p>
+                        <p style={styles.successText}>Please check your email to verify your account...</p>
                     </div>
                 </div>
             </div>

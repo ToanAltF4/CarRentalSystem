@@ -86,6 +86,58 @@ const authService = {
      */
     getUserRole() {
         return localStorage.getItem('userRole');
+    },
+
+    /**
+     * Verify OTP code
+     * @param {string} email 
+     * @param {string} otpCode - 6-digit OTP code
+     * @returns {Promise} Verification response
+     */
+    async verifyOtp(email, otpCode) {
+        const response = await api.post('/auth/verify-otp', {
+            email,
+            otpCode
+        });
+        return response.data;
+    },
+
+    /**
+     * Resend OTP code
+     * @param {string} email 
+     * @returns {Promise} Resend response
+     */
+    async resendOtp(email) {
+        const response = await api.post('/auth/resend-otp', {
+            email
+        });
+        return response.data;
+    },
+
+    /**
+     * Request password reset
+     * @param {string} email 
+     * @returns {Promise} Password reset request response
+     */
+    async forgotPassword(email) {
+        const response = await api.post('/auth/forgot-password', {
+            email
+        });
+        return response.data;
+    },
+
+    /**
+     * Reset password with token
+     * @param {string} token - Reset token from email
+     * @param {string} newPassword - New password
+     * @returns {Promise} Password reset response
+     */
+    async resetPassword(token, newPassword) {
+        const response = await api.post('/auth/reset-password', {
+            token,
+            newPassword
+        });
+        return response.data;
     }
 };
 

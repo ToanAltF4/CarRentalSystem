@@ -39,6 +39,21 @@ spring:
     locations: classpath:db/migration
     schemas: ${DB_NAME:ev_fleet}
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    from: ${MAIL_FROM:your-email@gmail.com}
+    from-name: ${MAIL_FROM_NAME:EV Fleet Car Rental}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
 # Auth configuration
 app:
   auth:
@@ -64,6 +79,11 @@ app:
     command: ${VNP_COMMAND:pay}
     curr-code: ${VNP_CURR_CODE:VND}
     locale: ${VNP_LOCALE:vn}
+  fe-base-url: ${FE_BASE_URL:http://localhost:5173}
+  otp:
+    expiration-minutes: ${OTP_EXPIRATION_MINUTES:10}
+  password-reset:
+    expiration-hours: ${PASSWORD_RESET_EXPIRATION_HOURS:1}
   
 logging:
   level:
