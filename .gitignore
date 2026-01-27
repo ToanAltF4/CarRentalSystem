@@ -100,3 +100,8 @@ uploads/
 *.code-workspace
 .vscode-test/
 .history/
+
+# Google Client Secrets
+client_secret_*.json
+be/client_secret_*.json
+
