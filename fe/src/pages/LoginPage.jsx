@@ -7,24 +7,11 @@ function LoginPage() {
     const location = useLocation();
     const { login } = useAuth();
 
-    // Demo accounts for testing
-    const demoAccounts = {
-        admin: { email: 'admin@carrentalsystem.com', password: 'password123', label: 'Admin' },
-        staff: { email: 'staff@carrentalsystem.com', password: 'password123', label: 'Staff' },
-        customer: { email: 'minhpn@gmail.com', password: 'password123', label: 'Customer' }
-    };
-
     const [formData, setFormData] = useState({
-        email: demoAccounts.customer.email,
-        password: demoAccounts.customer.password
+        email: '',
+        password: ''
     });
 
-    const fillDemoAccount = (type) => {
-        const account = demoAccounts[type];
-        setFormData({ email: account.email, password: account.password });
-        setErrors({});
-        setGeneralError('');
-    };
     const [errors, setErrors] = useState({});
     const [generalError, setGeneralError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -90,22 +77,6 @@ function LoginPage() {
             <div style={styles.card}>
                 <h2 style={styles.title}>Welcome Back</h2>
                 <p style={styles.subtitle}>Login to your account</p>
-
-                {/* Demo Account Buttons */}
-                <div style={styles.demoSection}>
-                    <p style={styles.demoLabel}>Quick Login (Demo):</p>
-                    <div style={styles.demoButtons}>
-                        <button type="button" onClick={() => fillDemoAccount('customer')} style={{ ...styles.demoBtn, ...styles.demoBtnCustomer }}>
-                            👤 Customer
-                        </button>
-                        <button type="button" onClick={() => fillDemoAccount('staff')} style={{ ...styles.demoBtn, ...styles.demoBtnStaff }}>
-                            🛠️ Staff
-                        </button>
-                        <button type="button" onClick={() => fillDemoAccount('admin')} style={{ ...styles.demoBtn, ...styles.demoBtnAdmin }}>
-                            👑 Admin
-                        </button>
-                    </div>
-                </div>
 
                 {generalError && (
                     <div style={styles.errorBox}>

@@ -29,6 +29,7 @@ public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
     private final VehicleRepository vehicleRepository;
+    private final UserRepository userRepository;
     private final PricingRepository pricingRepository;
     private final BookingMapper bookingMapper;
 
@@ -72,12 +73,22 @@ public class BookingServiceImpl implements BookingService {
                     "Booking conflicts with existing reservations: " + conflictDates);
         }
 
-        // 5. Calculate pricing
+        // 5. Check user's driver license status
+        UserEntity user = userRepository.findByEmail(request.getCustomerEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getCustomerEmail()));
+
+        boolean hasApprovedLicense = user.getLicenseStatus() == LicenseStatus.APPROVED;
+        if (!hasApprovedLicense) {
+            throw new IllegalArgumentException(
+                    "Driver's license not verified. Please upload and verify your driver's license before booking.");
+        }
+
+        // 6. Calculate pricing
         BigDecimal dailyRate = calculateDailyRate(vehicle);
         int totalDays = calculateTotalDays(request.getStartDate(), request.getEndDate());
         BigDecimal totalAmount = dailyRate.multiply(BigDecimal.valueOf(totalDays));
 
-        // 6. Create booking entity
+        // 7. Create booking entity - Auto CONFIRMED since license is verified
         BookingEntity booking = bookingMapper.toEntity(request);
         booking.setBookingCode(generateBookingCode());
         booking.setVehicle(vehicle);
@@ -85,11 +96,11 @@ public class BookingServiceImpl implements BookingService {
         booking.setDailyRate(dailyRate);
         booking.setRentalFee(totalAmount);
         booking.setTotalAmount(totalAmount);
-        booking.setStatus(BookingStatus.PENDING);
+        booking.setStatus(BookingStatus.CONFIRMED); // Auto confirm since license is verified
 
-        // 7. Save booking
+        // 8. Save booking
         BookingEntity saved = bookingRepository.save(booking);
-        log.info("Booking created successfully with code: {}", saved.getBookingCode());
+        log.info("Booking created and auto-confirmed with code: {}", saved.getBookingCode());
 
         return bookingMapper.toResponseDTO(saved);
     }

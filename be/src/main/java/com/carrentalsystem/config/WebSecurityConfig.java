@@ -90,7 +90,7 @@ public class WebSecurityConfig {
 
                         // ========== ADMIN ENDPOINTS (Company Staff) ==========
                         // Admin Dashboard - stats & revenue
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MANAGER")
 
                         // Vehicle management - Company owns all vehicles
                         .requestMatchers(HttpMethod.POST, "/api/v1/vehicles/**").hasRole("ADMIN")

@@ -139,11 +139,8 @@ const AdminEditVehiclePage = () => {
                                         <option value="BYD">BYD</option>
                                         <option value="Hyundai">Hyundai</option>
                                         <option value="Kia">Kia</option>
-                                        <option value="Mercedes">Mercedes</option>
+                                        <option value="Mercedes-Benz">Mercedes-Benz</option>
                                         <option value="BMW">BMW</option>
-                                        <option value="Audi">Audi</option>
-                                        <option value="Porsche">Porsche</option>
-                                        <option value="MG">MG</option>
                                     </select>
                                     {errors.brand && <span className="text-xs text-red-500 mt-1">{errors.brand.message}</span>}
                                 </div>
@@ -163,12 +160,11 @@ const AdminEditVehiclePage = () => {
                                         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
                                     >
                                         <option value="">Select Category</option>
-                                        <option value="ECONOMY">Economy</option>
-                                        <option value="STANDARD">Standard</option>
-                                        <option value="PREMIUM">Premium</option>
-                                        <option value="LUXURY">Luxury</option>
+                                        <option value="Sedan">Sedan</option>
                                         <option value="SUV">SUV</option>
-                                        <option value="COMPACT">Compact</option>
+                                        <option value="Compact">Compact</option>
+                                        <option value="Luxury">Luxury</option>
+                                        <option value="Crossover">Crossover</option>
                                     </select>
                                     {errors.category && <span className="text-xs text-red-500 mt-1">{errors.category.message}</span>}
                                 </div>

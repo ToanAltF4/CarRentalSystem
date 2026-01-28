@@ -12,7 +12,12 @@ public enum VehicleStatus {
     /**
      * Vehicle is currently rented
      */
-    RENTED(2);
+    RENTED(2),
+
+    /**
+     * Vehicle is under maintenance
+     */
+    MAINTENANCE(3);
 
     private final int id;
 

@@ -8,11 +8,11 @@ import ImageUpload from '../../components/common/ImageUpload';
 const AdminAddVehiclePage = () => {
     // Demo vehicle templates for quick testing
     const demoVehicles = {
-        tesla: { name: 'Tesla Model 3', brand: 'Tesla', licensePlate: '30A-TEST1', category: 'PREMIUM', dailyRate: 2375000, seats: 5, batteryCapacityKwh: 75, rangeKm: 500, description: 'Tesla Model 3 - Premium electric sedan with autopilot' },
-        vinfast: { name: 'VinFast VF 8', brand: 'VinFast', licensePlate: '29A-TEST2', category: 'SUV', dailyRate: 2125000, seats: 5, batteryCapacityKwh: 87.7, rangeKm: 420, description: 'VinFast VF 8 - Smart electric SUV made in Vietnam' },
-        byd: { name: 'BYD Seal', brand: 'BYD', licensePlate: '51A-TEST3', category: 'PREMIUM', dailyRate: 2500000, seats: 5, batteryCapacityKwh: 82.5, rangeKm: 570, description: 'BYD Seal - Sporty electric sedan with blade battery' },
-        hyundai: { name: 'Hyundai Ioniq 5', brand: 'Hyundai', licensePlate: '43A-TEST4', category: 'STANDARD', dailyRate: 2000000, seats: 5, batteryCapacityKwh: 72.6, rangeKm: 480, description: 'Hyundai Ioniq 5 - Award-winning EV crossover' },
-        mercedes: { name: 'Mercedes EQS 450+', brand: 'Mercedes', licensePlate: '30A-TEST5', category: 'LUXURY', dailyRate: 5500000, seats: 5, batteryCapacityKwh: 107.8, rangeKm: 770, description: 'Mercedes EQS - Luxury flagship electric sedan' }
+        tesla: { name: 'Tesla Model 3', brand: 'Tesla', licensePlate: '30A-TEST1', category: 'Sedan', dailyRate: 1500000, seats: 5, batteryCapacityKwh: 82, rangeKm: 580, description: 'Tesla Model 3 - Premium electric sedan with autopilot' },
+        vinfast: { name: 'VinFast VF 8', brand: 'VinFast', licensePlate: '29A-TEST2', category: 'SUV', dailyRate: 1200000, seats: 5, batteryCapacityKwh: 87.7, rangeKm: 420, description: 'VinFast VF 8 - Smart electric SUV made in Vietnam' },
+        byd: { name: 'BYD Seal', brand: 'BYD', licensePlate: '51A-TEST3', category: 'Sedan', dailyRate: 1300000, seats: 5, batteryCapacityKwh: 82.5, rangeKm: 570, description: 'BYD Seal - Sporty electric sedan with blade battery' },
+        hyundai: { name: 'Hyundai Ioniq 5', brand: 'Hyundai', licensePlate: '43A-TEST4', category: 'Crossover', dailyRate: 1100000, seats: 5, batteryCapacityKwh: 77.4, rangeKm: 481, description: 'Hyundai Ioniq 5 - Award-winning EV crossover' },
+        mercedes: { name: 'Mercedes EQS 450+', brand: 'Mercedes-Benz', licensePlate: '30A-TEST5', category: 'Luxury', dailyRate: 3500000, seats: 5, batteryCapacityKwh: 107.8, rangeKm: 780, description: 'Mercedes EQS - Luxury flagship electric sedan' }
     };
 
     const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm({
@@ -124,11 +124,8 @@ const AdminAddVehiclePage = () => {
                                         <option value="BYD">BYD</option>
                                         <option value="Hyundai">Hyundai</option>
                                         <option value="Kia">Kia</option>
-                                        <option value="Mercedes">Mercedes</option>
+                                        <option value="Mercedes-Benz">Mercedes-Benz</option>
                                         <option value="BMW">BMW</option>
-                                        <option value="Audi">Audi</option>
-                                        <option value="Porsche">Porsche</option>
-                                        <option value="MG">MG</option>
                                     </select>
                                     {errors.brand && <span className="text-xs text-red-500 mt-1">{errors.brand.message}</span>}
                                 </div>
@@ -148,12 +145,11 @@ const AdminAddVehiclePage = () => {
                                         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
                                     >
                                         <option value="">Select Category</option>
-                                        <option value="ECONOMY">Economy</option>
-                                        <option value="STANDARD">Standard</option>
-                                        <option value="PREMIUM">Premium</option>
-                                        <option value="LUXURY">Luxury</option>
+                                        <option value="Sedan">Sedan</option>
                                         <option value="SUV">SUV</option>
-                                        <option value="COMPACT">Compact</option>
+                                        <option value="Compact">Compact</option>
+                                        <option value="Luxury">Luxury</option>
+                                        <option value="Crossover">Crossover</option>
                                     </select>
                                     {errors.category && <span className="text-xs text-red-500 mt-1">{errors.category.message}</span>}
                                 </div>

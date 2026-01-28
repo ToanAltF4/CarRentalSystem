@@ -18,8 +18,8 @@ const VehicleListPage = () => {
     const [sortBy, setSortBy] = useState('popular');
     const [showFilters, setShowFilters] = useState(false);
 
-    const brands = ['ALL', 'Tesla', 'VinFast', 'Hyundai', 'BMW', 'Porsche', 'Mercedes', 'Kia'];
-    const categories = ['ALL', 'Sedan', 'SUV', 'Luxury', 'Compact'];
+    const brands = ['ALL', 'Tesla', 'VinFast', 'Hyundai', 'BMW', 'BYD', 'Mercedes-Benz', 'Kia'];
+    const categories = ['ALL', 'Sedan', 'SUV', 'Compact', 'Luxury', 'Crossover'];
     const priceRanges = [
         { value: 'ALL', label: 'All Prices' },
         { value: '0-1000', label: 'Under 1,000K' },
@@ -47,15 +47,15 @@ const VehicleListPage = () => {
         }
     };
 
-    // Filter by price range
+    // Filter by price range (prices in VND, labels in K = thousands)
     const filterByPrice = (vehicle) => {
         if (priceRange === 'ALL') return true;
         const price = vehicle.dailyRate;
         switch (priceRange) {
-            case '0-1000': return price < 1000;
-            case '1000-2000': return price >= 1000 && price < 2000;
-            case '2000-3000': return price >= 2000 && price < 3000;
-            case '3000+': return price >= 3000;
+            case '0-1000': return price < 1000000;
+            case '1000-2000': return price >= 1000000 && price < 2000000;
+            case '2000-3000': return price >= 2000000 && price < 3000000;
+            case '3000+': return price >= 3000000;
             default: return true;
         }
     };
@@ -66,7 +66,7 @@ const VehicleListPage = () => {
             const matchesSearch = v.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 v.brand?.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesBrand = selectedBrand === 'ALL' || v.brand === selectedBrand;
-            const matchesCategory = selectedCategory === 'ALL' || v.category?.name === selectedCategory;
+            const matchesCategory = selectedCategory === 'ALL' || v.categoryName === selectedCategory;
             const matchesPrice = filterByPrice(v);
             return matchesSearch && matchesBrand && matchesCategory && matchesPrice;
         })

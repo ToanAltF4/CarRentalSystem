@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
     const login = async (email, password) => {
         const response = await api.post('/auth/login', { email, password });
 
-        const { token, accessToken, user: userData, userId, role, fullName, email: userEmail } = response.data;
+        const { token, accessToken, user: userData, userId, role, fullName, email: userEmail, licenseStatus } = response.data;
 
         // Handle both response formats (token or accessToken)
         const authToken = token || accessToken;
@@ -52,7 +52,8 @@ export function AuthProvider({ children }) {
             id: userId,
             email: userEmail || email,
             role: role,
-            fullName: fullName
+            fullName: fullName,
+            licenseStatus: licenseStatus || 'NONE'
         };
 
         // Save to localStorage

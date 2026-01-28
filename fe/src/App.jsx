@@ -29,6 +29,7 @@ import AdminEditVehiclePage from './pages/admin/AdminEditVehiclePage';
 import AdminVehicleList from './pages/admin/AdminVehicleList';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminBookingList from './pages/admin/AdminBookingList';
+import AdminUserList from './pages/admin/AdminUserList';
 
 function App() {
   return (
@@ -130,6 +131,14 @@ function App() {
               element={
                 <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
                   <AdminBookingList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/users"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminUserList />
                 </PrivateRoute>
               }
             />

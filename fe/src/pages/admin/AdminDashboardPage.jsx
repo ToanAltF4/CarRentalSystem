@@ -248,13 +248,13 @@ const AdminDashboardPage = () => {
                             </div>
                         </Link>
                         <Link
-                            to="/admin/vehicles/add"
+                            to="/admin/users"
                             className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl text-white hover:shadow-lg transition-all"
                         >
-                            <TrendingUp className="h-6 w-6" />
+                            <Users className="h-6 w-6" />
                             <div>
-                                <p className="font-semibold">Add New Vehicle</p>
-                                <p className="text-xs text-white/80">Expand Fleet</p>
+                                <p className="font-semibold">Manage Users</p>
+                                <p className="text-xs text-white/80">Verify Licenses</p>
                             </div>
                         </Link>
                     </div>

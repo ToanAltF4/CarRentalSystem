@@ -177,7 +177,8 @@ const MyBookingsPage = () => {
 
                                         {/* Actions */}
                                         <div className="flex flex-col gap-2 md:items-end">
-                                            {booking.status === 'PENDING' && (
+                                            {/* Cancel button for PENDING or CONFIRMED bookings */}
+                                            {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
                                                 <button
                                                     onClick={() => handleCancel(booking.id)}
                                                     disabled={cancellingId === booking.id}
@@ -192,6 +193,7 @@ const MyBookingsPage = () => {
                                                 </button>
                                             )}
 
+                                            {/* Pay Now button - CONFIRMED bookings can pay (license was checked at booking time) */}
                                             {booking.status === 'CONFIRMED' && (
                                                 <button
                                                     onClick={() => setPaymentBooking(booking)}
@@ -238,3 +240,4 @@ const MyBookingsPage = () => {
 };
 
 export default MyBookingsPage;
+

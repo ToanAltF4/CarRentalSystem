@@ -47,8 +47,8 @@ const CarDetailPage = () => {
 
     const rentalDays = calculateRentalDays();
     const rentalFee = car ? car.price * rentalDays : 0;
-    const insuranceFee = 15;
-    const serviceFee = 10;
+    const insuranceFee = Math.round(rentalFee * 0.05); // 5% of rental fee
+    const serviceFee = Math.round(rentalFee * 0.03); // 3% of rental fee
     const totalPrice = rentalFee + insuranceFee + serviceFee;
 
     // Validate dates
@@ -318,13 +318,31 @@ const CarDetailPage = () => {
                             </div>
                         )}
 
-                        {/* Customer Info */}
+                        {/* Customer Info & License Status */}
                         <div className="mb-4 rounded-lg bg-blue-50 p-3">
                             {isAuthenticated && user ? (
                                 <>
                                     <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Book as</p>
                                     <p className="font-medium text-gray-900">{user.fullName}</p>
                                     <p className="text-sm text-gray-500">{user.email}</p>
+
+                                    {/* License Status Badge */}
+                                    <div className="mt-2 pt-2 border-t border-blue-100">
+                                        <p className="text-xs text-gray-500 mb-1">Driver's License:</p>
+                                        {user.licenseStatus === 'APPROVED' ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                                <CheckCircle2 size={12} /> Verified
+                                            </span>
+                                        ) : user.licenseStatus === 'PENDING' ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
+                                                <AlertCircle size={12} /> Pending Review
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">
+                                                <AlertCircle size={12} /> Not Uploaded
+                                            </span>
+                                        )}
+                                    </div>
                                 </>
                             ) : (
                                 <>
@@ -335,6 +353,31 @@ const CarDetailPage = () => {
                                 </>
                             )}
                         </div>
+
+                        {/* License Required Warning */}
+                        {isAuthenticated && user && user.licenseStatus !== 'APPROVED' && (
+                            <div className="mb-4 rounded-lg bg-orange-50 border border-orange-200 p-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle className="text-orange-500 mt-0.5" size={20} />
+                                    <div>
+                                        <p className="font-medium text-orange-800 text-sm">Driver's License Required</p>
+                                        <p className="text-xs text-orange-600 mt-1">
+                                            {user.licenseStatus === 'PENDING'
+                                                ? 'Your license is being reviewed. Please wait for approval before booking.'
+                                                : 'Please upload your driver\'s license to book a vehicle.'}
+                                        </p>
+                                        {user.licenseStatus !== 'PENDING' && (
+                                            <Link
+                                                to="/profile"
+                                                className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-orange-700 hover:text-orange-800 underline"
+                                            >
+                                                Upload License →
+                                            </Link>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Date Picker */}
                         <div className="mb-6 space-y-3">
@@ -395,7 +438,7 @@ const CarDetailPage = () => {
                         {/* Book Now Button */}
                         <button
                             onClick={handleBookNow}
-                            disabled={bookingLoading}
+                            disabled={bookingLoading || (isAuthenticated && user?.licenseStatus !== 'APPROVED')}
                             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#5fcf86] py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-[#4bc076] hover:shadow-[#5fcf86]/30 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {bookingLoading ? (
@@ -403,10 +446,20 @@ const CarDetailPage = () => {
                                     <Loader2 size={20} className="animate-spin" />
                                     Processing...
                                 </>
+                            ) : !isAuthenticated ? (
+                                <>
+                                    <CheckCircle2 size={20} />
+                                    Login to Book
+                                </>
+                            ) : user?.licenseStatus !== 'APPROVED' ? (
+                                <>
+                                    <AlertCircle size={20} />
+                                    License Required
+                                </>
                             ) : (
                                 <>
                                     <CheckCircle2 size={20} />
-                                    {isAuthenticated ? 'Book Now' : 'Login to Book'}
+                                    Book Now
                                 </>
                             )}
                         </button>
