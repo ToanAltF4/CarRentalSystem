@@ -63,6 +63,9 @@ public class WebSecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()
                         .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
 
+                        // Actuator endpoints
+                        .requestMatchers("/actuator/**").permitAll()
+
                         // VNPAY callbacks and payment create
                         .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/return").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/vnpay/create").authenticated()

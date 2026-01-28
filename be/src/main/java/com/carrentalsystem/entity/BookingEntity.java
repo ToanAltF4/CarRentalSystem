@@ -38,11 +38,13 @@ public class BookingEntity {
     @JoinColumn(name = "user_id")
     private UserEntity user;
 
-    @Column(name = "rental_type_id")
-    private Integer rentalTypeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rental_type_id")
+    private RentalTypeEntity rentalType;
 
-    @Column(name = "pickup_method_id")
-    private Integer pickupMethodId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_method_id")
+    private PickupMethodEntity pickupMethod;
 
     @Column(name = "driver_id")
     private Long driverId;
@@ -53,7 +55,7 @@ public class BookingEntity {
     @Column(name = "customer_email", nullable = false, length = 100)
     private String customerEmail;
 
-    @Transient
+    @Column(name = "customer_phone", length = 20)
     private String customerPhone;
 
     @Column(name = "start_date", nullable = false)
@@ -61,6 +63,9 @@ public class BookingEntity {
 
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
+
+    @Column(name = "total_days")
+    private Integer totalDays;
 
     @Column(name = "daily_rate", nullable = false, precision = 10, scale = 2)
     private BigDecimal dailyRate;
@@ -82,15 +87,23 @@ public class BookingEntity {
     @Builder.Default
     private BookingStatus status = BookingStatus.PENDING;
 
-    @Transient
+    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    @Transient
-    private Integer totalDays;
-
-    @Transient
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Transient
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

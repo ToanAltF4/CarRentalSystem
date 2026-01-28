@@ -46,9 +46,9 @@ public class UserEntity {
      * Account status: ACTIVE, INACTIVE, BANNED
      * Only ACTIVE users can login and receive refresh tokens
      */
-    @Transient
+    @Column(name = "status", length = 20)
     @Builder.Default
-    private String status = "ACTIVE";
+    private String status = "PENDING";
 
     @Column(name = "license_type", length = 50)
     private String licenseType;
