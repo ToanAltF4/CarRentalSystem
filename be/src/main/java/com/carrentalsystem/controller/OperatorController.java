@@ -97,6 +97,12 @@ public class OperatorController {
         return ResponseEntity.ok(operatorService.unassignStaff(id));
     }
 
+    @GetMapping("/staff/{staffId}/bookings")
+    @Operation(summary = "Get bookings assigned to a staff member")
+    public ResponseEntity<List<BookingResponseDTO>> getStaffAssignedBookings(@PathVariable Long staffId) {
+        return ResponseEntity.ok(operatorService.getStaffAssignedBookings(staffId));
+    }
+
     // ==================== License Verification ====================
 
     @GetMapping("/licenses/pending")

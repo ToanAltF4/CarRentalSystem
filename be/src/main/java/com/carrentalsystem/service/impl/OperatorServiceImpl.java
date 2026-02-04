@@ -177,6 +177,16 @@ public class OperatorServiceImpl implements OperatorService {
         return toResponseDTO(saved);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getStaffAssignedBookings(Long staffId) {
+        log.info("Fetching bookings assigned to staff {}", staffId);
+        List<BookingEntity> bookings = bookingRepository.findByAssignedStaffId(staffId);
+        return bookings.stream()
+                .map(this::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     // ==================== License Verification ====================
 
     @Override

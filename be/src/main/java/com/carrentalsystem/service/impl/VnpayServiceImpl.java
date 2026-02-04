@@ -65,8 +65,10 @@ public class VnpayServiceImpl implements VnpayService {
 
     @Override
     @Transactional(readOnly = true)
-    public VnpayCreatePaymentResponse createPaymentUrl(VnpayCreatePaymentRequest request, HttpServletRequest servletRequest) {
-        if (request.getInvoiceId() == null && request.getBookingId() == null && (request.getBookingCode() == null || request.getBookingCode().isBlank())) {
+    public VnpayCreatePaymentResponse createPaymentUrl(VnpayCreatePaymentRequest request,
+            HttpServletRequest servletRequest) {
+        if (request.getInvoiceId() == null && request.getBookingId() == null
+                && (request.getBookingCode() == null || request.getBookingCode().isBlank())) {
             throw new IllegalArgumentException("invoiceId, bookingId, or bookingCode is required");
         }
 
@@ -85,7 +87,8 @@ public class VnpayServiceImpl implements VnpayService {
             txnRef = booking.getBookingCode();
         } else {
             BookingEntity booking = bookingRepository.findByBookingCode(request.getBookingCode())
-                    .orElseThrow(() -> new ResourceNotFoundException("Booking", "bookingCode", request.getBookingCode()));
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Booking", "bookingCode", request.getBookingCode()));
             amount = booking.getTotalAmount();
             txnRef = booking.getBookingCode();
         }
@@ -175,7 +178,8 @@ public class VnpayServiceImpl implements VnpayService {
                 invoiceRepository.save(invoice);
             }
             if (booking != null) {
-                booking.setStatus(BookingStatus.IN_PROGRESS);
+                // Auto-confirm after payment - Operator only needs to assign staff
+                booking.setStatus(BookingStatus.CONFIRMED);
                 bookingRepository.save(booking);
             }
             return VnpayReturnResponse.builder()

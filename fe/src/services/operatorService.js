@@ -61,6 +61,11 @@ const operatorService = {
         return response.data;
     },
 
+    getStaffAssignedBookings: async (staffId) => {
+        const response = await api.get(`/v1/operator/staff/${staffId}/bookings`);
+        return response.data;
+    },
+
     // ==================== License Verification ====================
     getPendingLicenses: async () => {
         const response = await api.get('/v1/operator/licenses/pending');

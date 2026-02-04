@@ -62,6 +62,11 @@ public interface OperatorService {
      */
     BookingResponseDTO unassignStaff(Long bookingId);
 
+    /**
+     * Get bookings assigned to a specific staff member
+     */
+    List<BookingResponseDTO> getStaffAssignedBookings(Long staffId);
+
     // ==================== License Verification ====================
 
     /**

@@ -166,15 +166,15 @@ const OperatorDashboard = () => {
                         </div>
                     </Link>
 
-                    <div className="flex items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm opacity-60 cursor-not-allowed">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 mr-4">
+                    <Link to="/operator/staff-schedule" className="flex items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 mr-4">
                             <Users size={20} />
                         </div>
                         <div>
                             <h4 className="font-semibold text-gray-900">Staff Schedule</h4>
-                            <p className="text-xs text-gray-500">Coming soon</p>
+                            <p className="text-xs text-gray-500">View staff workload and assignments</p>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
         </div>

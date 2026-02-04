@@ -36,6 +36,7 @@ import OperatorRoute from './components/routes/OperatorRoute';
 import OperatorDashboard from './pages/operator/OperatorDashboard';
 import OperatorBookingList from './pages/operator/OperatorBookingList';
 import OperatorLicenseReview from './pages/operator/OperatorLicenseReview';
+import StaffSchedule from './pages/operator/StaffSchedule';
 
 // Staff Pages
 import StaffRoute from './components/routes/StaffRoute';
@@ -166,6 +167,7 @@ function App() {
               <Route path="dashboard" element={<OperatorDashboard />} />
               <Route path="bookings" element={<OperatorBookingList />} />
               <Route path="licenses" element={<OperatorLicenseReview />} />
+              <Route path="staff-schedule" element={<StaffSchedule />} />
             </Route>
 
             {/* 404 Page */}

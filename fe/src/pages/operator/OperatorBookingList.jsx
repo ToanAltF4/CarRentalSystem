@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-    Calendar, Search, Filter, CheckCircle, XCircle,
-    MoreVertical, UserPlus, Clock, ChevronDown
+    Calendar, Search, UserPlus, ChevronDown
 } from 'lucide-react';
 import operatorService from '../../services/operatorService';
 import StaffAssignmentModal from '../../components/operator/StaffAssignmentModal';
@@ -26,45 +25,24 @@ const OperatorBookingList = () => {
         setLoading(true);
         try {
             let data;
-            if (filterStatus === 'PENDING') {
-                data = await operatorService.getPendingBookings();
-            } else if (filterStatus === 'TODAY' || searchParams.get('filter') === 'today') {
+            if (filterStatus === 'TODAY' || searchParams.get('filter') === 'today') {
                 data = await operatorService.getTodayBookings();
             } else if (filterStatus === 'CONFIRMED') {
                 data = await operatorService.getConfirmedBookings();
-            } else {
-                const pending = await operatorService.getPendingBookings();
+            } else if (filterStatus === 'IN_PROGRESS') {
+                // Fetch in-progress bookings (to be implemented in backend if needed)
+                // For now, filter from all bookings
                 const confirmed = await operatorService.getConfirmedBookings();
-                data = [...pending, ...confirmed];
+                data = confirmed.filter(b => b.status === 'IN_PROGRESS');
+            } else {
+                // ALL - get confirmed bookings (that need staff assignment or are in progress)
+                data = await operatorService.getConfirmedBookings();
             }
             setBookings(data);
         } catch (error) {
             console.error('Error loading bookings:', error);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleApprove = async (id) => {
-        try {
-            await operatorService.approveBooking(id);
-            fetchBookings(); // Refresh list
-        } catch (err) {
-            console.error('Failed to approve:', err);
-            alert('Failed to approve booking');
-        }
-    };
-
-    const handleReject = async (id) => {
-        const reason = prompt("Enter rejection reason:");
-        if (!reason) return;
-
-        try {
-            await operatorService.rejectBooking(id, reason);
-            fetchBookings();
-        } catch (err) {
-            console.error('Failed to reject:', err);
-            alert('Failed to reject booking');
         }
     };
 
@@ -122,9 +100,9 @@ const OperatorBookingList = () => {
                                 className="appearance-none pl-4 pr-10 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                             >
                                 <option value="ALL">All Bookings</option>
-                                <option value="PENDING">Pending Approval</option>
                                 <option value="CONFIRMED">Ready for Assignment</option>
                                 <option value="TODAY">Today's Operations</option>
+                                <option value="IN_PROGRESS">In Progress</option>
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                         </div>
@@ -201,26 +179,19 @@ const OperatorBookingList = () => {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {booking.status === 'PENDING' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleApprove(booking.id)}
-                                                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                                                title="Approve"
-                                                            >
-                                                                <CheckCircle size={20} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReject(booking.id)}
-                                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                title="Reject"
-                                                            >
-                                                                <XCircle size={20} />
-                                                            </button>
-                                                        </>
+                                                    {/* Assign Staff button for CONFIRMED bookings */}
+                                                    {booking.status === 'CONFIRMED' && (
+                                                        <button
+                                                            onClick={() => openAssignment(booking)}
+                                                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            title="Assign Staff"
+                                                        >
+                                                            <UserPlus size={20} />
+                                                        </button>
                                                     )}
 
-                                                    {booking.status === 'CONFIRMED' && (
+                                                    {/* Show staff info or no action for IN_PROGRESS */}
+                                                    {booking.status === 'IN_PROGRESS' && !booking.assignedStaffName && (
                                                         <button
                                                             onClick={() => openAssignment(booking)}
                                                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
