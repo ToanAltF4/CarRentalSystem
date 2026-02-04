@@ -9,5 +9,6 @@ public enum UserRole {
     OPERATOR, // Operations staff for booking management
     TECHNICAL_STAFF, // Technical staff for vehicle maintenance
     MANAGER, // Fleet managers
-    ADMIN // System administrators
+    ADMIN, // System administrators
+    DRIVER // Chauffeurs/Drivers
 }

@@ -26,12 +26,6 @@ public class OperatorController {
 
     // ==================== Booking Management ====================
 
-    @GetMapping("/bookings/pending")
-    @Operation(summary = "Get pending bookings")
-    public ResponseEntity<List<BookingResponseDTO>> getPendingBookings() {
-        return ResponseEntity.ok(operatorService.getPendingBookings());
-    }
-
     @GetMapping("/bookings/today")
     @Operation(summary = "Get today's bookings")
     public ResponseEntity<List<BookingResponseDTO>> getTodayBookings() {

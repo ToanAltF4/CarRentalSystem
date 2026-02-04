@@ -15,10 +15,7 @@ public interface OperatorService {
 
     // ==================== Booking Management ====================
 
-    /**
-     * Get all pending bookings awaiting approval
-     */
-    List<BookingResponseDTO> getPendingBookings();
+    // ==================== Booking Management ====================
 
     /**
      * Get all bookings scheduled for today

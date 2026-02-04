@@ -43,6 +43,10 @@ public class BookingResponseDTO {
     private BookingStatus status;
     private String notes;
 
+    // Rental Type info
+    private Integer rentalTypeId;
+    private String rentalTypeName;
+
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

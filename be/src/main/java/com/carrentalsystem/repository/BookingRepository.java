@@ -114,4 +114,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
         @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "vehicle")
         @Query("SELECT b FROM BookingEntity b ORDER BY b.createdAt DESC")
         List<BookingEntity> findAllWithVehicle();
+
+        @Query("SELECT b FROM BookingEntity b WHERE b.startDate <= :date AND b.endDate >= :date AND b.status IN :statuses")
+        List<BookingEntity> findActiveBookingsOnDate(@Param("date") LocalDate date,
+                        @Param("statuses") List<BookingStatus> statuses);
 }

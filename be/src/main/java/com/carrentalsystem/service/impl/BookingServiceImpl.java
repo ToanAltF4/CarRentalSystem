@@ -145,19 +145,19 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingResponseDTO> getAllBookings() {
         List<BookingEntity> bookings = bookingRepository.findAllWithVehicle();
-        return bookingMapper.toResponseDTOList(bookings);
+        return toEnrichedDTOList(bookings);
     }
 
     @Override
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
         List<BookingEntity> bookings = bookingRepository.findByStatusOrderByStartDateDesc(status);
-        return bookingMapper.toResponseDTOList(bookings);
+        return toEnrichedDTOList(bookings);
     }
 
     @Override
     public List<BookingResponseDTO> getBookingsByCustomerEmail(String email) {
         List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByStartDateDesc(email);
-        return bookingMapper.toResponseDTOList(bookings);
+        return toEnrichedDTOList(bookings);
     }
 
     @Override
@@ -167,7 +167,7 @@ public class BookingServiceImpl implements BookingService {
             throw new ResourceNotFoundException("Vehicle", "id", vehicleId);
         }
         List<BookingEntity> bookings = bookingRepository.findByVehicleIdOrderByStartDateDesc(vehicleId);
-        return bookingMapper.toResponseDTOList(bookings);
+        return toEnrichedDTOList(bookings);
     }
 
     @Override
@@ -192,7 +192,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         BookingEntity updated = bookingRepository.save(booking);
-        return bookingMapper.toResponseDTO(updated);
+        return toEnrichedDTO(updated);
     }
 
     @Override
@@ -218,16 +218,52 @@ public class BookingServiceImpl implements BookingService {
         }
 
         BookingEntity cancelled = bookingRepository.save(booking);
-        return bookingMapper.toResponseDTO(cancelled);
+        return toEnrichedDTO(cancelled);
     }
 
     @Override
     public List<BookingResponseDTO> getUpcomingBookings() {
         List<BookingEntity> bookings = bookingRepository.findUpcomingBookings(LocalDate.now(), BookingStatus.CANCELLED);
-        return bookingMapper.toResponseDTOList(bookings);
+        return toEnrichedDTOList(bookings);
     }
 
     // ============== Private Helper Methods ==============
+
+    private BookingResponseDTO toEnrichedDTO(BookingEntity entity) {
+        BookingResponseDTO dto = bookingMapper.toResponseDTO(entity);
+
+        // Enrich Staff Name
+        if (entity.getAssignedStaffId() != null) {
+            userRepository.findById(entity.getAssignedStaffId())
+                    .ifPresent(staff -> dto.setAssignedStaffName(staff.getFullName()));
+        }
+
+        // Enrich Driver Name
+        if (entity.getDriverId() != null) {
+            userRepository.findById(entity.getDriverId())
+                    .ifPresent(driver -> dto.setDriverName(driver.getFullName()));
+        }
+
+        // Enrich Assigned By
+        if (entity.getAssignedBy() != null) {
+            userRepository.findById(entity.getAssignedBy())
+                    .ifPresent(op -> dto.setAssignedByName(op.getFullName()));
+        }
+
+        // Rental Type Name (Fallback if Mapper missed it or null)
+        if (dto.getRentalTypeName() == null && entity.getRentalType() != null) {
+            dto.setRentalTypeName(entity.getRentalType().getName());
+            dto.setRentalTypeId(entity.getRentalType().getId());
+        } else if (dto.getRentalTypeName() == null) {
+            dto.setRentalTypeName("Self Drive");
+        }
+
+        return dto;
+    }
+
+    private List<BookingResponseDTO> toEnrichedDTOList(List<BookingEntity> entities) {
+        return entities.stream().map(this::toEnrichedDTO).toList();
+    }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null) {

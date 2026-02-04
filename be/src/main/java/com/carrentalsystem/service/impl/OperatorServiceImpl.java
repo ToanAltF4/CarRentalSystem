@@ -37,20 +37,16 @@ public class OperatorServiceImpl implements OperatorService {
 
     // ==================== Booking Management ====================
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<BookingResponseDTO> getPendingBookings() {
-        log.debug("Fetching pending bookings");
-        List<BookingEntity> bookings = bookingRepository.findByStatus(BookingStatus.PENDING);
-        return toResponseDTOList(bookings);
-    }
+    // ==================== Booking Management ====================
 
     @Override
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getTodayBookings() {
-        log.debug("Fetching today's bookings");
+        log.debug("Fetching today's bookings (active)");
         LocalDate today = LocalDate.now();
-        List<BookingEntity> bookings = bookingRepository.findByStartDate(today);
+        List<BookingEntity> bookings = bookingRepository.findActiveBookingsOnDate(
+                today,
+                java.util.List.of(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.PENDING));
         return toResponseDTOList(bookings);
     }
 
@@ -118,14 +114,14 @@ public class OperatorServiceImpl implements OperatorService {
     @Transactional(readOnly = true)
     public List<StaffListDTO> getAvailableDrivers() {
         log.debug("Fetching available drivers");
-        // Drivers are users with staff role and valid license
+        // Drivers are users with ROLE_DRIVER
         List<UserEntity> drivers = userRepository.findAll().stream()
                 .filter(u -> {
                     if (u.getRole() == null)
                         return false;
                     String roleName = u.getRole().getRoleName();
-                    boolean isStaff = "ROLE_STAFF".equals(roleName) || "STAFF".equals(roleName);
-                    return isStaff && u.getLicenseStatus() == LicenseStatus.APPROVED;
+                    // User explicitly requested adding ROLE_DRIVER logic
+                    return "ROLE_DRIVER".equals(roleName) || "DRIVER".equals(roleName);
                 })
                 .collect(Collectors.toList());
 
@@ -138,6 +134,21 @@ public class OperatorServiceImpl implements OperatorService {
     public BookingResponseDTO assignStaff(Long bookingId, Long staffId, Long driverId, Long operatorId) {
         log.info("Assigning staff {} and driver {} to booking {}", staffId, driverId, bookingId);
         BookingEntity booking = findBookingOrThrow(bookingId);
+
+        // Validate Rental Type Constraints
+        String rentalType = booking.getRentalType() != null ? booking.getRentalType().getName() : "Self Drive";
+        if ("Self Drive".equalsIgnoreCase(rentalType) && driverId != null) {
+            throw new IllegalArgumentException("Cannot assign a driver to a Self Drive booking");
+        }
+        if (("With Driver".equalsIgnoreCase(rentalType) || "WITH_DRIVER".equalsIgnoreCase(rentalType))
+                && driverId == null && booking.getDriverId() == null) {
+            // Note: We allow partial updates, so only error if we are trying to clear
+            // driver or not providing one when none exists?
+            // Actually, frontend validation handles requirement. Backend should just
+            // prevent 'Self Drive' + Driver.
+            // For 'With Driver', we might want to enforce it, but let's be flexible for
+            // partial updates.
+        }
 
         if (staffId != null) {
             // Verify staff exists
@@ -246,15 +257,13 @@ public class OperatorServiceImpl implements OperatorService {
         List<String> staffRoles = java.util.List.of("ROLE_STAFF", "STAFF", "ROLE_OPERATOR", "OPERATOR");
         long totalStaff = userRepository.countByRole_RoleNameIn(staffRoles);
 
-        // Calculate total drivers (Staff with APPROVED license)
-        // Note: For large datasets, add countByRoleNameInAndLicenseStatus to repository
+        // Calculate total drivers (users with ROLE_DRIVER)
         long totalDrivers = userRepository.findAll().stream()
                 .filter(u -> {
                     if (u.getRole() == null)
                         return false;
                     String r = u.getRole().getRoleName();
-                    return ("ROLE_STAFF".equals(r) || "STAFF".equals(r)) &&
-                            u.getLicenseStatus() == LicenseStatus.APPROVED;
+                    return "ROLE_DRIVER".equals(r) || "DRIVER".equals(r);
                 })
                 .count();
 
@@ -286,6 +295,15 @@ public class OperatorServiceImpl implements OperatorService {
         dto.setAssignedStaffId(entity.getAssignedStaffId());
         dto.setAssignedAt(entity.getAssignedAt());
         dto.setDriverId(entity.getDriverId());
+
+        // Map Rental Type
+        if (entity.getRentalType() != null) {
+            dto.setRentalTypeId(entity.getRentalType().getId());
+            dto.setRentalTypeName(entity.getRentalType().getName());
+        } else {
+            // Default fallback if null
+            dto.setRentalTypeName("Self Drive");
+        }
 
         // Resolve staff name
         if (entity.getAssignedStaffId() != null) {
