@@ -11,8 +11,8 @@ const operatorService = {
     },
 
     // ==================== Booking Management ====================
-    getPendingBookings: async () => {
-        const response = await api.get('/v1/operator/bookings/pending');
+    getAllBookings: async () => {
+        const response = await api.get('/v1/bookings');
         return response.data;
     },
 

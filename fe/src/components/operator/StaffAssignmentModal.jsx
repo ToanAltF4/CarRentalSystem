@@ -131,7 +131,7 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Delivery/Return Staff
                                 </label>
-                                <div className="space-y-2">
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                     {staffList.map(staff => (
                                         <div key={staff.id}>
                                             <div
@@ -209,10 +209,10 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
                                                                     <div className="flex items-center justify-between mb-1">
                                                                         <span className="font-medium text-gray-800">{b.bookingCode}</span>
                                                                         <span className={`px-1.5 py-0.5 rounded ${b.status === 'CONFIRMED'
-                                                                                ? 'bg-blue-100 text-blue-700'
-                                                                                : b.status === 'IN_PROGRESS'
-                                                                                    ? 'bg-green-100 text-green-700'
-                                                                                    : 'bg-gray-100 text-gray-700'
+                                                                            ? 'bg-blue-100 text-blue-700'
+                                                                            : b.status === 'IN_PROGRESS'
+                                                                                ? 'bg-green-100 text-green-700'
+                                                                                : 'bg-gray-100 text-gray-700'
                                                                             }`}>
                                                                             {b.status}
                                                                         </span>
@@ -239,69 +239,71 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
                                 </div>
                             </div>
 
-                            {/* Driver Selection (Optional) */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Driver (Optional)
-                                </label>
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    <label
-                                        className={`
-                                            flex items-center p-3 rounded-xl border cursor-pointer transition-all
-                                            ${selectedDriver === ''
-                                                ? 'border-gray-300 bg-gray-50'
-                                                : 'border-gray-200 hover:border-gray-300'
-                                            }
-                                        `}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="driver"
-                                            value=""
-                                            checked={selectedDriver === ''}
-                                            onChange={() => setSelectedDriver('')}
-                                            className="hidden"
-                                        />
-                                        <span className="text-sm text-gray-600">No driver assigned</span>
+                            {/* Driver Selection (Only for With Driver) */}
+                            {booking?.rentalTypeName && booking.rentalTypeName.toLowerCase().includes('driver') ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Driver (Required for Chauffeur Service)
                                     </label>
-
-                                    {driverList.map(driver => (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
                                         <label
-                                            key={driver.id}
                                             className={`
-                                                flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all
-                                                ${selectedDriver === driver.id
-                                                    ? 'border-green-500 bg-green-50'
-                                                    : 'border-gray-200 hover:border-green-200'
+                                                flex items-center p-3 rounded-xl border cursor-pointer transition-all
+                                                ${selectedDriver === ''
+                                                    ? 'border-gray-300 bg-gray-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
                                                 }
                                             `}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="radio"
-                                                    name="driver"
-                                                    value={driver.id}
-                                                    checked={selectedDriver === driver.id}
-                                                    onChange={() => setSelectedDriver(driver.id)}
-                                                    className="hidden"
-                                                />
-                                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
-                                                    <Car size={16} />
-                                                </div>
-                                                <div>
-                                                    <span className={`block font-medium ${selectedDriver === driver.id ? 'text-green-700' : 'text-gray-900'}`}>
-                                                        {driver.fullName}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500">Tasks: {driver.currentAssignments}</span>
-                                                </div>
-                                            </div>
-                                            {selectedDriver === driver.id && (
-                                                <Check size={18} className="text-green-600" />
-                                            )}
+                                            <input
+                                                type="radio"
+                                                name="driver"
+                                                value=""
+                                                checked={selectedDriver === ''}
+                                                onChange={() => setSelectedDriver('')}
+                                                className="hidden"
+                                            />
+                                            <span className="text-sm text-gray-600">No driver assigned</span>
                                         </label>
-                                    ))}
+
+                                        {driverList.map(driver => (
+                                            <label
+                                                key={driver.id}
+                                                className={`
+                                                flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all
+                                                ${selectedDriver === driver.id
+                                                        ? 'border-green-500 bg-green-50'
+                                                        : 'border-gray-200 hover:border-green-200'
+                                                    }
+                                            `}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="radio"
+                                                        name="driver"
+                                                        value={driver.id}
+                                                        checked={selectedDriver === driver.id}
+                                                        onChange={() => setSelectedDriver(driver.id)}
+                                                        className="hidden"
+                                                    />
+                                                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+                                                        <Car size={16} />
+                                                    </div>
+                                                    <div>
+                                                        <span className={`block font-medium ${selectedDriver === driver.id ? 'text-green-700' : 'text-gray-900'}`}>
+                                                            {driver.fullName}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">Tasks: {driver.currentAssignments}</span>
+                                                    </div>
+                                                </div>
+                                                {selectedDriver === driver.id && (
+                                                    <Check size={18} className="text-green-600" />
+                                                )}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : null}
 
                             {/* Actions */}
                             <div className="flex gap-3 pt-4 border-t border-gray-100">
