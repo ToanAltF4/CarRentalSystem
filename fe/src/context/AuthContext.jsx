@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import profileService from '../services/profileService';
 
 // Create Auth Context
 const AuthContext = createContext(null);
@@ -100,13 +101,43 @@ export function AuthProvider({ children }) {
         }
     };
 
+    /**
+     * Refresh user data from backend (e.g., after license status update)
+     * @returns {Promise<Object|null>} Updated user data
+     */
+    const refreshUser = async () => {
+        if (!isAuthenticated) return null;
+
+        try {
+            const profileData = await profileService.getProfile();
+
+            // Update user with new data from profile
+            const updatedUser = {
+                ...user,
+                licenseStatus: profileData.licenseStatus || 'NONE',
+                fullName: profileData.fullName || user.fullName,
+                email: profileData.email || user.email
+            };
+
+            // Update localStorage and state
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+
+            return updatedUser;
+        } catch (error) {
+            console.error('Failed to refresh user data:', error);
+            return null;
+        }
+    };
+
     const value = {
         user,
         isAuthenticated,
         loading,
         login,
         register,
-        logout
+        logout,
+        refreshUser
     };
 
     return (

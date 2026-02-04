@@ -17,71 +17,101 @@ import java.util.Optional;
 @Repository
 public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
-    /**
-     * Find booking by booking code.
-     */
-    Optional<BookingEntity> findByBookingCode(String bookingCode);
+        /**
+         * Find booking by booking code.
+         */
+        Optional<BookingEntity> findByBookingCode(String bookingCode);
 
-    /**
-     * Check if there are overlapping bookings for a vehicle.
-     * Two date ranges overlap if: start1 <= end2 AND start2 <= end1
-     * Only considers active bookings (not CANCELLED or COMPLETED).
-     */
-    @Query("SELECT COUNT(b) > 0 FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
-            "AND b.status NOT IN (:cancelled, :completed) " +
-            "AND b.startDate <= :endDate " +
-            "AND b.endDate >= :startDate")
-    boolean hasOverlappingBookings(
-            @Param("vehicleId") Long vehicleId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
-            @Param("cancelled") BookingStatus cancelled,
-            @Param("completed") BookingStatus completed);
+        /**
+         * Check if there are overlapping bookings for a vehicle.
+         * Two date ranges overlap if: start1 <= end2 AND start2 <= end1
+         * Only considers active bookings (not CANCELLED or COMPLETED).
+         */
+        @Query("SELECT COUNT(b) > 0 FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
+                        "AND b.status NOT IN (:cancelled, :completed) " +
+                        "AND b.startDate <= :endDate " +
+                        "AND b.endDate >= :startDate")
+        boolean hasOverlappingBookings(
+                        @Param("vehicleId") Long vehicleId,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate,
+                        @Param("cancelled") BookingStatus cancelled,
+                        @Param("completed") BookingStatus completed);
 
-    /**
-     * Find all overlapping bookings for a vehicle (for detailed error info).
-     */
-    @Query("SELECT b FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
-            "AND b.status NOT IN (:cancelled, :completed) " +
-            "AND b.startDate <= :endDate " +
-            "AND b.endDate >= :startDate")
-    List<BookingEntity> findOverlappingBookings(
-            @Param("vehicleId") Long vehicleId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
-            @Param("cancelled") BookingStatus cancelled,
-            @Param("completed") BookingStatus completed);
+        /**
+         * Find all overlapping bookings for a vehicle (for detailed error info).
+         */
+        @Query("SELECT b FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
+                        "AND b.status NOT IN (:cancelled, :completed) " +
+                        "AND b.startDate <= :endDate " +
+                        "AND b.endDate >= :startDate")
+        List<BookingEntity> findOverlappingBookings(
+                        @Param("vehicleId") Long vehicleId,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate,
+                        @Param("cancelled") BookingStatus cancelled,
+                        @Param("completed") BookingStatus completed);
 
-    /**
-     * Find bookings by vehicle ID.
-     */
-    List<BookingEntity> findByVehicleIdOrderByStartDateDesc(Long vehicleId);
+        /**
+         * Find bookings by vehicle ID.
+         */
+        List<BookingEntity> findByVehicleIdOrderByStartDateDesc(Long vehicleId);
 
-    /**
-     * Find bookings by status.
-     */
-    List<BookingEntity> findByStatusOrderByStartDateDesc(BookingStatus status);
+        /**
+         * Find bookings by status.
+         */
+        List<BookingEntity> findByStatusOrderByStartDateDesc(BookingStatus status);
 
-    /**
-     * Find bookings by customer email.
-     */
-    List<BookingEntity> findByCustomerEmailOrderByStartDateDesc(String customerEmail);
+        /**
+         * Find bookings by customer email.
+         */
+        List<BookingEntity> findByCustomerEmailOrderByStartDateDesc(String customerEmail);
 
-    /**
-     * Find upcoming bookings (start date >= today, not cancelled).
-     */
-    @Query("SELECT b FROM BookingEntity b WHERE b.startDate >= :today " +
-            "AND b.status != :cancelled " +
-            "ORDER BY b.startDate ASC")
-    List<BookingEntity> findUpcomingBookings(@Param("today") LocalDate today,
-            @Param("cancelled") BookingStatus cancelled);
+        /**
+         * Find upcoming bookings (start date >= today, not cancelled).
+         */
+        @Query("SELECT b FROM BookingEntity b WHERE b.startDate >= :today " +
+                        "AND b.status != :cancelled " +
+                        "ORDER BY b.startDate ASC")
+        List<BookingEntity> findUpcomingBookings(@Param("today") LocalDate today,
+                        @Param("cancelled") BookingStatus cancelled);
 
-    /**
-     * Count active bookings for a vehicle.
-     */
-    @Query("SELECT COUNT(b) FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
-            "AND b.status NOT IN (:cancelled, :completed)")
-    long countActiveBookingsByVehicle(@Param("vehicleId") Long vehicleId,
-            @Param("cancelled") BookingStatus cancelled,
-            @Param("completed") BookingStatus completed);
+        /**
+         * Count active bookings for a vehicle.
+         */
+        @Query("SELECT COUNT(b) FROM BookingEntity b WHERE b.vehicle.id = :vehicleId " +
+                        "AND b.status NOT IN (:cancelled, :completed)")
+        long countActiveBookingsByVehicle(@Param("vehicleId") Long vehicleId,
+                        @Param("cancelled") BookingStatus cancelled,
+                        @Param("completed") BookingStatus completed);
+
+        /**
+         * Find bookings by status (for operator).
+         */
+        List<BookingEntity> findByStatus(BookingStatus status);
+
+        /**
+         * Find bookings by start date (for operator - today's bookings).
+         */
+        List<BookingEntity> findByStartDate(LocalDate startDate);
+
+        /**
+         * Count bookings by status.
+         */
+        long countByStatus(BookingStatus status);
+
+        List<BookingEntity> findByAssignedStaffId(Long staffId);
+
+        List<BookingEntity> findByDriverId(Long driverId);
+
+        @Query("SELECT COUNT(b) FROM BookingEntity b WHERE (b.assignedStaffId = :staffId OR b.driverId = :staffId) AND b.status IN :statuses")
+        int countActiveBookingsByStaff(@Param("staffId") Long staffId, @Param("statuses") List<BookingStatus> statuses);
+
+        @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "vehicle")
+        @Query("SELECT b FROM BookingEntity b ORDER BY b.startDate DESC")
+        List<BookingEntity> findRecentBookingsWithVehicle(org.springframework.data.domain.Pageable pageable);
+
+        @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "vehicle")
+        @Query("SELECT b FROM BookingEntity b ORDER BY b.createdAt DESC")
+        List<BookingEntity> findAllWithVehicle();
 }

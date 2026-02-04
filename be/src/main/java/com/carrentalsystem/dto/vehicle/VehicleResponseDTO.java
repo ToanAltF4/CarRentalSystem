@@ -32,6 +32,7 @@ public class VehicleResponseDTO {
     private Integer seats;
     private String description;
     private String categoryName; // Category name for display
+    private BigDecimal overtimeFeePerHour; // Overtime fee per hour from pricing
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;

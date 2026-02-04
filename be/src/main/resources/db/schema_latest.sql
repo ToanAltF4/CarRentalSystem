@@ -129,26 +129,29 @@ CREATE TABLE bookings (
   FOREIGN KEY (driver_id) REFERENCES drivers(id)
 );
 
-CREATE TABLE handover_records (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  booking_id BIGINT UNIQUE,
-  battery_level INT,
-  odometer INT,
-  exterior_condition VARCHAR(30),
-  interior_condition VARCHAR(30),
-  FOREIGN KEY (booking_id) REFERENCES bookings(id)
-);
+-- Handover records removed as we use inspections for both
+-- DROP TABLE IF EXISTS handover_records; -- Managed by DDL usually
 
 CREATE TABLE inspections (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  booking_id BIGINT UNIQUE,
+  booking_id BIGINT,
+  inspection_type VARCHAR(20) NOT NULL,
   battery_level INT,
   odometer INT,
+  charging_cable_present BOOLEAN DEFAULT 1,
   exterior_condition VARCHAR(30),
   interior_condition VARCHAR(30),
   has_damage BOOLEAN,
+  damage_description TEXT,
+  damage_photos TEXT,
+  inspected_by BIGINT,
+  inspection_notes TEXT,
+  inspected_at DATETIME,
+  created_at DATETIME,
   FOREIGN KEY (booking_id) REFERENCES bookings(id)
 );
+
+CREATE INDEX idx_inspection_booking ON inspections(booking_id);
 
 CREATE TABLE invoices (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -64,6 +64,12 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleService.getAllVehicles());
     }
 
+    @GetMapping("/models")
+    @Operation(summary = "Get vehicle models", description = "Get available vehicles grouped by model")
+    public ResponseEntity<List<com.carrentalsystem.dto.vehicle.VehicleModelDTO>> getVehicleModels() {
+        return ResponseEntity.ok(vehicleService.getVehicleModels());
+    }
+
     @GetMapping("/search")
     @Operation(summary = "Search vehicles", description = "Search vehicles by name, model, or brand")
     public ResponseEntity<List<VehicleResponseDTO>> searchVehicles(

@@ -13,8 +13,18 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-    const isAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER' ||
-        user?.role === 'ROLE_ADMIN' || user?.role === 'ROLE_MANAGER';
+    console.log('Current User:', user);
+    console.log('User Role:', user?.role);
+    console.log('Is Authenticated:', isAuthenticated);
+
+    const isAdmin = ['ADMIN', 'MANAGER', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(user?.role);
+    const isOperator = ['OPERATOR', 'ROLE_OPERATOR'].includes(user?.role);
+    const isStaff = ['STAFF', 'ROLE_STAFF'].includes(user?.role);
+
+    // Effective role check
+    const showAdminLink = isAdmin;
+    const showOperatorLink = isOperator || isAdmin;
+    const showStaffLink = isStaff || isAdmin || isOperator; // Admins/Operators can access too
 
     return (
         <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
@@ -87,13 +97,31 @@ const Header = () => {
                                     >
                                         Profile
                                     </Link>
-                                    {isAdmin && (
+                                    {showAdminLink && (
                                         <Link
                                             to="/admin"
                                             className="block px-4 py-3 hover:bg-gray-50 text-[#5fcf86] font-medium"
                                             onClick={() => setUserMenuOpen(false)}
                                         >
                                             Admin Dashboard
+                                        </Link>
+                                    )}
+                                    {showOperatorLink && (
+                                        <Link
+                                            to="/operator"
+                                            className="block px-4 py-3 hover:bg-gray-50 text-blue-600 font-medium"
+                                            onClick={() => setUserMenuOpen(false)}
+                                        >
+                                            Operator Portal
+                                        </Link>
+                                    )}
+                                    {showStaffLink && (
+                                        <Link
+                                            to="/staff"
+                                            className="block px-4 py-3 hover:bg-gray-50 text-orange-600 font-medium"
+                                            onClick={() => setUserMenuOpen(false)}
+                                        >
+                                            Staff Portal
                                         </Link>
                                     )}
                                     <hr className="my-2 border-gray-100" />
@@ -146,7 +174,9 @@ const Header = () => {
                         <>
                             <Link to="/my-bookings" className="block py-2 text-[#141414]">My Bookings</Link>
                             <Link to="/profile" className="block py-2 text-[#141414]">Profile</Link>
-                            {isAdmin && <Link to="/admin" className="block py-2 text-[#5fcf86]">Admin Dashboard</Link>}
+                            {showAdminLink && <Link to="/admin" className="block py-2 text-[#5fcf86]">Admin Dashboard</Link>}
+                            {showOperatorLink && <Link to="/operator" className="block py-2 text-blue-600">Operator Portal</Link>}
+                            {showStaffLink && <Link to="/staff" className="block py-2 text-orange-600">Staff Portal</Link>}
                             <button onClick={logout} className="block py-2 text-red-500">Logout</button>
                         </>
                     ) : (

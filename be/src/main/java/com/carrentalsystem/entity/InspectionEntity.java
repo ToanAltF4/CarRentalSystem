@@ -5,7 +5,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * Entity representing a vehicle inspection at return.
+ * Entity representing a vehicle inspection (Check-in/Check-out).
  */
 @Entity
 @Table(name = "inspections", indexes = {
@@ -22,9 +22,13 @@ public class InspectionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id", nullable = false) // Removed unique=true
     private BookingEntity booking;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "inspection_type", length = 20, nullable = false)
+    private InspectionType type; // PICKUP, RETURN
 
     // Vehicle condition
     @Column(name = "battery_level", nullable = false)
@@ -33,7 +37,7 @@ public class InspectionEntity {
     @Column(nullable = false)
     private Integer odometer;
 
-    @Transient
+    @Column(name = "charging_cable_present")
     @Builder.Default
     private Boolean chargingCablePresent = true;
 
@@ -52,23 +56,30 @@ public class InspectionEntity {
     @Builder.Default
     private Boolean hasDamage = false;
 
-    @Transient
+    @Column(name = "damage_description", columnDefinition = "TEXT")
     private String damageDescription;
 
-    @Transient
-    private String damagePhotos;
+    @Column(name = "damage_photos", columnDefinition = "TEXT")
+    private String damagePhotos; // Comma separated URLs
 
     // Inspector info
-    @Transient
-    private String inspectedBy;
+    @Column(name = "inspected_by")
+    private Long inspectedById; // Staff ID
 
-    @Transient
+    @Column(name = "inspection_notes", columnDefinition = "TEXT")
     private String inspectionNotes;
 
-    @Transient
+    @Column(name = "inspected_at")
     @Builder.Default
     private LocalDateTime inspectedAt = LocalDateTime.now();
 
-    @Transient
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        if (inspectedAt == null)
+            inspectedAt = LocalDateTime.now();
+    }
 }

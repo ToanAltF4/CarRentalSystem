@@ -43,8 +43,32 @@ public class BookingServiceImpl implements BookingService {
         validateDates(request.getStartDate(), request.getEndDate());
 
         // 2. Find and validate vehicle
-        VehicleEntity vehicle = vehicleRepository.findById(request.getVehicleId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle", "id", request.getVehicleId()));
+        // 2. Find and validate vehicle
+        VehicleEntity vehicle;
+
+        if (request.getVehicleId() != null) {
+            // Case 1: Booking specific vehicle ID
+            vehicle = vehicleRepository.findById(request.getVehicleId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle", "id", request.getVehicleId()));
+        } else if (request.getBrand() != null && request.getModel() != null) {
+            // Case 2: Booking by Model (Auto-assign available vehicle)
+            List<VehicleEntity> candidates = vehicleRepository.findByBrandAndModelAndStatus(
+                    request.getBrand(), request.getModel(), VehicleStatus.AVAILABLE);
+
+            // Filter for one that has no conflicting bookings
+            vehicle = candidates.stream()
+                    .filter(v -> !bookingRepository.hasOverlappingBookings(
+                            v.getId(),
+                            request.getStartDate(),
+                            request.getEndDate(),
+                            BookingStatus.CANCELLED,
+                            BookingStatus.COMPLETED))
+                    .findFirst()
+                    .orElseThrow(() -> new com.carrentalsystem.exception.VehicleNotAvailableException(0L,
+                            "No " + request.getBrand() + " " + request.getModel() + " available for selected dates"));
+        } else {
+            throw new IllegalArgumentException("Either vehicleId or brand/model must be provided");
+        }
 
         // 3. Check vehicle status is AVAILABLE
         if (vehicle.getStatus() != VehicleStatus.AVAILABLE) {
@@ -120,7 +144,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getAllBookings() {
-        List<BookingEntity> bookings = bookingRepository.findAll();
+        List<BookingEntity> bookings = bookingRepository.findAllWithVehicle();
         return bookingMapper.toResponseDTOList(bookings);
     }
 

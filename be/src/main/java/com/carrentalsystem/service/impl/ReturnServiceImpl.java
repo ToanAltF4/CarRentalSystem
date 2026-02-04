@@ -101,7 +101,7 @@ public class ReturnServiceImpl implements ReturnService {
         BookingEntity booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
 
-        InspectionEntity inspection = inspectionRepository.findByBookingId(bookingId)
+        InspectionEntity inspection = inspectionRepository.findByBookingIdAndType(bookingId, InspectionType.RETURN)
                 .orElseThrow(() -> new ResourceNotFoundException("Inspection", "bookingId", bookingId));
 
         InvoiceEntity invoice = invoiceRepository.findByBookingId(bookingId)
@@ -124,7 +124,7 @@ public class ReturnServiceImpl implements ReturnService {
         if (booking.getStatus() == BookingStatus.PENDING) {
             throw new IllegalArgumentException("Booking must be confirmed or in progress before return");
         }
-        if (inspectionRepository.existsByBookingId(booking.getId())) {
+        if (inspectionRepository.existsByBookingIdAndType(booking.getId(), InspectionType.RETURN)) {
             throw new IllegalArgumentException("Return has already been processed for this booking");
         }
     }
@@ -132,6 +132,7 @@ public class ReturnServiceImpl implements ReturnService {
     private InspectionEntity createInspection(BookingEntity booking, ReturnRequestDTO request) {
         return InspectionEntity.builder()
                 .booking(booking)
+                .type(InspectionType.RETURN) // Explicitly set type
                 .batteryLevel(request.getBatteryLevel())
                 .odometer(request.getOdometer())
                 .chargingCablePresent(request.getChargingCablePresent())
@@ -139,7 +140,7 @@ public class ReturnServiceImpl implements ReturnService {
                 .interiorCondition(request.getInteriorCondition())
                 .hasDamage(request.getHasDamage())
                 .damageDescription(request.getDamageDescription())
-                .inspectedBy(request.getInspectedBy())
+                // .inspectedBy(request.getInspectedBy()) // String not supported anymore
                 .inspectionNotes(request.getInspectionNotes())
                 .inspectedAt(LocalDateTime.now())
                 .build();

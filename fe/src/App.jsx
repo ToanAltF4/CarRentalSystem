@@ -31,6 +31,17 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminBookingList from './pages/admin/AdminBookingList';
 import AdminUserList from './pages/admin/AdminUserList';
 
+// Operator Pages
+import OperatorRoute from './components/routes/OperatorRoute';
+import OperatorDashboard from './pages/operator/OperatorDashboard';
+import OperatorBookingList from './pages/operator/OperatorBookingList';
+import OperatorLicenseReview from './pages/operator/OperatorLicenseReview';
+
+// Staff Pages
+import StaffRoute from './components/routes/StaffRoute';
+import StaffDashboard from './pages/staff/StaffDashboard';
+import StaffInspection from './pages/staff/StaffInspection';
+
 function App() {
   return (
     <BrowserRouter>
@@ -142,6 +153,20 @@ function App() {
                 </PrivateRoute>
               }
             />
+
+            {/* Protected Staff Routes - TECHNICAL_STAFF, OPERATOR, MANAGER, ADMIN */}
+            <Route path="staff" element={<StaffRoute />}>
+              <Route index element={<StaffDashboard />} />
+              <Route path="inspection/:bookingId" element={<StaffInspection />} />
+            </Route>
+
+            {/* Protected Operator Routes - OPERATOR, MANAGER, ADMIN */}
+            <Route path="operator" element={<OperatorRoute />}>
+              <Route index element={<OperatorDashboard />} />
+              <Route path="dashboard" element={<OperatorDashboard />} />
+              <Route path="bookings" element={<OperatorBookingList />} />
+              <Route path="licenses" element={<OperatorLicenseReview />} />
+            </Route>
 
             {/* 404 Page */}
             <Route path="*" element={

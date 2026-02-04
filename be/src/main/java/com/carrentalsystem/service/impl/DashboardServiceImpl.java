@@ -6,7 +6,6 @@ import com.carrentalsystem.entity.*;
 import com.carrentalsystem.repository.*;
 import com.carrentalsystem.service.DashboardService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,54 +30,78 @@ public class DashboardServiceImpl implements DashboardService {
 
         @Override
         public DashboardStatsDTO getDashboardStats() {
-                // Calculate total revenue from all paid invoices
-                List<InvoiceEntity> allInvoices = invoiceRepository.findAll();
-                BigDecimal totalRevenue = allInvoices.stream()
-                                .filter(inv -> inv.getPaymentStatus() == PaymentStatus.PAID)
-                                .map(InvoiceEntity::getTotalAmount)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                try {
+                        System.out.println("DEBUG: Starting getDashboardStats");
+                        // Calculate total revenue from all paid invoices
+                        BigDecimal totalRevenue = invoiceRepository.sumTotalAmountByPaymentStatus(PaymentStatus.PAID);
+                        System.out.println("DEBUG: Total Revenue: " + totalRevenue);
+                        if (totalRevenue == null) {
+                                totalRevenue = BigDecimal.ZERO;
+                        }
 
-                // Count total bookings
-                long totalBookings = bookingRepository.count();
+                        // Count total bookings
+                        long totalBookings = bookingRepository.count();
+                        System.out.println("DEBUG: Total Bookings: " + totalBookings);
 
-                // Count active rentals (IN_PROGRESS status)
-                long activeRentals = bookingRepository.findByStatusOrderByStartDateDesc(BookingStatus.IN_PROGRESS)
-                                .size();
+                        // Count active rentals (IN_PROGRESS status)
+                        long activeRentals = bookingRepository.countByStatus(BookingStatus.IN_PROGRESS);
+                        System.out.println("DEBUG: Active Rentals: " + activeRentals);
 
-                // Count pending bookings
-                long pendingBookings = bookingRepository.findByStatusOrderByStartDateDesc(BookingStatus.PENDING).size();
+                        // Count pending bookings
+                        long pendingBookings = bookingRepository.countByStatus(BookingStatus.PENDING);
+                        System.out.println("DEBUG: Pending Bookings: " + pendingBookings);
 
-                // Count available vehicles
-                long availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE).size();
+                        // Count available vehicles
+                        long availableVehicles = vehicleRepository.countByStatus(VehicleStatus.AVAILABLE);
+                        System.out.println("DEBUG: Available Vehicles: " + availableVehicles);
 
-                // Count total vehicles
-                long totalVehicles = vehicleRepository.count();
+                        // Count total vehicles
+                        long totalVehicles = vehicleRepository.count();
+                        System.out.println("DEBUG: Total Vehicles: " + totalVehicles);
 
-                // Get recent bookings (last 5)
-                List<BookingEntity> allBookings = bookingRepository.findAll();
-                List<DashboardStatsDTO.RecentBookingDTO> recentBookings = allBookings.stream()
-                                .sorted((a, b) -> b.getStartDate().compareTo(a.getStartDate()))
-                                .limit(5)
-                                .map(b -> DashboardStatsDTO.RecentBookingDTO.builder()
-                                                .id(b.getId())
-                                                .bookingCode(b.getBookingCode())
-                                                .customerName(b.getCustomerName())
-                                                .vehicleName(b.getVehicle().getName() + " " + b.getVehicle().getModel())
-                                                .status(b.getStatus().name())
-                                                .createdAt(b.getStartDate().atStartOfDay().format(
-                                                                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
-                                                .build())
-                                .collect(Collectors.toList());
+                        // Get recent bookings (last 5)
+                        System.out.println("DEBUG: Fetching recent bookings...");
+                        List<BookingEntity> recentList = bookingRepository.findRecentBookingsWithVehicle(
+                                        org.springframework.data.domain.PageRequest.of(0, 5));
+                        System.out.println("DEBUG: Fetched " + (recentList != null ? recentList.size() : "null")
+                                        + " recent bookings");
 
-                return DashboardStatsDTO.builder()
-                                .totalRevenue(totalRevenue)
-                                .totalBookings(totalBookings)
-                                .activeRentals(activeRentals)
-                                .pendingBookings(pendingBookings)
-                                .availableVehicles(availableVehicles)
-                                .totalVehicles(totalVehicles)
-                                .recentBookings(recentBookings)
-                                .build();
+                        List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentList.stream()
+                                        .map(b -> {
+                                                System.out.println("DEBUG: Mapping booking " + b.getId());
+                                                return DashboardStatsDTO.RecentBookingDTO.builder()
+                                                                .id(b.getId())
+                                                                .bookingCode(b.getBookingCode())
+                                                                .customerName(b.getCustomerName())
+                                                                .vehicleName(b.getVehicle() != null
+                                                                                ? b.getVehicle().getName() + " "
+                                                                                                + b.getVehicle().getModel()
+                                                                                : "Unknown Vehicle")
+                                                                .status(b.getStatus() != null ? b.getStatus().name()
+                                                                                : "UNKNOWN")
+                                                                .createdAt(b.getStartDate() != null ? b.getStartDate()
+                                                                                .atStartOfDay().format(
+                                                                                                DateTimeFormatter
+                                                                                                                .ofPattern("dd/MM/yyyy HH:mm"))
+                                                                                : "N/A")
+                                                                .build();
+                                        })
+                                        .collect(Collectors.toList());
+
+                        return DashboardStatsDTO.builder()
+                                        .totalRevenue(totalRevenue)
+                                        .totalBookings(totalBookings)
+                                        .activeRentals(activeRentals)
+                                        .pendingBookings(pendingBookings)
+                                        .availableVehicles(availableVehicles)
+                                        .totalVehicles(totalVehicles)
+                                        .recentBookings(recentBookings)
+                                        .build();
+                } catch (Exception e) {
+                        System.err.println("ERROR in getDashboardStats: " + e.getMessage());
+                        e.printStackTrace();
+                        throw e;
+                }
         }
 
         @Override

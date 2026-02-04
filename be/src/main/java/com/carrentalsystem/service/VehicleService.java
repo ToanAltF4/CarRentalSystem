@@ -28,6 +28,11 @@ public interface VehicleService {
     List<VehicleResponseDTO> getAllVehicles();
 
     /**
+     * Get available vehicle models (grouped by brand and model)
+     */
+    List<com.carrentalsystem.dto.vehicle.VehicleModelDTO> getVehicleModels();
+
+    /**
      * Search vehicles by keyword (name, model, brand)
      */
     List<VehicleResponseDTO> searchVehicles(String keyword);

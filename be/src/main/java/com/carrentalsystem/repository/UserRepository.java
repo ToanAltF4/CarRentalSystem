@@ -29,4 +29,14 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      * Find users by license status - for admin management
      */
     List<UserEntity> findByLicenseStatus(LicenseStatus licenseStatus);
+
+    /**
+     * Count users by license status - for operator dashboard
+     */
+    long countByLicenseStatus(LicenseStatus licenseStatus);
+
+    /**
+     * Count users by role names
+     */
+    long countByRole_RoleNameIn(List<String> roleNames);
 }

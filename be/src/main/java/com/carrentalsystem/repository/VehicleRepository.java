@@ -16,40 +16,44 @@ import java.util.Optional;
  */
 @Repository
 public interface VehicleRepository extends JpaRepository<VehicleEntity, Long>,
-        JpaSpecificationExecutor<VehicleEntity> {
+                JpaSpecificationExecutor<VehicleEntity> {
 
-    /**
-     * Find vehicle by license plate
-     */
-    Optional<VehicleEntity> findByLicensePlate(String licensePlate);
+        /**
+         * Find vehicle by license plate
+         */
+        Optional<VehicleEntity> findByLicensePlate(String licensePlate);
 
-    /**
-     * Check if license plate already exists
-     */
-    boolean existsByLicensePlate(String licensePlate);
+        /**
+         * Check if license plate already exists
+         */
+        boolean existsByLicensePlate(String licensePlate);
 
-    /**
-     * Find all vehicles by status
-     */
-    List<VehicleEntity> findByStatus(VehicleStatus status);
+        /**
+         * Find all vehicles by status
+         */
+        List<VehicleEntity> findByStatus(VehicleStatus status);
 
-    /**
-     * Find all vehicles by brand
-     */
-    List<VehicleEntity> findByBrandIgnoreCase(String brand);
+        long countByStatus(VehicleStatus status);
 
-    /**
-     * Search vehicles by name or model containing keyword (case-insensitive)
-     */
-    @Query("SELECT v FROM VehicleEntity v WHERE " +
-            "LOWER(v.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(v.model) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(v.brand) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-    List<VehicleEntity> searchByKeyword(@Param("keyword") String keyword);
+        /**
+         * Find all vehicles by brand
+         */
+        List<VehicleEntity> findByBrandIgnoreCase(String brand);
 
-    /**
-     * Get distinct brands for filtering
-     */
-    @Query("SELECT DISTINCT v.brand FROM VehicleEntity v ORDER BY v.brand")
-    List<String> findAllBrands();
+        /**
+         * Search vehicles by name or model containing keyword (case-insensitive)
+         */
+        @Query("SELECT v FROM VehicleEntity v WHERE " +
+                        "LOWER(v.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(v.model) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(v.brand) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+        List<VehicleEntity> searchByKeyword(@Param("keyword") String keyword);
+
+        /**
+         * Get distinct brands for filtering
+         */
+        @Query("SELECT DISTINCT v.brand FROM VehicleEntity v ORDER BY v.brand")
+        List<String> findAllBrands();
+
+        List<VehicleEntity> findByBrandAndModelAndStatus(String brand, String model, VehicleStatus status);
 }

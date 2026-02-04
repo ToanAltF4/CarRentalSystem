@@ -22,4 +22,8 @@ public class BookingRequestDTO {
     private LocalDate startDate;
     private LocalDate endDate;
     private String notes;
+
+    // For booking by Model (system assigns specific vehicle)
+    private String brand;
+    private String model;
 }

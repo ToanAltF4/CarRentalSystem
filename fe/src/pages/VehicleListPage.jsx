@@ -35,10 +35,12 @@ const VehicleListPage = () => {
     const fetchVehicles = async () => {
         setLoading(true);
         try {
-            const data = await vehicleService.getAll();
-            // Only show AVAILABLE vehicles for public page
-            const availableVehicles = data.filter(v => v.status === 'AVAILABLE');
-            setVehicles(availableVehicles);
+            const data = await vehicleService.getModels();
+            // Models endpoint already returns filtered availability summary if desired, 
+            // but our implementation returns ALL models with an availableCount.
+            // We should filter if availableCount > 0 maybe, or just show all.
+            // User requirement: "Khách hàng chọn loại xe" -> implies showing types.
+            setVehicles(data);
         } catch (err) {
             console.error("Error fetching vehicles:", err);
             setError("Failed to load vehicles.");

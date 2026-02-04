@@ -20,7 +20,7 @@ import { formatPrice } from '../utils/formatters';
 const CarDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, refreshUser } = useAuth();
 
     const [car, setCar] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -32,8 +32,25 @@ const CarDetailPage = () => {
     const [pickupDate, setPickupDate] = useState('');
     const [dropoffDate, setDropoffDate] = useState('');
 
+    // Insurance options state
+    const [insuranceOptions, setInsuranceOptions] = useState({
+        vehicleDamage: true,      // Bảo hiểm thân vỏ - Optional
+        thirdParty: true,          // TNDS - Required by law (always on)
+        personalAccident: false,   // Tai nạn cá nhân - Optional
+        theft: false               // Mất cắp - Optional
+    });
+
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
+
+    // Insurance fees per day (VND)
+    const INSURANCE_FEES = {
+        vehicleDamage: 50000,      // 50k/day
+        thirdParty: 25000,         // 25k/day (required)
+        personalAccident: 30000,   // 30k/day
+        theft: 40000               // 40k/day
+    };
+    const SERVICE_FEE = 45000;
 
     // Calculate rental days
     const calculateRentalDays = () => {
@@ -47,8 +64,18 @@ const CarDetailPage = () => {
 
     const rentalDays = calculateRentalDays();
     const rentalFee = car ? car.price * rentalDays : 0;
-    const insuranceFee = Math.round(rentalFee * 0.05); // 5% of rental fee
-    const serviceFee = Math.round(rentalFee * 0.03); // 3% of rental fee
+
+    // Calculate total insurance fee
+    const calculateInsuranceFee = () => {
+        let total = INSURANCE_FEES.thirdParty * rentalDays; // Always include TNDS
+        if (insuranceOptions.vehicleDamage) total += INSURANCE_FEES.vehicleDamage * rentalDays;
+        if (insuranceOptions.personalAccident) total += INSURANCE_FEES.personalAccident * rentalDays;
+        if (insuranceOptions.theft) total += INSURANCE_FEES.theft * rentalDays;
+        return total;
+    };
+
+    const insuranceFee = calculateInsuranceFee();
+    const serviceFee = SERVICE_FEE;
     const totalPrice = rentalFee + insuranceFee + serviceFee;
 
     // Validate dates
@@ -84,7 +111,9 @@ const CarDetailPage = () => {
 
         try {
             const bookingData = {
-                vehicleId: parseInt(id),
+                vehicleId: null, // Allow system assignment
+                brand: car.brand,
+                model: car.model,
                 userId: user.id,
                 customerName: user.fullName,
                 customerEmail: user.email,
@@ -126,7 +155,8 @@ const CarDetailPage = () => {
                     images: [data.imageUrl || "https://images.unsplash.com/photo-1593941707882-a5bba14938c7"],
                     rating: 5.0,
                     reviews: 0,
-                    year: 2024
+                    year: 2024,
+                    overtimeFeePerHour: data.overtimeFeePerHour
                 };
                 setCar(mappedCar);
             } catch (err) {
@@ -139,6 +169,13 @@ const CarDetailPage = () => {
 
         if (id) fetchCar();
     }, [id]);
+
+    // Auto-refresh user data (license status) when page loads
+    useEffect(() => {
+        if (isAuthenticated) {
+            refreshUser();
+        }
+    }, [isAuthenticated]);
 
     if (loading) {
         return (
@@ -308,6 +345,17 @@ const CarDetailPage = () => {
                                 <span className="text-3xl font-bold text-[#5fcf86]">{formatPrice(car.price)}</span>
                                 <span className="text-sm text-gray-400">/ day</span>
                             </div>
+                            {/* Overtime Fee Info */}
+                            {car.overtimeFeePerHour && (
+                                <div className="mt-3 flex items-center gap-2 text-orange-700 bg-orange-50 border border-orange-200 px-4 py-3 rounded-xl">
+                                    <AlertCircle size={20} className="shrink-0" />
+                                    <div>
+                                        <span className="font-medium">Phí trả trễ:</span>
+                                        <span className="ml-1 text-lg font-bold">{formatPrice(car.overtimeFeePerHour)}</span>
+                                        <span className="text-sm">/giờ</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Error Message */}
@@ -417,21 +465,117 @@ const CarDetailPage = () => {
 
                         {/* Summary */}
                         <div className="mb-6 space-y-3 border-t border-gray-100 pt-4 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Rental Fee ({rentalDays} days)</span>
-                                <span className="font-medium text-gray-900">{formatPrice(rentalFee)}</span>
+                            {/* Rental Fee */}
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <span className="text-gray-800 font-medium">Phí thuê xe</span>
+                                    <p className="text-xs text-gray-400">{formatPrice(car?.price || 0)} × {rentalDays} ngày</p>
+                                </div>
+                                <span className="font-semibold text-gray-900">{formatPrice(rentalFee)}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Insurance</span>
-                                <span className="font-medium text-gray-900">{formatPrice(insuranceFee)}</span>
+
+                            {/* Insurance Section */}
+                            <div className="border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50/50">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-gray-800 font-medium text-xs uppercase tracking-wide">Bảo hiểm</span>
+                                    <span className="text-xs text-gray-500">{formatPrice(insuranceFee)}</span>
+                                </div>
+
+                                {/* TNDS - Required */}
+                                <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-gray-700 text-xs font-medium">TNDS</span>
+                                            <span className="text-[9px] text-white bg-red-500 px-1 py-0.5 rounded">Bắt buộc</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400">Bồi thường thiệt hại cho bên thứ 3</p>
+                                    </div>
+                                    <span className="text-xs text-gray-600">{formatPrice(INSURANCE_FEES.thirdParty * rentalDays)}</span>
+                                </div>
+
+                                {/* Vehicle Damage */}
+                                <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                                    <div className="flex-1">
+                                        <span className="text-gray-700 text-xs font-medium">Thân vỏ xe</span>
+                                        <p className="text-[10px] text-gray-400">Trầy xước, móp, va chạm</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs ${insuranceOptions.vehicleDamage ? 'text-gray-600' : 'text-gray-300'}`}>
+                                            {formatPrice(INSURANCE_FEES.vehicleDamage * rentalDays)}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setInsuranceOptions({ ...insuranceOptions, vehicleDamage: !insuranceOptions.vehicleDamage })}
+                                            className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${insuranceOptions.vehicleDamage ? 'bg-[#5fcf86]' : 'bg-gray-200'
+                                                }`}
+                                        >
+                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 mt-0.5 ${insuranceOptions.vehicleDamage ? 'translate-x-3.5 ml-0' : 'translate-x-0.5'
+                                                }`} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Personal Accident */}
+                                <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                                    <div className="flex-1">
+                                        <span className="text-gray-700 text-xs font-medium">Tai nạn cá nhân</span>
+                                        <p className="text-[10px] text-gray-400">Chi phí y tế cho lái xe & hành khách</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs ${insuranceOptions.personalAccident ? 'text-gray-600' : 'text-gray-300'}`}>
+                                            {formatPrice(INSURANCE_FEES.personalAccident * rentalDays)}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setInsuranceOptions({ ...insuranceOptions, personalAccident: !insuranceOptions.personalAccident })}
+                                            className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${insuranceOptions.personalAccident ? 'bg-[#5fcf86]' : 'bg-gray-200'
+                                                }`}
+                                        >
+                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 mt-0.5 ${insuranceOptions.personalAccident ? 'translate-x-3.5 ml-0' : 'translate-x-0.5'
+                                                }`} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Theft */}
+                                <div className="flex justify-between items-center py-1.5">
+                                    <div className="flex-1">
+                                        <span className="text-gray-700 text-xs font-medium">Mất cắp xe</span>
+                                        <p className="text-[10px] text-gray-400">Bồi thường khi mất xe</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs ${insuranceOptions.theft ? 'text-gray-600' : 'text-gray-300'}`}>
+                                            {formatPrice(INSURANCE_FEES.theft * rentalDays)}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setInsuranceOptions({ ...insuranceOptions, theft: !insuranceOptions.theft })}
+                                            className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${insuranceOptions.theft ? 'bg-[#5fcf86]' : 'bg-gray-200'
+                                                }`}
+                                        >
+                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 mt-0.5 ${insuranceOptions.theft ? 'translate-x-3.5 ml-0' : 'translate-x-0.5'
+                                                }`} />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Service Fee</span>
-                                <span className="font-medium text-gray-900">{formatPrice(serviceFee)}</span>
+
+                            {/* Service Fee */}
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <span className="text-gray-800 font-medium">Phí dịch vụ</span>
+                                    <p className="text-xs text-gray-400">Hỗ trợ 24/7, vệ sinh xe</p>
+                                </div>
+                                <span className="font-semibold text-gray-900">{formatPrice(serviceFee)}</span>
                             </div>
-                            <div className="border-t border-dashed border-gray-200 pt-3 flex justify-between text-base font-bold">
-                                <span>Total</span>
-                                <span className="text-[#5fcf86]">{formatPrice(totalPrice)}</span>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-200"></div>
+
+                            {/* Total */}
+                            <div className="flex justify-between items-center pt-1">
+                                <span className="text-gray-900 font-bold text-base">Tổng cộng</span>
+                                <span className="text-[#5fcf86] font-bold text-xl">{formatPrice(totalPrice)}</span>
                             </div>
                         </div>
 

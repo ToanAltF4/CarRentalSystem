@@ -46,4 +46,12 @@ public class BookingResponseDTO {
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Assignment details (for operator workflow)
+    private Long assignedStaffId;
+    private String assignedStaffName;
+    private Long driverId;
+    private String driverName;
+    private LocalDateTime assignedAt;
+    private String assignedByName;
 }

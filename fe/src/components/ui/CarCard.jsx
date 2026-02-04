@@ -7,7 +7,8 @@ const CarCard = ({ car }) => {
     const {
         id,
         name = 'Unknown Vehicle',
-        imageUrl = 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800',
+        imageUrl,
+        image,
         dailyRate = 0,
         rating = 5.0,
         trips = 0,
@@ -20,6 +21,10 @@ const CarCard = ({ car }) => {
         year = 2024
     } = car || {};
 
+    const safeImageUrl =
+        imageUrl ||
+        image ||
+        'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800';
 
 
     // Generate display name
@@ -33,7 +38,7 @@ const CarCard = ({ car }) => {
             {/* Image Section */}
             <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                 <img
-                    src={imageUrl}
+                    src={safeImageUrl}
                     alt={displayName}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"

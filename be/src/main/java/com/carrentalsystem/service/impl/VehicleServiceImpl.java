@@ -2,12 +2,14 @@ package com.carrentalsystem.service.impl;
 
 import com.carrentalsystem.dto.vehicle.VehicleRequestDTO;
 import com.carrentalsystem.dto.vehicle.VehicleResponseDTO;
+import com.carrentalsystem.entity.PricingEntity;
 import com.carrentalsystem.entity.VehicleCategoryEntity;
 import com.carrentalsystem.entity.VehicleEntity;
 import com.carrentalsystem.entity.VehicleStatus;
 import com.carrentalsystem.exception.DuplicateResourceException;
 import com.carrentalsystem.exception.ResourceNotFoundException;
 import com.carrentalsystem.mapper.VehicleMapper;
+import com.carrentalsystem.repository.PricingRepository;
 import com.carrentalsystem.repository.VehicleCategoryRepository;
 import com.carrentalsystem.repository.VehicleRepository;
 import com.carrentalsystem.service.VehicleService;
@@ -18,6 +20,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -33,6 +36,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final VehicleRepository vehicleRepository;
     private final VehicleMapper vehicleMapper;
     private final VehicleCategoryRepository vehicleCategoryRepository;
+    private final PricingRepository pricingRepository;
 
     @Override
     @Transactional
@@ -64,7 +68,7 @@ public class VehicleServiceImpl implements VehicleService {
         log.debug("Fetching vehicle by ID: {}", id);
 
         VehicleEntity entity = findVehicleOrThrow(id);
-        return vehicleMapper.toResponseDTO(entity);
+        return toResponseWithOvertimeFee(entity);
     }
 
     @Override
@@ -72,7 +76,7 @@ public class VehicleServiceImpl implements VehicleService {
         log.debug("Fetching all vehicles");
 
         List<VehicleEntity> vehicles = vehicleRepository.findAll();
-        return vehicleMapper.toResponseDTOList(vehicles);
+        return toResponseListWithOvertimeFee(vehicles);
     }
 
     @Override
@@ -87,7 +91,7 @@ public class VehicleServiceImpl implements VehicleService {
         Specification<VehicleEntity> spec = VehicleSpecification.containsKeyword(keyword);
         List<VehicleEntity> vehicles = vehicleRepository.findAll(spec);
 
-        return vehicleMapper.toResponseDTOList(vehicles);
+        return toResponseListWithOvertimeFee(vehicles);
     }
 
     @Override
@@ -105,10 +109,11 @@ public class VehicleServiceImpl implements VehicleService {
             throw new IllegalArgumentException("Start date cannot be in the past");
         }
 
-        // TODO: Once Rental entity is implemented, update this query to check for booking conflicts.
+        // TODO: Once Rental entity is implemented, update this query to check for
+        // booking conflicts.
         List<VehicleEntity> availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE);
 
-        return vehicleMapper.toResponseDTOList(availableVehicles);
+        return toResponseListWithOvertimeFee(availableVehicles);
     }
 
     @Override
@@ -178,5 +183,83 @@ public class VehicleServiceImpl implements VehicleService {
     private VehicleEntity findVehicleOrThrow(Long id) {
         return vehicleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle", "id", id));
+    }
+
+    /**
+     * Get overtime fee per hour for a vehicle based on its category's active
+     * pricing
+     */
+    private BigDecimal getOvertimeFeePerHour(VehicleEntity vehicle) {
+        if (vehicle.getCategory() == null) {
+            return BigDecimal.valueOf(50000); // Default 50,000 VND
+        }
+        return pricingRepository.findCurrentPricingByCategory(vehicle.getCategory().getId())
+                .map(PricingEntity::getOvertimeFeePerHour)
+                .orElse(BigDecimal.valueOf(50000)); // Default 50,000 VND
+    }
+
+    /**
+     * Enrich VehicleResponseDTO with overtime fee from pricing
+     */
+    private VehicleResponseDTO enrichWithOvertimeFee(VehicleResponseDTO dto, VehicleEntity entity) {
+        dto.setOvertimeFeePerHour(getOvertimeFeePerHour(entity));
+        return dto;
+    }
+
+    /**
+     * Convert entity to DTO with overtime fee
+     */
+    private VehicleResponseDTO toResponseWithOvertimeFee(VehicleEntity entity) {
+        VehicleResponseDTO dto = vehicleMapper.toResponseDTO(entity);
+        return enrichWithOvertimeFee(dto, entity);
+    }
+
+    /**
+     * Convert list of entities to DTOs with overtime fee
+     */
+    /**
+     * Convert list of entities to DTOs with overtime fee
+     */
+    private List<VehicleResponseDTO> toResponseListWithOvertimeFee(List<VehicleEntity> entities) {
+        return entities.stream()
+                .map(this::toResponseWithOvertimeFee)
+                .toList();
+    }
+
+    @Override
+    public List<com.carrentalsystem.dto.vehicle.VehicleModelDTO> getVehicleModels() {
+        // Since we are back to single Entity model (no Category entity), we group by
+        // Brand + Model
+        // Ideally we should use a custom DTO projection query, but for now we fetch all
+        // and group in memory
+        List<VehicleEntity> allVehicles = vehicleRepository.findAll();
+
+        return allVehicles.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        v -> v.getBrand() + "|" + v.getModel(), // Key
+                        java.util.stream.Collectors.toList() // Value: List of vehicles
+                ))
+                .values().stream()
+                .map(list -> {
+                    VehicleEntity prototype = list.get(0); // Use first one as template
+                    long availableCount = list.stream().filter(v -> v.getStatus() == VehicleStatus.AVAILABLE).count();
+
+                    return com.carrentalsystem.dto.vehicle.VehicleModelDTO.builder()
+                            .id(prototype.getId()) // Use any ID, frontend just needs it for linking
+                            .name(prototype.getName())
+                            .model(prototype.getModel())
+                            .brand(prototype.getBrand())
+                            .batteryCapacityKwh(prototype.getBatteryCapacityKwh())
+                            .rangeKm(prototype.getRangeKm())
+                            .chargingTimeHours(prototype.getChargingTimeHours())
+                            .dailyRate(prototype.getDailyRate())
+                            .imageUrl(prototype.getImageUrl())
+                            .seats(prototype.getSeats())
+                            .description(prototype.getDescription())
+                            .categoryName(prototype.getBrand() + " " + prototype.getModel())
+                            .availableCount((int) availableCount)
+                            .build();
+                })
+                .toList();
     }
 }

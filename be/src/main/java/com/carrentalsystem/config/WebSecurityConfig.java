@@ -88,9 +88,15 @@ public class WebSecurityConfig {
                         // Get booking by code (for tracking)
                         .requestMatchers(HttpMethod.GET, "/api/v1/bookings/code/**").authenticated()
 
+                        // Operator endpoints
+                        .requestMatchers("/api/v1/operator/**").hasAnyRole("OPERATOR", "ADMIN", "MANAGER", "STAFF")
+
+                        // Staff endpoints
+                        .requestMatchers("/api/v1/staff/**").hasAnyRole("STAFF", "OPERATOR", "ADMIN", "MANAGER")
+
                         // ========== ADMIN ENDPOINTS (Company Staff) ==========
                         // Admin Dashboard - stats & revenue
-                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
 
                         // Vehicle management - Company owns all vehicles
                         .requestMatchers(HttpMethod.POST, "/api/v1/vehicles/**").hasRole("ADMIN")
@@ -107,13 +113,18 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/upload/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/upload/**").hasRole("ADMIN")
 
-                        // Booking management - approve/reject/return
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/{id}").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/status/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/vehicle/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/upcoming").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/bookings/*/status").hasRole("ADMIN")
+                        // Booking management - Shared by ADMIN, MANAGER, OPERATOR
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings").hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/{id}")
+                        .hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/status/**")
+                        .hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/vehicle/**")
+                        .hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/upcoming")
+                        .hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/bookings/*/status")
+                        .hasAnyRole("ADMIN", "MANAGER", "OPERATOR")
 
                         // Return vehicle - admin checks and processes
                         .requestMatchers(HttpMethod.POST, "/api/v1/bookings/*/return").hasRole("ADMIN")

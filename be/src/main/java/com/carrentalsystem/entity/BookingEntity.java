@@ -79,6 +79,12 @@ public class BookingEntity {
     @Column(name = "delivery_fee", precision = 12, scale = 2)
     private BigDecimal deliveryFee;
 
+    @Column(name = "delivery_address", length = 255)
+    private String deliveryAddress;
+
+    @Column(name = "delivery_distance_km", precision = 8, scale = 2)
+    private BigDecimal deliveryDistanceKm;
+
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
@@ -89,6 +95,16 @@ public class BookingEntity {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    // Assignment fields for operator workflow
+    @Column(name = "assigned_staff_id")
+    private Long assignedStaffId;
+
+    @Column(name = "assigned_at")
+    private LocalDateTime assignedAt;
+
+    @Column(name = "assigned_by")
+    private Long assignedBy;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
