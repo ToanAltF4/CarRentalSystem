@@ -175,10 +175,37 @@ public class VnpayServiceImpl implements VnpayService {
         if ("00".equals(responseCode)) {
             if (invoice != null) {
                 invoice.setPaymentStatus(PaymentStatus.PAID);
+                invoice.setPaidAt(LocalDateTime.now());
+                invoice.setPaymentMethod("VNPAY");
                 invoiceRepository.save(invoice);
-            }
-            if (booking != null) {
-                // Auto-confirm after payment - Operator only needs to assign staff
+            } else if (booking != null) {
+                // Determine fees - default to 0 if null
+                BigDecimal rentalFee = booking.getRentalFee() != null ? booking.getRentalFee() : BigDecimal.ZERO;
+                BigDecimal driverFee = booking.getDriverFee() != null ? booking.getDriverFee() : BigDecimal.ZERO;
+                BigDecimal deliveryFee = booking.getDeliveryFee() != null ? booking.getDeliveryFee() : BigDecimal.ZERO;
+
+                // Create new PAID invoice for this booking
+                InvoiceEntity newInvoice = InvoiceEntity.builder()
+                        .booking(booking)
+                        .invoiceNumber(txnRef) // Using booking code/txnRef as invoice number
+                        .rentalFee(rentalFee)
+                        .driverFee(driverFee)
+                        .deliveryFee(deliveryFee)
+                        .totalAmount(booking.getTotalAmount() != null ? booking.getTotalAmount() : BigDecimal.ZERO)
+                        .paymentStatus(PaymentStatus.PAID)
+                        .issuedAt(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                // Manually set transient fields if needed or handle via proper DB columns
+                // Note: paidAt and paymentMethod are transient in InvoiceEntity, so they won't
+                // be saved directly
+                // unless we add columns or a separate Transaction entity.
+                // For now, we rely on paymentStatus=PAID.
+
+                invoiceRepository.save(newInvoice);
+
+                // Auto-confirm after payment
                 booking.setStatus(BookingStatus.CONFIRMED);
                 bookingRepository.save(booking);
             }
@@ -186,7 +213,7 @@ public class VnpayServiceImpl implements VnpayService {
                     .code("00")
                     .message("Payment success")
                     .invoiceNumber(txnRef)
-                    .paymentStatus(invoice != null ? invoice.getPaymentStatus().name() : booking.getStatus().name())
+                    .paymentStatus(PaymentStatus.PAID.name())
                     .build();
         }
 
