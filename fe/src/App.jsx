@@ -44,6 +44,10 @@ import StaffRoute from './components/routes/StaffRoute';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import StaffInspection from './pages/staff/StaffInspection';
 
+// Driver Pages
+import DriverRoute from './components/routes/DriverRoute';
+import DriverDashboard from './pages/driver/DriverDashboard';
+
 function App() {
   return (
     <BrowserRouter>
@@ -177,6 +181,12 @@ function App() {
               <Route path="bookings" element={<OperatorBookingList />} />
               <Route path="licenses" element={<OperatorLicenseReview />} />
               <Route path="staff-schedule" element={<StaffSchedule />} />
+            </Route>
+
+            {/* Protected Driver Routes - DRIVER, OPERATOR, MANAGER, ADMIN */}
+            <Route path="driver" element={<DriverRoute />}>
+              <Route index element={<DriverDashboard />} />
+              <Route path="dashboard" element={<DriverDashboard />} />
             </Route>
 
             {/* 404 Page */}

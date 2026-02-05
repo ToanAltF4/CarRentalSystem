@@ -44,9 +44,15 @@ function LoginPage() {
             const userData = await login(formData.email, formData.password);
 
             // Redirect based on role or return to previous page
-            const role = userData.role;
-            if (role === 'ADMIN' || role === 'MANAGER' || role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER') {
+            const role = userData.role?.replace('ROLE_', '');
+            if (role === 'ADMIN' || role === 'MANAGER') {
                 navigate('/admin');
+            } else if (role === 'OPERATOR') {
+                navigate('/operator');
+            } else if (role === 'STAFF') {
+                navigate('/staff');
+            } else if (role === 'DRIVER') {
+                navigate('/driver');
             } else {
                 navigate(from);
             }

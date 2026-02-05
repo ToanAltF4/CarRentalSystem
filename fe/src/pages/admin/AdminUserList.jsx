@@ -527,9 +527,9 @@ const AdminUserList = () => {
                                     className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-primary outline-none"
                                 >
                                     <option value={1}>Customer</option>
-                                    <option value={2}>Admin</option>
-                                    <option value={3}>Staff</option>
-                                    <option value={4}>Operator</option>
+                                    <option value={2}>Staff</option>
+                                    <option value={3}>Operator</option>
+                                    <option value={4}>Admin</option>
                                     <option value={5}>Driver</option>
                                 </select>
                             </div>
@@ -613,9 +613,9 @@ const AdminUserList = () => {
                                     className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-primary outline-none"
                                 >
                                     <option value={1}>Customer</option>
-                                    <option value={2}>Admin</option>
-                                    <option value={3}>Staff</option>
-                                    <option value={4}>Operator</option>
+                                    <option value={2}>Staff</option>
+                                    <option value={3}>Operator</option>
+                                    <option value={4}>Admin</option>
                                     <option value={5}>Driver</option>
                                 </select>
                             </div>
