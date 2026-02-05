@@ -427,8 +427,13 @@ public class BookingServiceImpl implements BookingService {
         // Define valid transitions
         boolean valid = switch (current) {
             case PENDING -> next == BookingStatus.CONFIRMED || next == BookingStatus.CANCELLED;
-            case CONFIRMED -> next == BookingStatus.IN_PROGRESS || next == BookingStatus.CANCELLED;
-            case IN_PROGRESS -> next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
+            case CONFIRMED ->
+                next == BookingStatus.IN_PROGRESS || next == BookingStatus.ASSIGNED || next == BookingStatus.CANCELLED;
+            case ASSIGNED ->
+                next == BookingStatus.CONFIRMED || next == BookingStatus.IN_PROGRESS || next == BookingStatus.CANCELLED;
+            case IN_PROGRESS ->
+                next == BookingStatus.ONGOING || next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
+            case ONGOING -> next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
             case COMPLETED, CANCELLED -> false; // Terminal states
         };
 

@@ -104,6 +104,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
         List<BookingEntity> findByDriverId(Long driverId);
 
+        List<BookingEntity> findByDriverIdAndStatus(Long driverId, BookingStatus status);
+
         @Query("SELECT COUNT(b) FROM BookingEntity b WHERE (b.assignedStaffId = :staffId OR b.driverId = :staffId) AND b.status IN :statuses")
         int countActiveBookingsByStaff(@Param("staffId") Long staffId, @Param("statuses") List<BookingStatus> statuses);
 

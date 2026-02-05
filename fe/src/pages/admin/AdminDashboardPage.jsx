@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
     DollarSign, Car, Calendar, Clock, Users, TrendingUp,
     ChevronRight, Loader2, AlertCircle, ArrowUpRight, BarChart3,
-    CarFront, CheckCircle, XCircle
+    CarFront, CheckCircle, XCircle, Shield
 } from 'lucide-react';
 import dashboardService from '../../services/dashboardService';
 import bookingService from '../../services/bookingService';
@@ -255,6 +255,16 @@ const AdminDashboardPage = () => {
                             <div>
                                 <p className="font-semibold">Manage Users</p>
                                 <p className="text-xs text-white/80">Verify Licenses</p>
+                            </div>
+                        </Link>
+                        <Link
+                            to="/admin/roles"
+                            className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl text-white hover:shadow-lg transition-all"
+                        >
+                            <Shield className="h-6 w-6" />
+                            <div>
+                                <p className="font-semibold">Manage Roles</p>
+                                <p className="text-xs text-white/80">Add, Edit, Delete</p>
                             </div>
                         </Link>
                     </div>

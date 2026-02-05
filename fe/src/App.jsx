@@ -30,6 +30,7 @@ import AdminVehicleList from './pages/admin/AdminVehicleList';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminBookingList from './pages/admin/AdminBookingList';
 import AdminUserList from './pages/admin/AdminUserList';
+import AdminRoleList from './pages/admin/AdminRoleList';
 
 // Operator Pages
 import OperatorRoute from './components/routes/OperatorRoute';
@@ -42,6 +43,10 @@ import StaffSchedule from './pages/operator/StaffSchedule';
 import StaffRoute from './components/routes/StaffRoute';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import StaffInspection from './pages/staff/StaffInspection';
+
+// Driver Pages
+import DriverRoute from './components/routes/DriverRoute';
+import DriverDashboard from './pages/driver/DriverDashboard';
 
 function App() {
   return (
@@ -154,6 +159,14 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="admin/roles"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN']}>
+                  <AdminRoleList />
+                </PrivateRoute>
+              }
+            />
 
             {/* Protected Staff Routes - TECHNICAL_STAFF, OPERATOR, MANAGER, ADMIN */}
             <Route path="staff" element={<StaffRoute />}>
@@ -168,6 +181,12 @@ function App() {
               <Route path="bookings" element={<OperatorBookingList />} />
               <Route path="licenses" element={<OperatorLicenseReview />} />
               <Route path="staff-schedule" element={<StaffSchedule />} />
+            </Route>
+
+            {/* Protected Driver Routes - DRIVER, OPERATOR, MANAGER, ADMIN */}
+            <Route path="driver" element={<DriverRoute />}>
+              <Route index element={<DriverDashboard />} />
+              <Route path="dashboard" element={<DriverDashboard />} />
             </Route>
 
             {/* 404 Page */}

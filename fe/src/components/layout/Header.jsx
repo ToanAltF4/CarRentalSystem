@@ -20,11 +20,13 @@ const Header = () => {
     const isAdmin = ['ADMIN', 'MANAGER', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(user?.role);
     const isOperator = ['OPERATOR', 'ROLE_OPERATOR'].includes(user?.role);
     const isStaff = ['STAFF', 'ROLE_STAFF'].includes(user?.role);
+    const isDriver = ['DRIVER', 'ROLE_DRIVER'].includes(user?.role);
 
     // Effective role check
     const showAdminLink = isAdmin;
     const showOperatorLink = isOperator || isAdmin;
-    const showStaffLink = isStaff || isAdmin || isOperator; // Admins/Operators can access too
+    const showStaffLink = isStaff || isAdmin || isOperator;
+    const showDriverLink = isDriver || isAdmin || isOperator;
 
     return (
         <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
@@ -124,6 +126,15 @@ const Header = () => {
                                             Staff Portal
                                         </Link>
                                     )}
+                                    {showDriverLink && (
+                                        <Link
+                                            to="/driver"
+                                            className="block px-4 py-3 hover:bg-gray-50 text-amber-600 font-medium"
+                                            onClick={() => setUserMenuOpen(false)}
+                                        >
+                                            Driver Portal
+                                        </Link>
+                                    )}
                                     <hr className="my-2 border-gray-100" />
                                     <button
                                         onClick={() => { logout(); setUserMenuOpen(false); }}
@@ -177,6 +188,7 @@ const Header = () => {
                             {showAdminLink && <Link to="/admin" className="block py-2 text-[#5fcf86]">Admin Dashboard</Link>}
                             {showOperatorLink && <Link to="/operator" className="block py-2 text-blue-600">Operator Portal</Link>}
                             {showStaffLink && <Link to="/staff" className="block py-2 text-orange-600">Staff Portal</Link>}
+                            {showDriverLink && <Link to="/driver" className="block py-2 text-amber-600">Driver Portal</Link>}
                             <button onClick={logout} className="block py-2 text-red-500">Logout</button>
                         </>
                     ) : (
