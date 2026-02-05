@@ -66,6 +66,16 @@ public class UserEntity {
     @Column(name = "license_status", length = 30)
     private LicenseStatus licenseStatus;
 
+    /**
+     * Driver-specific fields (for users with ROLE_DRIVER)
+     */
+    @Column(name = "driver_status", length = 30)
+    private String driverStatus;
+
+    @Column(name = "driver_available")
+    @Builder.Default
+    private Boolean driverAvailable = false;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private RoleEntity role;

@@ -30,6 +30,7 @@ import AdminVehicleList from './pages/admin/AdminVehicleList';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminBookingList from './pages/admin/AdminBookingList';
 import AdminUserList from './pages/admin/AdminUserList';
+import AdminRoleList from './pages/admin/AdminRoleList';
 
 // Operator Pages
 import OperatorRoute from './components/routes/OperatorRoute';
@@ -151,6 +152,14 @@ function App() {
               element={
                 <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
                   <AdminUserList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/roles"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN']}>
+                  <AdminRoleList />
                 </PrivateRoute>
               }
             />
