@@ -2,11 +2,14 @@ package com.carrentalsystem.service.impl;
 
 import com.carrentalsystem.dto.booking.BookingRequestDTO;
 import com.carrentalsystem.dto.booking.BookingResponseDTO;
+import com.carrentalsystem.dto.booking.DeliveryFeeResponseDTO;
+import com.carrentalsystem.dto.booking.DriverFeeResponseDTO;
 import com.carrentalsystem.entity.*;
 import com.carrentalsystem.exception.*;
 import com.carrentalsystem.mapper.BookingMapper;
 import com.carrentalsystem.repository.*;
 import com.carrentalsystem.service.BookingService;
+import com.carrentalsystem.service.PriceCalculationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +34,31 @@ public class BookingServiceImpl implements BookingService {
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
     private final PricingRepository pricingRepository;
+    private final RentalTypeRepository rentalTypeRepository;
+    private final PickupMethodRepository pickupMethodRepository;
     private final BookingMapper bookingMapper;
+    private final PriceCalculationService priceCalculationService;
+
+    private static final String RENTAL_TYPE_SELF_DRIVE = "SELF_DRIVE";
+
+    // Rental type name matching patterns (case-insensitive)
+    private boolean isWithDriver(String name) {
+        return name != null && (name.equalsIgnoreCase("WITH_DRIVER") ||
+                name.toLowerCase().contains("driver") ||
+                name.toLowerCase().contains("tài xế"));
+    }
+
+    private boolean isSelfDrive(String name) {
+        return name != null && (name.equalsIgnoreCase("SELF_DRIVE") ||
+                name.toLowerCase().contains("self") ||
+                name.toLowerCase().contains("tự lái"));
+    }
+
+    private boolean isDelivery(String name) {
+        return name != null && (name.equalsIgnoreCase("DELIVERY") ||
+                name.toLowerCase().contains("delivery") ||
+                name.toLowerCase().contains("giao"));
+    }
 
     @Override
     @Transactional
@@ -107,26 +134,94 @@ public class BookingServiceImpl implements BookingService {
                     "Driver's license not verified. Please upload and verify your driver's license before booking.");
         }
 
-        // 6. Calculate pricing
+        // 6. Calculate base pricing
         BigDecimal dailyRate = calculateDailyRate(vehicle);
         int totalDays = calculateTotalDays(request.getStartDate(), request.getEndDate());
-        BigDecimal totalAmount = dailyRate.multiply(BigDecimal.valueOf(totalDays));
+        BigDecimal rentalFee = dailyRate.multiply(BigDecimal.valueOf(totalDays));
 
-        // 7. Create booking entity - Auto CONFIRMED since license is verified
+        // 7. Handle rental type and calculate fees
+        RentalTypeEntity rentalType = null;
+        PickupMethodEntity pickupMethod = null;
+        BigDecimal driverFee = BigDecimal.ZERO;
+        BigDecimal deliveryFee = BigDecimal.ZERO;
+        String deliveryAddress = null;
+        BigDecimal deliveryDistanceKm = null;
+
+        if (request.getRentalTypeId() != null) {
+            rentalType = rentalTypeRepository.findById(request.getRentalTypeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("RentalType", "id", request.getRentalTypeId()));
+
+            if (isWithDriver(rentalType.getName())) {
+                // WITH_DRIVER: Calculate driver fee, no pickup method
+                DriverFeeResponseDTO driverFeeResult;
+                if (vehicle.getCategory() != null) {
+                    driverFeeResult = priceCalculationService.calculateDriverFeeByCategory(totalDays,
+                            vehicle.getCategory().getId());
+                } else {
+                    driverFeeResult = priceCalculationService.calculateDriverFee(totalDays);
+                }
+
+                driverFee = driverFeeResult.getTotalDriverFee();
+                log.info("WITH_DRIVER selected: driver_fee = {}", driverFee);
+
+            } else if (isSelfDrive(rentalType.getName())) {
+                // SELF_DRIVE: Handle pickup method
+                if (request.getPickupMethodId() != null) {
+                    pickupMethod = pickupMethodRepository.findById(request.getPickupMethodId())
+                            .orElseThrow(() -> new ResourceNotFoundException("PickupMethod", "id",
+                                    request.getPickupMethodId()));
+
+                    if (isDelivery(pickupMethod.getName())) {
+                        // DELIVERY: Calculate delivery fee
+                        if (request.getDeliveryAddress() == null || request.getDeliveryAddress().trim().isEmpty()) {
+                            throw new IllegalArgumentException(
+                                    "Delivery address is required for DELIVERY pickup method");
+                        }
+                        deliveryAddress = request.getDeliveryAddress().trim();
+                        DeliveryFeeResponseDTO deliveryResult = priceCalculationService
+                                .calculateDeliveryFee(deliveryAddress);
+                        deliveryFee = deliveryResult.getTotalDeliveryFee();
+                        deliveryDistanceKm = deliveryResult.getDistanceKm();
+                        log.info("DELIVERY selected: distance = {} km, delivery_fee = {}", deliveryDistanceKm,
+                                deliveryFee);
+
+                    } else {
+                        // STORE: No delivery fee
+                        log.info("STORE pickup selected: delivery_fee = 0");
+                    }
+                }
+            }
+        } else {
+            // Default to SELF_DRIVE if not specified (backward compatibility)
+            rentalType = rentalTypeRepository.findByName(RENTAL_TYPE_SELF_DRIVE).orElse(null);
+        }
+
+        // 8. Calculate total amount
+        BigDecimal totalAmount = rentalFee.add(driverFee).add(deliveryFee);
+        log.info("Price breakdown: rental_fee={}, driver_fee={}, delivery_fee={}, total={}",
+                rentalFee, driverFee, deliveryFee, totalAmount);
+
+        // 9. Create booking entity - Auto CONFIRMED since license is verified
         BookingEntity booking = bookingMapper.toEntity(request);
         booking.setBookingCode(generateBookingCode());
         booking.setVehicle(vehicle);
         booking.setTotalDays(totalDays);
         booking.setDailyRate(dailyRate);
-        booking.setRentalFee(totalAmount);
+        booking.setRentalFee(rentalFee);
+        booking.setDriverFee(driverFee);
+        booking.setDeliveryFee(deliveryFee);
+        booking.setDeliveryAddress(deliveryAddress);
+        booking.setDeliveryDistanceKm(deliveryDistanceKm);
         booking.setTotalAmount(totalAmount);
-        booking.setStatus(BookingStatus.CONFIRMED); // Auto confirm since license is verified
+        booking.setRentalType(rentalType);
+        booking.setPickupMethod(pickupMethod);
+        booking.setStatus(BookingStatus.PENDING); // Wait for payment
 
-        // 8. Save booking
+        // 10. Save booking
         BookingEntity saved = bookingRepository.save(booking);
         log.info("Booking created and auto-confirmed with code: {}", saved.getBookingCode());
 
-        return bookingMapper.toResponseDTO(saved);
+        return toEnrichedDTO(saved);
     }
 
     @Override
@@ -257,6 +352,19 @@ public class BookingServiceImpl implements BookingService {
         } else if (dto.getRentalTypeName() == null) {
             dto.setRentalTypeName("Self Drive");
         }
+
+        // Pickup Method Name
+        if (dto.getPickupMethodName() == null && entity.getPickupMethod() != null) {
+            dto.setPickupMethodName(entity.getPickupMethod().getName());
+            dto.setPickupMethodId(entity.getPickupMethod().getId());
+        }
+
+        // Fee breakdown
+        dto.setRentalFee(entity.getRentalFee());
+        dto.setDriverFee(entity.getDriverFee());
+        dto.setDeliveryFee(entity.getDeliveryFee());
+        dto.setDeliveryAddress(entity.getDeliveryAddress());
+        dto.setDeliveryDistanceKm(entity.getDeliveryDistanceKm());
 
         return dto;
     }

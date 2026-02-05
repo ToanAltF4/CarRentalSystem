@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import vehicleService from '../services/vehicleService';
 import bookingService from '../services/bookingService';
 import { formatPrice } from '../utils/formatters';
+import BookingWizardModal from '../components/BookingWizardModal';
 
 /**
  * B2C Car Detail Page
@@ -27,6 +28,7 @@ const CarDetailPage = () => {
     const [activeImage, setActiveImage] = useState(0);
     const [bookingLoading, setBookingLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showWizard, setShowWizard] = useState(false);
 
     // Date picker state
     const [pickupDate, setPickupDate] = useState('');
@@ -92,7 +94,7 @@ const CarDetailPage = () => {
         return null;
     };
 
-    // Handle booking submission
+    // Handle booking submission - now opens wizard instead of direct booking
     const handleBookNow = async () => {
         // Check if user is authenticated
         if (!isAuthenticated || !user) {
@@ -107,36 +109,19 @@ const CarDetailPage = () => {
         }
 
         setError('');
-        setBookingLoading(true);
+        // Open booking wizard instead of direct booking
+        setShowWizard(true);
+    };
 
-        try {
-            const bookingData = {
-                vehicleId: null, // Allow system assignment
-                brand: car.brand,
-                model: car.model,
-                userId: user.id,
-                customerName: user.fullName,
-                customerEmail: user.email,
-                customerPhone: user.phone || '',
-                startDate: pickupDate,
-                endDate: dropoffDate,
-                notes: `Booking via website - ${car.name}`
-            };
-
-            const result = await bookingService.createBooking(bookingData);
-
-            navigate('/booking-success', {
-                state: {
-                    booking: result,
-                    vehicle: car
-                }
-            });
-        } catch (err) {
-            console.error('Booking failed:', err);
-            setError(err.response?.data?.message || 'Booking failed. Please try again.');
-        } finally {
-            setBookingLoading(false);
-        }
+    // Handle booking completion from wizard
+    const handleBookingComplete = (result) => {
+        setShowWizard(false);
+        navigate('/booking-success', {
+            state: {
+                booking: result,
+                vehicle: car
+            }
+        });
     };
 
     useEffect(() => {
@@ -350,9 +335,9 @@ const CarDetailPage = () => {
                                 <div className="mt-3 flex items-center gap-2 text-orange-700 bg-orange-50 border border-orange-200 px-4 py-3 rounded-xl">
                                     <AlertCircle size={20} className="shrink-0" />
                                     <div>
-                                        <span className="font-medium">Phí trả trễ:</span>
+                                        <span className="font-medium">Late Return Fee:</span>
                                         <span className="ml-1 text-lg font-bold">{formatPrice(car.overtimeFeePerHour)}</span>
-                                        <span className="text-sm">/giờ</span>
+                                        <span className="text-sm">/hour</span>
                                     </div>
                                 </div>
                             )}
@@ -468,8 +453,8 @@ const CarDetailPage = () => {
                             {/* Rental Fee */}
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <span className="text-gray-800 font-medium">Phí thuê xe</span>
-                                    <p className="text-xs text-gray-400">{formatPrice(car?.price || 0)} × {rentalDays} ngày</p>
+                                    <span className="text-gray-800 font-medium">Rental Fee</span>
+                                    <p className="text-xs text-gray-400">{formatPrice(car?.price || 0)} × {rentalDays} days</p>
                                 </div>
                                 <span className="font-semibold text-gray-900">{formatPrice(rentalFee)}</span>
                             </div>
@@ -477,18 +462,18 @@ const CarDetailPage = () => {
                             {/* Insurance Section */}
                             <div className="border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50/50">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-gray-800 font-medium text-xs uppercase tracking-wide">Bảo hiểm</span>
+                                    <span className="text-gray-800 font-medium text-xs uppercase tracking-wide">Insurance</span>
                                     <span className="text-xs text-gray-500">{formatPrice(insuranceFee)}</span>
                                 </div>
 
-                                {/* TNDS - Required */}
+                                {/* Third Party Liability - Required */}
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-gray-700 text-xs font-medium">TNDS</span>
-                                            <span className="text-[9px] text-white bg-red-500 px-1 py-0.5 rounded">Bắt buộc</span>
+                                            <span className="text-gray-700 text-xs font-medium">Third Party Liability</span>
+                                            <span className="text-[9px] text-white bg-red-500 px-1 py-0.5 rounded">Required</span>
                                         </div>
-                                        <p className="text-[10px] text-gray-400">Bồi thường thiệt hại cho bên thứ 3</p>
+                                        <p className="text-[10px] text-gray-400">Compensation for third party damages</p>
                                     </div>
                                     <span className="text-xs text-gray-600">{formatPrice(INSURANCE_FEES.thirdParty * rentalDays)}</span>
                                 </div>
@@ -496,8 +481,8 @@ const CarDetailPage = () => {
                                 {/* Vehicle Damage */}
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
-                                        <span className="text-gray-700 text-xs font-medium">Thân vỏ xe</span>
-                                        <p className="text-[10px] text-gray-400">Trầy xước, móp, va chạm</p>
+                                        <span className="text-gray-700 text-xs font-medium">Vehicle Body</span>
+                                        <p className="text-[10px] text-gray-400">Scratches, dents, collisions</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className={`text-xs ${insuranceOptions.vehicleDamage ? 'text-gray-600' : 'text-gray-300'}`}>
@@ -518,8 +503,8 @@ const CarDetailPage = () => {
                                 {/* Personal Accident */}
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
-                                        <span className="text-gray-700 text-xs font-medium">Tai nạn cá nhân</span>
-                                        <p className="text-[10px] text-gray-400">Chi phí y tế cho lái xe & hành khách</p>
+                                        <span className="text-gray-700 text-xs font-medium">Personal Accident</span>
+                                        <p className="text-[10px] text-gray-400">Medical expenses for driver & passengers</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className={`text-xs ${insuranceOptions.personalAccident ? 'text-gray-600' : 'text-gray-300'}`}>
@@ -540,8 +525,8 @@ const CarDetailPage = () => {
                                 {/* Theft */}
                                 <div className="flex justify-between items-center py-1.5">
                                     <div className="flex-1">
-                                        <span className="text-gray-700 text-xs font-medium">Mất cắp xe</span>
-                                        <p className="text-[10px] text-gray-400">Bồi thường khi mất xe</p>
+                                        <span className="text-gray-700 text-xs font-medium">Vehicle Theft</span>
+                                        <p className="text-[10px] text-gray-400">Compensation for stolen vehicle</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className={`text-xs ${insuranceOptions.theft ? 'text-gray-600' : 'text-gray-300'}`}>
@@ -563,8 +548,8 @@ const CarDetailPage = () => {
                             {/* Service Fee */}
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <span className="text-gray-800 font-medium">Phí dịch vụ</span>
-                                    <p className="text-xs text-gray-400">Hỗ trợ 24/7, vệ sinh xe</p>
+                                    <span className="text-gray-800 font-medium">Service Fee</span>
+                                    <p className="text-xs text-gray-400">24/7 support, car cleaning</p>
                                 </div>
                                 <span className="font-semibold text-gray-900">{formatPrice(serviceFee)}</span>
                             </div>
@@ -574,7 +559,7 @@ const CarDetailPage = () => {
 
                             {/* Total */}
                             <div className="flex justify-between items-center pt-1">
-                                <span className="text-gray-900 font-bold text-base">Tổng cộng</span>
+                                <span className="text-gray-900 font-bold text-base">Total</span>
                                 <span className="text-[#5fcf86] font-bold text-xl">{formatPrice(totalPrice)}</span>
                             </div>
                         </div>
@@ -615,6 +600,17 @@ const CarDetailPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Booking Wizard Modal */}
+            <BookingWizardModal
+                isOpen={showWizard}
+                onClose={() => setShowWizard(false)}
+                car={car}
+                pickupDate={pickupDate}
+                dropoffDate={dropoffDate}
+                user={user}
+                onBookingComplete={handleBookingComplete}
+            />
         </div>
     );
 };

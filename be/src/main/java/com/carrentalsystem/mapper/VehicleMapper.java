@@ -27,6 +27,7 @@ public interface VehicleMapper {
      * Convert entity to response DTO
      */
     @Mapping(source = "category.name", target = "categoryName")
+    @Mapping(source = "category.id", target = "categoryId")
     VehicleResponseDTO toResponseDTO(VehicleEntity entity);
 
     /**

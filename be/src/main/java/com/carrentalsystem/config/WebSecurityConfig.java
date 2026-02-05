@@ -75,6 +75,15 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/vehicles").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
 
+                        // Booking options - Public for browsing rental types/pickup methods
+                        .requestMatchers(HttpMethod.GET, "/api/v1/booking-options/rental-types").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/booking-options/pickup-methods").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/booking-options/pricing-info").permitAll()
+                        // Booking options - Fee calculations require authentication
+                        .requestMatchers(HttpMethod.GET, "/api/v1/booking-options/driver-fee").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/booking-options/calculate-delivery-fee")
+                        .authenticated()
+
                         // ========== CUSTOMER ENDPOINTS ==========
                         // Create booking
                         .requestMatchers(HttpMethod.POST, "/api/v1/bookings").authenticated()

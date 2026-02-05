@@ -31,6 +31,7 @@ public class VehicleResponseDTO {
     // New fields for complete data
     private Integer seats;
     private String description;
+    private Long categoryId; // Category ID for pricing lookup
     private String categoryName; // Category name for display
     private BigDecimal overtimeFeePerHour; // Overtime fee per hour from pricing
 

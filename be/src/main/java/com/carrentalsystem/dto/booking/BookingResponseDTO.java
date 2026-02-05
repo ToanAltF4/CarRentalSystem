@@ -47,6 +47,19 @@ public class BookingResponseDTO {
     private Integer rentalTypeId;
     private String rentalTypeName;
 
+    // Pickup Method info
+    private Integer pickupMethodId;
+    private String pickupMethodName;
+
+    // Fee breakdown
+    private BigDecimal rentalFee;
+    private BigDecimal driverFee;
+    private BigDecimal deliveryFee;
+
+    // Delivery info
+    private String deliveryAddress;
+    private BigDecimal deliveryDistanceKm;
+
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

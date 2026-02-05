@@ -26,4 +26,16 @@ public class BookingRequestDTO {
     // For booking by Model (system assigns specific vehicle)
     private String brand;
     private String model;
+
+    // Rental type selection (required)
+    // 1 = SELF_DRIVE, 2 = WITH_DRIVER
+    private Integer rentalTypeId;
+
+    // Pickup method selection (only for SELF_DRIVE)
+    // 1 = STORE, 2 = DELIVERY
+    // NULL for WITH_DRIVER
+    private Integer pickupMethodId;
+
+    // Delivery address (only when pickupMethodId = 2/DELIVERY)
+    private String deliveryAddress;
 }

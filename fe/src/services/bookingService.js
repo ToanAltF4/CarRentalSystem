@@ -15,6 +15,55 @@ const bookingService = {
         return response.data;
     },
 
+    // ========== BOOKING WIZARD OPTIONS ==========
+
+    /**
+     * Get all rental types (SELF_DRIVE, WITH_DRIVER)
+     */
+    getRentalTypes: async () => {
+        const response = await api.get('/v1/booking-options/rental-types');
+        return response.data;
+    },
+
+    /**
+     * Get all pickup methods (STORE, DELIVERY)
+     */
+    getPickupMethods: async () => {
+        const response = await api.get('/v1/booking-options/pickup-methods');
+        return response.data;
+    },
+
+    /**
+     * Calculate driver fee for WITH_DRIVER rental
+     * @param {number} days - Number of rental days
+     * @param {number} [vehicleCategoryId] - Optional vehicle category ID for specific pricing
+     */
+    getDriverFee: async (days, vehicleCategoryId) => {
+        const params = { days };
+        if (vehicleCategoryId) {
+            params.vehicleCategoryId = vehicleCategoryId;
+        }
+        const response = await api.get('/v1/booking-options/driver-fee', { params });
+        return response.data;
+    },
+
+    /**
+     * Calculate delivery fee based on address
+     * @param {string} deliveryAddress - Delivery address
+     */
+    calculateDeliveryFee: async (deliveryAddress) => {
+        const response = await api.post('/v1/booking-options/calculate-delivery-fee', { deliveryAddress });
+        return response.data;
+    },
+
+    /**
+     * Get current pricing info (driver daily fee, delivery base fee, etc.)
+     */
+    getPricingInfo: async () => {
+        const response = await api.get('/v1/booking-options/pricing-info');
+        return response.data;
+    },
+
     /**
      * Get booking by ID
      */

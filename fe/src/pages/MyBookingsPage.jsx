@@ -193,8 +193,8 @@ const MyBookingsPage = () => {
                                                 </button>
                                             )}
 
-                                            {/* Pay Now button - CONFIRMED bookings can pay (license was checked at booking time) */}
-                                            {booking.status === 'CONFIRMED' && (
+                                            {/* Pay Now button - Only for PENDING bookings */}
+                                            {booking.status === 'PENDING' && (
                                                 <button
                                                     onClick={() => setPaymentBooking(booking)}
                                                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
