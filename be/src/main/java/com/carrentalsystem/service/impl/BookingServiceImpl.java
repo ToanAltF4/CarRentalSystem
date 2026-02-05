@@ -325,24 +325,38 @@ public class BookingServiceImpl implements BookingService {
     // ============== Private Helper Methods ==============
 
     private BookingResponseDTO toEnrichedDTO(BookingEntity entity) {
+        return toEnrichedDTO(entity, null);
+    }
+
+    private BookingResponseDTO toEnrichedDTO(BookingEntity entity, java.util.Map<Long, UserEntity> userMap) {
         BookingResponseDTO dto = bookingMapper.toResponseDTO(entity);
 
+        // Helper to resolve user from map or DB
+        java.util.function.Function<Long, UserEntity> resolveUser = (id) -> {
+            if (id == null)
+                return null;
+            if (userMap != null && userMap.containsKey(id)) {
+                return userMap.get(id);
+            }
+            return userRepository.findById(id).orElse(null);
+        };
+
         // Enrich Staff Name
-        if (entity.getAssignedStaffId() != null) {
-            userRepository.findById(entity.getAssignedStaffId())
-                    .ifPresent(staff -> dto.setAssignedStaffName(staff.getFullName()));
+        UserEntity staff = resolveUser.apply(entity.getAssignedStaffId());
+        if (staff != null) {
+            dto.setAssignedStaffName(staff.getFullName());
         }
 
         // Enrich Driver Name
-        if (entity.getDriverId() != null) {
-            userRepository.findById(entity.getDriverId())
-                    .ifPresent(driver -> dto.setDriverName(driver.getFullName()));
+        UserEntity driver = resolveUser.apply(entity.getDriverId());
+        if (driver != null) {
+            dto.setDriverName(driver.getFullName());
         }
 
         // Enrich Assigned By
-        if (entity.getAssignedBy() != null) {
-            userRepository.findById(entity.getAssignedBy())
-                    .ifPresent(op -> dto.setAssignedByName(op.getFullName()));
+        UserEntity assigner = resolveUser.apply(entity.getAssignedBy());
+        if (assigner != null) {
+            dto.setAssignedByName(assigner.getFullName());
         }
 
         // Rental Type Name (Fallback if Mapper missed it or null)
@@ -370,7 +384,34 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private List<BookingResponseDTO> toEnrichedDTOList(List<BookingEntity> entities) {
-        return entities.stream().map(this::toEnrichedDTO).toList();
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+
+        // 1. Collect all User IDs to fetch
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        entities.forEach(b -> {
+            if (b.getAssignedStaffId() != null)
+                userIds.add(b.getAssignedStaffId());
+            if (b.getDriverId() != null)
+                userIds.add(b.getDriverId());
+            if (b.getAssignedBy() != null)
+                userIds.add(b.getAssignedBy());
+        });
+
+        // 2. Batch fetch users
+        java.util.Map<Long, UserEntity> userMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<UserEntity> users = userRepository.findAllById(userIds);
+            userMap = users.stream().collect(
+                    java.util.stream.Collectors.toMap(UserEntity::getId, java.util.function.Function.identity()));
+        }
+
+        // 3. Map to DTOs using the userMap
+        final java.util.Map<Long, UserEntity> finalUserMap = userMap;
+        return entities.stream()
+                .map(entity -> toEnrichedDTO(entity, finalUserMap))
+                .toList();
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
