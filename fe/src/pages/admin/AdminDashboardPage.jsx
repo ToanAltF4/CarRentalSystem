@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
     DollarSign, Car, Calendar, Clock, Users, TrendingUp,
-    ChevronRight, Loader2, AlertCircle, ArrowUpRight, BarChart3,
-    CarFront, CheckCircle, XCircle, Shield
+    ChevronRight, Loader2, AlertCircle, ArrowUpRight,
+    CarFront, Shield
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import dashboardService from '../../services/dashboardService';
 import bookingService from '../../services/bookingService';
 import { formatPrice } from '../../utils/formatters';
@@ -16,46 +17,39 @@ import { formatPrice } from '../../utils/formatters';
 const AdminDashboardPage = () => {
     const [stats, setStats] = useState(null);
     const [recentBookings, setRecentBookings] = useState([]);
+    const [revenueData, setRevenueData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-
-    // Mock monthly revenue data for chart
-    const monthlyRevenue = [
-        { month: 'Jan', revenue: 125000000 },
-        { month: 'Feb', revenue: 152000000 },
-        { month: 'Mar', revenue: 183000000 },
-        { month: 'Apr', revenue: 168000000 },
-        { month: 'May', revenue: 215000000 },
-        { month: 'Jun', revenue: 240000000 },
-        { month: 'Jul', revenue: 285000000 },
-        { month: 'Aug', revenue: 262000000 },
-        { month: 'Sep', revenue: 238000000 },
-        { month: 'Oct', revenue: 275000000 },
-        { month: 'Nov', revenue: 310000000 },
-        { month: 'Dec', revenue: 350000000 }
-    ];
-
-    const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue));
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch dashboard stats
-                const statsData = await dashboardService.getStats();
+                // Fetch all dashboard data in parallel
+                const [statsData, revenue] = await Promise.all([
+                    dashboardService.getStats(),
+                    dashboardService.getMonthlyRevenue()
+                ]);
+
+                // Update state
                 setStats(statsData);
 
-                // Fetch recent bookings
-                const bookingsData = await bookingService.getAll();
-                setRecentBookings(bookingsData.slice(0, 5));
+                // Use recent bookings from stats DTO (optimized backend)
+                if (statsData?.recentBookings) {
+                    setRecentBookings(statsData.recentBookings);
+                } else {
+                    setRecentBookings([]);
+                }
+
+                setRevenueData(revenue);
             } catch (err) {
                 console.error('Failed to fetch dashboard data:', err);
                 // Set default mock data if API fails
                 setStats({
-                    totalRevenue: 245000000,
-                    activeBookings: 12,
-                    totalVehicles: 25,
-                    pendingApprovals: 5,
-                    availableVehicles: 18
+                    totalRevenue: 0,
+                    activeBookings: 0,
+                    totalVehicles: 0,
+                    pendingApprovals: 0,
+                    availableVehicles: 0
                 });
                 setError('Using demo data - API connection failed');
             } finally {
@@ -64,6 +58,8 @@ const AdminDashboardPage = () => {
         };
         fetchData();
     }, []);
+
+    const maxRevenue = revenueData.length > 0 ? Math.max(...revenueData.map(m => m.revenue)) : 0;
 
     const statCards = [
         {
@@ -169,6 +165,49 @@ const AdminDashboardPage = () => {
                 </div>
             )}
 
+            {/* Quick Actions - Management Links */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <Link to="/admin/vehicles" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#5fcf86] hover:shadow-md transition-all flex items-center gap-4 group">
+                    <div className="bg-purple-50 p-3 rounded-lg group-hover:bg-[#5fcf86] group-hover:text-white transition-colors text-purple-600">
+                        <CarFront size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900">Fleet Management</h3>
+                        <p className="text-xs text-gray-500">Manage vehicles</p>
+                    </div>
+                </Link>
+
+                <Link to="/admin/bookings" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#5fcf86] hover:shadow-md transition-all flex items-center gap-4 group">
+                    <div className="bg-blue-50 p-3 rounded-lg group-hover:bg-[#5fcf86] group-hover:text-white transition-colors text-blue-600">
+                        <Calendar size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900">Bookings</h3>
+                        <p className="text-xs text-gray-500">View & manage rentals</p>
+                    </div>
+                </Link>
+
+                <Link to="/admin/users" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#5fcf86] hover:shadow-md transition-all flex items-center gap-4 group">
+                    <div className="bg-orange-50 p-3 rounded-lg group-hover:bg-[#5fcf86] group-hover:text-white transition-colors text-orange-600">
+                        <Users size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900">Users</h3>
+                        <p className="text-xs text-gray-500">Customers & Staff</p>
+                    </div>
+                </Link>
+
+                <Link to="/admin/roles" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#5fcf86] hover:shadow-md transition-all flex items-center gap-4 group">
+                    <div className="bg-gray-50 p-3 rounded-lg group-hover:bg-[#5fcf86] group-hover:text-white transition-colors text-gray-600">
+                        <Shield size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900">Roles</h3>
+                        <p className="text-xs text-gray-500">Permissions</p>
+                    </div>
+                </Link>
+            </div>
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {statCards.map((stat, idx) => (
@@ -196,127 +235,80 @@ const AdminDashboardPage = () => {
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                {/* Revenue Chart */}
+                {/* Revenue Chart - UPDATED with Recharts */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="mb-6 flex items-center justify-between">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">Monthly Revenue</h2>
-                            <p className="text-sm text-gray-500">Year 2024</p>
+                            <h3 className="text-lg font-bold text-gray-900">Monthly Revenue</h3>
+                            <p className="text-sm text-gray-500">Revenue performance over the year</p>
                         </div>
-                        <div className="flex items-center gap-2 text-[#5fcf86]">
-                            <BarChart3 size={20} />
-                            <span className="font-semibold">{formatPrice(stats?.totalRevenue || 245000000)}</span>
-                        </div>
+                        <button className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
+                            <Calendar size={16} />
+                            Currently {new Date().getFullYear()}
+                        </button>
                     </div>
-                    {/* Simple Bar Chart */}
-                    <div className="flex items-end justify-between gap-2 h-48">
-                        {monthlyRevenue.map((item, idx) => (
-                            <div key={idx} className="flex-1 flex flex-col items-center">
-                                <div
-                                    className="w-full bg-gradient-to-t from-[#5fcf86] to-[#4bc076] rounded-t-lg transition-all hover:from-[#4bc076] hover:to-[#3ab066] cursor-pointer"
-                                    style={{ height: `${(item.revenue / maxRevenue) * 100}%` }}
-                                    title={formatPrice(item.revenue)}
+
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis
+                                    dataKey="monthName"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                    dy={10}
                                 />
-                                <span className="text-xs text-gray-500 mt-2">{item.month}</span>
-                            </div>
-                        ))}
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                    tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: '#f8fafc' }}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value) => [formatPrice(value), 'Revenue']}
+                                />
+                                <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                                    {revenueData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.revenue === maxRevenue ? '#5fcf86' : '#cbd5e1'} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Quick Actions */}
+                {/* Recent Bookings */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-                    <div className="space-y-3">
-                        <Link
-                            to="/admin/bookings"
-                            className="flex items-center gap-3 p-4 bg-gradient-to-r from-[#5fcf86] to-green-500 rounded-xl text-white hover:shadow-lg transition-all"
-                        >
-                            <Calendar className="h-6 w-6" />
-                            <div>
-                                <p className="font-semibold">Manage Bookings</p>
-                                <p className="text-xs text-white/80">Review & Process</p>
-                            </div>
-                        </Link>
-                        <Link
-                            to="/admin/vehicles"
-                            className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl text-white hover:shadow-lg transition-all"
-                        >
-                            <Car className="h-6 w-6" />
-                            <div>
-                                <p className="font-semibold">Manage Vehicles</p>
-                                <p className="text-xs text-white/80">Add, Edit, Delete</p>
-                            </div>
-                        </Link>
-                        <Link
-                            to="/admin/users"
-                            className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl text-white hover:shadow-lg transition-all"
-                        >
-                            <Users className="h-6 w-6" />
-                            <div>
-                                <p className="font-semibold">Manage Users</p>
-                                <p className="text-xs text-white/80">Verify Licenses</p>
-                            </div>
-                        </Link>
-                        <Link
-                            to="/admin/roles"
-                            className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl text-white hover:shadow-lg transition-all"
-                        >
-                            <Shield className="h-6 w-6" />
-                            <div>
-                                <p className="font-semibold">Manage Roles</p>
-                                <p className="text-xs text-white/80">Add, Edit, Delete</p>
-                            </div>
+                    <div className="mb-6 flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-gray-900">Recent Bookings</h3>
+                        <Link to="/admin/bookings" className="text-sm font-medium text-[#5fcf86] hover:underline">
+                            View All
                         </Link>
                     </div>
-                </div>
-            </div>
-
-            {/* Recent Bookings Table */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900">Recent Bookings</h2>
-                    <Link to="/admin/bookings" className="text-[#5fcf86] hover:underline text-sm font-medium flex items-center gap-1">
-                        View All <ChevronRight size={16} />
-                    </Link>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Booking Code</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Duration</th>
-                                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {recentBookings.length > 0 ? (
-                                recentBookings.map((booking) => (
-                                    <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 font-mono text-sm font-medium text-[#5fcf86]">{booking.bookingCode}</td>
-                                        <td className="px-6 py-4">
-                                            <p className="font-medium text-gray-900">{booking.customerName}</p>
-                                            <p className="text-xs text-gray-500">{booking.customerEmail}</p>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{booking.vehicleName}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">
-                                            {booking.startDate} → {booking.endDate}
-                                        </td>
-                                        <td className="px-6 py-4">{getStatusBadge(booking.status)}</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                                        <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                                        <p>No bookings yet</p>
-                                        <p className="text-sm">New bookings will appear here</p>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                    <div className="space-y-4">
+                        {recentBookings.length > 0 ? (
+                            recentBookings.map((booking) => (
+                                <div key={booking.id} className="flex items-start gap-3 border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                                    <div className="rounded-lg bg-gray-50 p-2 text-gray-600">
+                                        <Car size={18} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-baseline justify-between mb-1">
+                                            <p className="font-semibold text-gray-900 text-sm truncate">{booking.customerName}</p>
+                                            <span className="text-xs text-gray-400">{booking.createdAt}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mb-2 truncate">{booking.vehicleName}</p>
+                                        {getStatusBadge(booking.status)}
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-gray-500 text-center py-4">No recent bookings found</p>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

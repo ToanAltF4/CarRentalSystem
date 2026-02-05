@@ -120,4 +120,10 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
         @Query("SELECT b FROM BookingEntity b WHERE b.startDate <= :date AND b.endDate >= :date AND b.status IN :statuses")
         List<BookingEntity> findActiveBookingsOnDate(@Param("date") LocalDate date,
                         @Param("statuses") List<BookingStatus> statuses);
+
+        @Query("SELECT MONTH(b.startDate) as month, SUM(b.totalAmount) as revenue, COUNT(b) as count " +
+                        "FROM BookingEntity b " +
+                        "WHERE YEAR(b.startDate) = :year AND b.status != :cancelled " +
+                        "GROUP BY MONTH(b.startDate) ORDER BY MONTH(b.startDate)")
+        List<Object[]> findMonthlyRevenueByYear(@Param("year") int year, @Param("cancelled") BookingStatus cancelled);
 }

@@ -162,7 +162,7 @@ const BookingWizardModal = ({
 
         try {
             const bookingData = {
-                vehicleId: null, // System assignment
+                vehicleId: car.id, // Book the specific vehicle being viewed
                 brand: car.brand,
                 model: car.model,
                 userId: user.id,
@@ -268,8 +268,8 @@ const BookingWizardModal = ({
                                 <div key={s.id} className="relative z-10 flex flex-col items-center gap-2">
                                     <div
                                         className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-300 ${isActive
-                                                ? 'bg-[#5fcf86] border-white text-white shadow-lg shadow-green-200 scale-110'
-                                                : 'bg-white border-gray-100 text-gray-300'
+                                            ? 'bg-[#5fcf86] border-white text-white shadow-lg shadow-green-200 scale-110'
+                                            : 'bg-white border-gray-100 text-gray-300'
                                             }`}
                                     >
                                         <Icon size={18} strokeWidth={2.5} />
@@ -312,8 +312,8 @@ const BookingWizardModal = ({
                                             key={type.id}
                                             onClick={() => handleRentalTypeSelect(type)}
                                             className={`group relative p-6 rounded-2xl border-2 text-left transition-all duration-300 ${selected
-                                                    ? 'border-[#5fcf86] bg-green-50/30 ring-4 ring-green-50'
-                                                    : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                                ? 'border-[#5fcf86] bg-green-50/30 ring-4 ring-green-50'
+                                                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-5">
@@ -387,8 +387,8 @@ const BookingWizardModal = ({
                                             key={method.id}
                                             onClick={() => handlePickupMethodSelect(method)}
                                             className={`p-6 rounded-2xl border-2 text-center transition-all duration-300 flex flex-col items-center gap-4 ${selected
-                                                    ? 'border-[#5fcf86] bg-green-50/30 ring-4 ring-green-50'
-                                                    : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                                ? 'border-[#5fcf86] bg-green-50/30 ring-4 ring-green-50'
+                                                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                 }`}
                                         >
                                             <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${selected ? 'bg-[#5fcf86] text-white shadow-lg shadow-green-200' : 'bg-gray-100 text-gray-400'
@@ -561,8 +561,8 @@ const BookingWizardModal = ({
                         onClick={step === 3 ? handleConfirmBooking : goNext}
                         disabled={(step === 1 ? !canProceedStep1 : step === 2 ? !canProceedStep2() : loading)}
                         className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-100 transition-all transform active:scale-[0.98] ${(step === 1 ? !canProceedStep1 : step === 2 ? !canProceedStep2() : loading)
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                                : 'bg-[#5fcf86] text-white hover:bg-[#4bc076] hover:shadow-green-200'
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                            : 'bg-[#5fcf86] text-white hover:bg-[#4bc076] hover:shadow-green-200'
                             }`}
                     >
                         {loading ? (

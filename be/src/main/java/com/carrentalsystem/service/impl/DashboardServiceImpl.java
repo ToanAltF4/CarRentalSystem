@@ -27,48 +27,32 @@ public class DashboardServiceImpl implements DashboardService {
         private final BookingRepository bookingRepository;
         private final VehicleRepository vehicleRepository;
         private final InvoiceRepository invoiceRepository;
+        private final com.carrentalsystem.repository.DashboardRepository dashboardRepository;
 
         @Override
         public DashboardStatsDTO getDashboardStats() {
                 try {
-                        System.out.println("DEBUG: Starting getDashboardStats");
-                        // Calculate total revenue from all paid invoices
-                        BigDecimal totalRevenue = invoiceRepository.sumTotalAmountByPaymentStatus(PaymentStatus.PAID);
-                        System.out.println("DEBUG: Total Revenue: " + totalRevenue);
-                        if (totalRevenue == null) {
-                                totalRevenue = BigDecimal.ZERO;
-                        }
+                        System.out.println("DEBUG: Starting getDashboardStats (Optimized)");
 
-                        // Count total bookings
-                        long totalBookings = bookingRepository.count();
-                        System.out.println("DEBUG: Total Bookings: " + totalBookings);
+                        // Execute single aggregated query
+                        java.util.Map<String, Object> stats = dashboardRepository.getDashboardStats();
 
-                        // Count active rentals (IN_PROGRESS status)
-                        long activeRentals = bookingRepository.countByStatus(BookingStatus.IN_PROGRESS);
-                        System.out.println("DEBUG: Active Rentals: " + activeRentals);
-
-                        // Count pending bookings
-                        long pendingBookings = bookingRepository.countByStatus(BookingStatus.PENDING);
-                        System.out.println("DEBUG: Pending Bookings: " + pendingBookings);
-
-                        // Count available vehicles
-                        long availableVehicles = vehicleRepository.countByStatus(VehicleStatus.AVAILABLE);
-                        System.out.println("DEBUG: Available Vehicles: " + availableVehicles);
-
-                        // Count total vehicles
-                        long totalVehicles = vehicleRepository.count();
-                        System.out.println("DEBUG: Total Vehicles: " + totalVehicles);
+                        BigDecimal totalRevenue = (BigDecimal) stats.get("totalRevenue");
+                        long totalBookings = ((Number) stats.get("totalBookings")).longValue();
+                        long activeRentals = ((Number) stats.get("activeRentals")).longValue();
+                        long pendingBookings = ((Number) stats.get("pendingBookings")).longValue();
+                        long availableVehicles = ((Number) stats.get("availableVehicles")).longValue();
+                        long totalVehicles = ((Number) stats.get("totalVehicles")).longValue();
 
                         // Get recent bookings (last 5)
-                        System.out.println("DEBUG: Fetching recent bookings...");
                         List<BookingEntity> recentList = bookingRepository.findRecentBookingsWithVehicle(
                                         org.springframework.data.domain.PageRequest.of(0, 5));
-                        System.out.println("DEBUG: Fetched " + (recentList != null ? recentList.size() : "null")
-                                        + " recent bookings");
 
                         List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentList.stream()
                                         .map(b -> {
-                                                System.out.println("DEBUG: Mapping booking " + b.getId());
+                                                BookingEntity.BookingEntityBuilder builder = BookingEntity.builder();
+                                                // Used only to avoid unused variable warning if mapping logic changes
+
                                                 return DashboardStatsDTO.RecentBookingDTO.builder()
                                                                 .id(b.getId())
                                                                 .bookingCode(b.getBookingCode())
@@ -106,32 +90,32 @@ public class DashboardServiceImpl implements DashboardService {
 
         @Override
         public List<MonthlyRevenueDTO> getMonthlyRevenue(Integer year) {
+                // Initialize result with all 12 months set to zero
                 List<MonthlyRevenueDTO> result = new ArrayList<>();
-
-                // Get all bookings for the year
-                List<BookingEntity> allBookings = bookingRepository.findAll();
-
-                for (int month = 1; month <= 12; month++) {
-                        final int currentMonth = month;
-
-                        // Filter bookings for this month and year
-                        List<BookingEntity> monthlyBookings = allBookings.stream()
-                                        .filter(b -> b.getStartDate().getYear() == year)
-                                        .filter(b -> b.getStartDate().getMonthValue() == currentMonth)
-                                        .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
-                                        .collect(Collectors.toList());
-
-                        BigDecimal monthlyRevenue = monthlyBookings.stream()
-                                        .map(BookingEntity::getTotalAmount)
-                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+                for (int m = 1; m <= 12; m++) {
                         result.add(MonthlyRevenueDTO.builder()
                                         .year(year)
-                                        .month(month)
-                                        .monthName(Month.of(month).name())
-                                        .revenue(monthlyRevenue)
-                                        .bookingCount((long) monthlyBookings.size())
+                                        .month(m)
+                                        .monthName(Month.of(m).name())
+                                        .revenue(BigDecimal.ZERO)
+                                        .bookingCount(0L)
                                         .build());
+                }
+
+                // Fetch aggregated data from DB
+                List<Object[]> aggregatedData = bookingRepository.findMonthlyRevenueByYear(year,
+                                BookingStatus.CANCELLED);
+
+                // Update the result list with actual data
+                for (Object[] row : aggregatedData) {
+                        int month = (int) row[0];
+                        BigDecimal revenue = (BigDecimal) row[1];
+                        long count = (long) row[2];
+
+                        // Arrays are 0-indexed, months are 1-12
+                        MonthlyRevenueDTO dto = result.get(month - 1);
+                        dto.setRevenue(revenue != null ? revenue : BigDecimal.ZERO);
+                        dto.setBookingCount(count);
                 }
 
                 return result;
