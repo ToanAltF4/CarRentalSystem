@@ -29,7 +29,8 @@ const StaffDashboard = () => {
 
     // Filter tasks
     // Pickup: Status CONFIRMED
-    const pickupTasks = tasks.filter(t => t.status === 'CONFIRMED');
+    // Pickup: Status CONFIRMED or ASSIGNED
+    const pickupTasks = tasks.filter(t => t.status === 'CONFIRMED' || t.status === 'ASSIGNED');
     // Return: Status IN_PROGRESS
     const returnTasks = tasks.filter(t => t.status === 'IN_PROGRESS');
 
@@ -54,8 +55,8 @@ const StaffDashboard = () => {
                     <button
                         onClick={() => setActiveTab('pickup')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'pickup'
-                                ? 'bg-orange-100 text-orange-700'
-                                : 'text-gray-500 hover:text-gray-900'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'text-gray-500 hover:text-gray-900'
                             }`}
                     >
                         <Truck size={16} /> Pending Pickup ({pickupTasks.length})
@@ -63,8 +64,8 @@ const StaffDashboard = () => {
                     <button
                         onClick={() => setActiveTab('return')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'return'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'text-gray-500 hover:text-gray-900'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-gray-500 hover:text-gray-900'
                             }`}
                     >
                         <CheckCircle size={16} /> Pending Return ({returnTasks.length})
@@ -125,8 +126,8 @@ const StaffDashboard = () => {
                                     <button
                                         onClick={() => handleStartInspection(task.id, activeTab === 'pickup' ? 'PICKUP' : 'RETURN')}
                                         className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === 'pickup'
-                                                ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-orange-100'
-                                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                                            ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-orange-100'
+                                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
                                             } shadow-lg shadow-opacity-30`}
                                     >
                                         {activeTab === 'pickup' ? 'Start Handover' : 'Start Return'}

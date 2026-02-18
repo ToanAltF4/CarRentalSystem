@@ -167,6 +167,12 @@ public class OperatorServiceImpl implements OperatorService {
             booking.setDriverId(driverId);
         }
 
+        // Update status to ASSIGNED to indicate it's been handled by operator
+        // But only if it was CONFIRMED (don't downgrade from IN_PROGRESS)
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            booking.setStatus(BookingStatus.ASSIGNED);
+        }
+
         booking.setAssignedAt(LocalDateTime.now());
         booking.setAssignedBy(operatorId);
 
