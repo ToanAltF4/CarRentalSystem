@@ -14,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,7 +58,7 @@ public class ReturnServiceImpl implements ReturnService {
         BigDecimal rentalFee = booking.getTotalAmount();
 
         // Calculate overtime
-        int overtimeHours = calculateOvertimeHours(booking.getEndDate(), actualReturnDate);
+        int overtimeHours = calculateOvertimeHours(resolveScheduledEndDate(booking), actualReturnDate);
         BigDecimal overtimeFeePerHour = getOvertimeFeePerHour(vehicle);
         BigDecimal overtimeFee = overtimeFeePerHour.multiply(BigDecimal.valueOf(overtimeHours));
 
@@ -147,6 +150,9 @@ public class ReturnServiceImpl implements ReturnService {
     }
 
     private int calculateOvertimeHours(LocalDate scheduledEndDate, LocalDateTime actualReturnDate) {
+        if (scheduledEndDate == null) {
+            return 0;
+        }
         // Convert end date to end of day (rental should return by end of day)
         LocalDateTime scheduledEndDateTime = scheduledEndDate.atTime(23, 59, 59);
 
@@ -224,8 +230,8 @@ public class ReturnServiceImpl implements ReturnService {
                 .customerName(booking.getCustomerName())
                 .customerEmail(booking.getCustomerEmail())
                 // Rental period
-                .startDate(booking.getStartDate())
-                .endDate(booking.getEndDate())
+                .startDate(resolveScheduledStartDate(booking))
+                .endDate(resolveScheduledEndDate(booking))
                 .actualReturnDate(invoice.getActualReturnDate())
                 // Inspection details
                 .inspectionId(inspection.getId())
@@ -255,5 +261,63 @@ public class ReturnServiceImpl implements ReturnService {
                 .paymentStatus(invoice.getPaymentStatus())
                 .issuedAt(invoice.getIssuedAt())
                 .build();
+    }
+
+    private LocalDate resolveScheduledStartDate(BookingEntity booking) {
+        List<LocalDate> selectedDates = resolveSelectedDatesFromBooking(booking);
+        if (!selectedDates.isEmpty()) {
+            return selectedDates.get(0);
+        }
+        return booking.getStartDate();
+    }
+
+    private LocalDate resolveScheduledEndDate(BookingEntity booking) {
+        List<LocalDate> selectedDates = resolveSelectedDatesFromBooking(booking);
+        if (!selectedDates.isEmpty()) {
+            return selectedDates.get(selectedDates.size() - 1);
+        }
+        return booking.getEndDate();
+    }
+
+    private List<LocalDate> resolveSelectedDatesFromBooking(BookingEntity booking) {
+        List<LocalDate> parsed = parseSelectedDates(booking.getSelectedDates());
+        if (!parsed.isEmpty()) {
+            return parsed;
+        }
+
+        if (booking.getStartDate() == null || booking.getEndDate() == null) {
+            return List.of();
+        }
+
+        List<LocalDate> expanded = new ArrayList<>();
+        LocalDate cursor = booking.getStartDate();
+        while (!cursor.isAfter(booking.getEndDate())) {
+            expanded.add(cursor);
+            cursor = cursor.plusDays(1);
+        }
+        if (expanded.isEmpty()) {
+            expanded.add(booking.getStartDate());
+        }
+        return expanded;
+    }
+
+    private List<LocalDate> parseSelectedDates(String rawDates) {
+        if (rawDates == null || rawDates.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(rawDates.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> {
+                    try {
+                        return LocalDate.parse(value);
+                    } catch (DateTimeParseException ex) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
     }
 }

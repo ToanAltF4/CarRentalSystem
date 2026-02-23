@@ -23,6 +23,7 @@ public interface BookingMapper {
     @Mapping(target = "rentalType", ignore = true)
     @Mapping(target = "pickupMethod", ignore = true)
     @Mapping(target = "driverId", ignore = true)
+    @Mapping(target = "selectedDates", ignore = true)
     @Mapping(target = "totalDays", ignore = true)
     @Mapping(target = "dailyRate", ignore = true)
     @Mapping(target = "rentalFee", ignore = true)
@@ -51,6 +52,7 @@ public interface BookingMapper {
     @Mapping(source = "rentalType.name", target = "rentalTypeName")
     @Mapping(source = "pickupMethod.id", target = "pickupMethodId")
     @Mapping(source = "pickupMethod.name", target = "pickupMethodName")
+    @Mapping(target = "selectedDates", ignore = true)
     BookingResponseDTO toResponseDTO(BookingEntity entity);
 
     /**

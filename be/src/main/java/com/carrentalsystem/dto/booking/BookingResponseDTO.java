@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for booking with vehicle details.
@@ -37,6 +38,7 @@ public class BookingResponseDTO {
     // Booking details
     private LocalDate startDate;
     private LocalDate endDate;
+    private List<LocalDate> selectedDates;
     private Integer totalDays;
     private BigDecimal dailyRate;
     private BigDecimal totalAmount;

@@ -16,6 +16,7 @@ const BookingWizardModal = ({
     car,
     pickupDate,
     dropoffDate,
+    selectedDates = [],
     user,
     onBookingComplete
 }) => {
@@ -40,15 +41,18 @@ const BookingWizardModal = ({
 
     // Calculate rental days
     const calculateRentalDays = () => {
+        if (Array.isArray(selectedDates) && selectedDates.length > 0) return selectedDates.length;
         if (!pickupDate || !dropoffDate) return 1;
         const start = new Date(pickupDate);
         const end = new Date(dropoffDate);
         const diffTime = end - start;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
         return diffDays > 0 ? diffDays : 1;
     };
 
     const rentalDays = calculateRentalDays();
+    const bookingStartDate = selectedDates.length > 0 ? selectedDates[0] : pickupDate;
+    const bookingEndDate = selectedDates.length > 0 ? selectedDates[selectedDates.length - 1] : dropoffDate;
     const rentalFee = car ? car.price * rentalDays : 0;
 
     // Helper functions for flexible name matching
@@ -169,8 +173,9 @@ const BookingWizardModal = ({
                 customerName: user.fullName,
                 customerEmail: user.email,
                 customerPhone: user.phone || '',
-                startDate: pickupDate,
-                endDate: dropoffDate,
+                startDate: bookingStartDate,
+                endDate: bookingEndDate,
+                selectedDates: selectedDates,
                 notes: `Booking via website - ${car.name}`,
                 rentalTypeId: selectedRentalType?.id,
                 pickupMethodId: selectedPickupMethod?.id || null,
@@ -234,7 +239,7 @@ const BookingWizardModal = ({
                         <div className="flex items-center gap-2 mt-1 text-gray-500">
                             <span className="font-medium text-gray-900">{car?.name}</span>
                             <span>•</span>
-                            <span className="text-sm">{pickupDate} → {dropoffDate}</span>
+                            <span className="text-sm">{selectedDates.length > 0 ? `${selectedDates.length} day(s) selected` : `${pickupDate} → ${dropoffDate}`}</span>
                         </div>
                     </div>
                     <button
@@ -491,7 +496,7 @@ const BookingWizardModal = ({
                                 <div className="grid grid-cols-2 gap-y-4 gap-x-8">
                                     <div className="space-y-1">
                                         <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Duration</p>
-                                        <p className="font-semibold text-gray-900">{pickupDate} → {dropoffDate}</p>
+                                        <p className="font-semibold text-gray-900">{selectedDates.length > 0 ? selectedDates.join(", ") : `${pickupDate} → ${dropoffDate}`}</p>
                                         <p className="text-xs text-[#5fcf86] font-medium">{rentalDays} Days</p>
                                     </div>
                                     <div className="space-y-1 text-right">
@@ -603,3 +608,4 @@ const BookingWizardModal = ({
 };
 
 export default BookingWizardModal;
+

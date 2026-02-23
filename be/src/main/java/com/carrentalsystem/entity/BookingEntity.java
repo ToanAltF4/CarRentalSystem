@@ -46,7 +46,7 @@ public class BookingEntity {
     @JoinColumn(name = "pickup_method_id")
     private PickupMethodEntity pickupMethod;
 
-    @Column(name = "driver_user_id")
+    @Column(name = "driver_id")
     private Long driverId;
 
     @Column(name = "customer_name", nullable = false, length = 100)
@@ -63,6 +63,9 @@ public class BookingEntity {
 
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
+
+    @Column(name = "selected_dates", columnDefinition = "TEXT")
+    private String selectedDates;
 
     @Column(name = "total_days")
     private Integer totalDays;

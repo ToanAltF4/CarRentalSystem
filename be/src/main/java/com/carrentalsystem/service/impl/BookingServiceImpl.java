@@ -18,9 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of BookingService with full business logic.
@@ -62,16 +67,28 @@ public class BookingServiceImpl implements BookingService {
                 name.toLowerCase().contains("giao"));
     }
 
+    private PickupMethodEntity resolveDefaultPickupMethod() {
+        List<PickupMethodEntity> methods = pickupMethodRepository.findAll();
+        if (methods.isEmpty()) {
+            return null;
+        }
+        return methods.stream()
+                .filter(method -> !isDelivery(method.getName()))
+                .findFirst()
+                .orElse(methods.get(0));
+    }
+
     @Override
     @Transactional
     public BookingResponseDTO createBooking(BookingRequestDTO request) {
-        log.info("Creating booking for vehicle ID: {} from {} to {}",
-                request.getVehicleId(), request.getStartDate(), request.getEndDate());
+        log.info("Creating booking for vehicle ID: {} on selected dates: {}",
+                request.getVehicleId(), request.getSelectedDates());
 
-        // 1. Validate dates
-        validateDates(request.getStartDate(), request.getEndDate());
+        // 1. Normalize requested rental days (supports both date-range and specific days)
+        List<LocalDate> requestedDates = normalizeRequestedDates(request);
+        LocalDate normalizedStartDate = requestedDates.get(0);
+        LocalDate normalizedEndDate = requestedDates.get(requestedDates.size() - 1);
 
-        // 2. Find and validate vehicle
         // 2. Find and validate vehicle
         VehicleEntity vehicle;
 
@@ -93,12 +110,7 @@ public class BookingServiceImpl implements BookingService {
 
             // Filter for one that has no conflicting bookings
             vehicle = candidates.stream()
-                    .filter(v -> !bookingRepository.hasOverlappingBookings(
-                            v.getId(),
-                            request.getStartDate(),
-                            request.getEndDate(),
-                            BookingStatus.CANCELLED,
-                            BookingStatus.COMPLETED))
+                    .filter(v -> findConflictingDates(v.getId(), requestedDates).isEmpty())
                     .findFirst()
                     .orElseThrow(() -> new com.carrentalsystem.exception.VehicleNotAvailableException(0L,
                             "No " + request.getBrand() + " " + request.getModel() + " available for selected dates"));
@@ -112,25 +124,11 @@ public class BookingServiceImpl implements BookingService {
                     "Vehicle status is " + vehicle.getStatus());
         }
 
-        // 4. Check for overlapping bookings
-        if (bookingRepository.hasOverlappingBookings(
-                vehicle.getId(),
-                request.getStartDate(),
-                request.getEndDate(),
-                BookingStatus.CANCELLED,
-                BookingStatus.COMPLETED)) {
-            List<BookingEntity> conflicts = bookingRepository.findOverlappingBookings(
-                    vehicle.getId(),
-                    request.getStartDate(),
-                    request.getEndDate(),
-                    BookingStatus.CANCELLED,
-                    BookingStatus.COMPLETED);
-            String conflictDates = conflicts.stream()
-                    .map(b -> b.getStartDate() + " to " + b.getEndDate())
-                    .reduce((a, b) -> a + ", " + b)
-                    .orElse("unknown");
+        // 4. Check for conflicts by exact day
+        List<LocalDate> conflictingDates = findConflictingDates(vehicle.getId(), requestedDates);
+        if (!conflictingDates.isEmpty()) {
             throw new VehicleNotAvailableException(vehicle.getId(),
-                    "Booking conflicts with existing reservations: " + conflictDates);
+                    "Booking conflicts on dates: " + formatDates(conflictingDates));
         }
 
         // 5. Check user's driver license status
@@ -145,7 +143,7 @@ public class BookingServiceImpl implements BookingService {
 
         // 6. Calculate base pricing
         BigDecimal dailyRate = calculateDailyRate(vehicle);
-        int totalDays = calculateTotalDays(request.getStartDate(), request.getEndDate());
+        int totalDays = requestedDates.size();
         BigDecimal rentalFee = dailyRate.multiply(BigDecimal.valueOf(totalDays));
 
         // 7. Handle rental type and calculate fees
@@ -161,7 +159,9 @@ public class BookingServiceImpl implements BookingService {
                     .orElseThrow(() -> new ResourceNotFoundException("RentalType", "id", request.getRentalTypeId()));
 
             if (isWithDriver(rentalType.getName())) {
-                // WITH_DRIVER: Calculate driver fee, no pickup method
+                // WITH_DRIVER: Calculate driver fee, keep a default pickup method for DB
+                // compatibility (some schemas enforce NOT NULL pickup_method_id).
+                pickupMethod = resolveDefaultPickupMethod();
                 DriverFeeResponseDTO driverFeeResult;
                 if (vehicle.getVehicleCategory() != null) {
                     driverFeeResult = priceCalculationService.calculateDriverFeeByCategory(totalDays,
@@ -198,11 +198,23 @@ public class BookingServiceImpl implements BookingService {
                         // STORE: No delivery fee
                         log.info("STORE pickup selected: delivery_fee = 0");
                     }
+                } else {
+                    // Backward compatibility for requests that don't send pickupMethodId.
+                    pickupMethod = resolveDefaultPickupMethod();
                 }
             }
         } else {
             // Default to SELF_DRIVE if not specified (backward compatibility)
-            rentalType = rentalTypeRepository.findByName(RENTAL_TYPE_SELF_DRIVE).orElse(null);
+            rentalType = rentalTypeRepository.findByName(RENTAL_TYPE_SELF_DRIVE)
+                    .or(() -> rentalTypeRepository.findAll().stream()
+                            .filter(type -> isSelfDrive(type.getName()))
+                            .findFirst())
+                    .orElse(null);
+            pickupMethod = resolveDefaultPickupMethod();
+        }
+
+        if (pickupMethod == null) {
+            throw new IllegalArgumentException("No pickup method configured in system");
         }
 
         // 8. Calculate total amount
@@ -214,6 +226,19 @@ public class BookingServiceImpl implements BookingService {
         BookingEntity booking = bookingMapper.toEntity(request);
         booking.setBookingCode(generateBookingCode());
         booking.setVehicle(vehicle);
+        booking.setUser(user);
+        booking.setCustomerName(
+                request.getCustomerName() != null && !request.getCustomerName().isBlank()
+                        ? request.getCustomerName().trim()
+                        : user.getFullName());
+        booking.setCustomerEmail(user.getEmail());
+        booking.setCustomerPhone(
+                request.getCustomerPhone() != null && !request.getCustomerPhone().isBlank()
+                        ? request.getCustomerPhone().trim()
+                        : user.getPhoneNumber());
+        booking.setStartDate(normalizedStartDate);
+        booking.setEndDate(normalizedEndDate);
+        booking.setSelectedDates(toSelectedDatesStorage(requestedDates));
         booking.setTotalDays(totalDays);
         booking.setDailyRate(dailyRate);
         booking.setRentalFee(rentalFee);
@@ -236,14 +261,14 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingResponseDTO getBookingById(Long id) {
         BookingEntity booking = findBookingOrThrow(id);
-        return bookingMapper.toResponseDTO(booking);
+        return toEnrichedDTO(booking);
     }
 
     @Override
     public BookingResponseDTO getBookingByCode(String bookingCode) {
         BookingEntity booking = bookingRepository.findByBookingCode(bookingCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "code", bookingCode));
-        return bookingMapper.toResponseDTO(booking);
+        return toEnrichedDTO(booking);
     }
 
     @Override
@@ -254,13 +279,13 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
-        List<BookingEntity> bookings = bookingRepository.findByStatusOrderByStartDateDescWithDetails(status);
+        List<BookingEntity> bookings = bookingRepository.findByStatusOrderByCreatedAtDescWithDetails(status);
         return toEnrichedDTOList(bookings);
     }
 
     @Override
     public List<BookingResponseDTO> getBookingsByCustomerEmail(String email) {
-        List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByStartDateDescWithDetails(email);
+        List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByCreatedAtDescWithDetails(email);
         return toEnrichedDTOList(bookings);
     }
 
@@ -270,7 +295,7 @@ public class BookingServiceImpl implements BookingService {
         if (!vehicleRepository.existsById(vehicleId)) {
             throw new ResourceNotFoundException("Vehicle", "id", vehicleId);
         }
-        List<BookingEntity> bookings = bookingRepository.findByVehicleIdOrderByStartDateDescWithDetails(vehicleId);
+        List<BookingEntity> bookings = bookingRepository.findByVehicleIdOrderByCreatedAtDescWithDetails(vehicleId);
         return toEnrichedDTOList(bookings);
     }
 
@@ -327,8 +352,14 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getUpcomingBookings() {
-        List<BookingEntity> bookings = bookingRepository.findUpcomingBookingsWithDetails(
-                LocalDate.now(), BookingStatus.CANCELLED);
+        LocalDate today = LocalDate.now();
+        List<BookingEntity> bookings = bookingRepository.findAllWithVehicle().stream()
+                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED)
+                .filter(booking -> hasUpcomingRentalDay(booking, today))
+                .sorted(Comparator.comparing(
+                        booking -> firstUpcomingRentalDay(booking, today),
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
         return toEnrichedDTOList(bookings);
     }
 
@@ -389,6 +420,7 @@ public class BookingServiceImpl implements BookingService {
         dto.setDeliveryFee(entity.getDeliveryFee());
         dto.setDeliveryAddress(entity.getDeliveryAddress());
         dto.setDeliveryDistanceKm(entity.getDeliveryDistanceKm());
+        dto.setSelectedDates(resolveSelectedDatesFromBooking(entity));
 
         return dto;
     }
@@ -424,19 +456,129 @@ public class BookingServiceImpl implements BookingService {
                 .toList();
     }
 
-    private void validateDates(LocalDate startDate, LocalDate endDate) {
+    private List<LocalDate> normalizeRequestedDates(BookingRequestDTO request) {
+        List<LocalDate> selectedDates = request.getSelectedDates();
+        if (selectedDates != null && !selectedDates.isEmpty()) {
+            List<LocalDate> normalized = selectedDates.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .sorted()
+                    .toList();
+
+            if (normalized.isEmpty()) {
+                throw new IllegalArgumentException("Please select at least one rental day");
+            }
+            if (normalized.stream().anyMatch(date -> date.isBefore(LocalDate.now()))) {
+                throw new IllegalArgumentException("Selected dates cannot be in the past");
+            }
+            return normalized;
+        }
+
+        LocalDate startDate = request.getStartDate();
+        LocalDate endDate = request.getEndDate();
         if (startDate == null || endDate == null) {
-            throw new IllegalArgumentException("Start date and end date are required");
+            throw new IllegalArgumentException("Please select at least one rental day");
         }
         if (startDate.isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("Start date cannot be in the past");
+            throw new IllegalArgumentException("Selected dates cannot be in the past");
         }
         if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("End date must be after start date");
+            throw new IllegalArgumentException("End date must be on/after start date");
         }
-        if (startDate.equals(endDate)) {
-            throw new IllegalArgumentException("Rental must be at least 1 day (end date must be after start date)");
+
+        List<LocalDate> expanded = new ArrayList<>();
+        LocalDate cursor = startDate;
+        while (!cursor.isAfter(endDate)) {
+            expanded.add(cursor);
+            cursor = cursor.plusDays(1);
         }
+        if (expanded.isEmpty()) {
+            expanded.add(startDate);
+        }
+        return expanded;
+    }
+
+    private List<LocalDate> resolveSelectedDatesFromBooking(BookingEntity booking) {
+        List<LocalDate> parsed = parseSelectedDatesStorage(booking.getSelectedDates());
+        if (!parsed.isEmpty()) {
+            return parsed;
+        }
+
+        if (booking.getStartDate() == null || booking.getEndDate() == null) {
+            return List.of();
+        }
+
+        List<LocalDate> expanded = new ArrayList<>();
+        LocalDate cursor = booking.getStartDate();
+        while (!cursor.isAfter(booking.getEndDate())) {
+            expanded.add(cursor);
+            cursor = cursor.plusDays(1);
+        }
+        if (expanded.isEmpty()) {
+            expanded.add(booking.getStartDate());
+        }
+        return expanded;
+    }
+
+    private List<LocalDate> parseSelectedDatesStorage(String rawDates) {
+        if (rawDates == null || rawDates.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(rawDates.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(date -> {
+                    try {
+                        return LocalDate.parse(date);
+                    } catch (DateTimeParseException ex) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    private String toSelectedDatesStorage(List<LocalDate> dates) {
+        return dates.stream()
+                .sorted()
+                .map(LocalDate::toString)
+                .collect(Collectors.joining(","));
+    }
+
+    private List<LocalDate> findConflictingDates(Long vehicleId, List<LocalDate> requestedDates) {
+        if (requestedDates.isEmpty()) {
+            return List.of();
+        }
+        Set<LocalDate> requestedSet = new HashSet<>(requestedDates);
+
+        return bookingRepository.findByVehicleIdOrderByCreatedAtDescWithDetails(vehicleId).stream()
+                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED
+                        && booking.getStatus() != BookingStatus.COMPLETED)
+                .flatMap(booking -> resolveSelectedDatesFromBooking(booking).stream())
+                .filter(requestedSet::contains)
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .toList();
+    }
+
+    private boolean hasUpcomingRentalDay(BookingEntity booking, LocalDate today) {
+        return resolveSelectedDatesFromBooking(booking).stream()
+                .anyMatch(day -> !day.isBefore(today));
+    }
+
+    private LocalDate firstUpcomingRentalDay(BookingEntity booking, LocalDate today) {
+        return resolveSelectedDatesFromBooking(booking).stream()
+                .filter(day -> !day.isBefore(today))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String formatDates(List<LocalDate> dates) {
+        return dates.stream()
+                .map(LocalDate::toString)
+                .collect(Collectors.joining(", "));
     }
 
     private BigDecimal calculateDailyRate(VehicleEntity vehicle) {
@@ -448,10 +590,6 @@ public class BookingServiceImpl implements BookingService {
                             "No active pricing found for category ID: " + vehicle.getVehicleCategory().getId()));
         }
         throw new PricingNotFoundException("No pricing available for vehicle ID: " + vehicle.getId());
-    }
-
-    private int calculateTotalDays(LocalDate startDate, LocalDate endDate) {
-        return (int) ChronoUnit.DAYS.between(startDate, endDate);
     }
 
     private String generateBookingCode() {

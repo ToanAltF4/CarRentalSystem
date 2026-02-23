@@ -212,11 +212,13 @@ const MyBookingsPage = () => {
                                             )}
 
                                             <Link
-                                                to={`/vehicles/${booking.vehicleId}`}
+                                                to={booking.bookingCode
+                                                    ? `/my-bookings/${encodeURIComponent(booking.bookingCode)}`
+                                                    : '/my-bookings'}
                                                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
                                             >
                                                 <Eye size={16} />
-                                                View Vehicle
+                                                View Booking Details
                                             </Link>
                                         </div>
                                     </div>

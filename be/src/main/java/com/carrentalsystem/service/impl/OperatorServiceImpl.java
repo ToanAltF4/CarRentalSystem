@@ -15,8 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,9 +54,11 @@ public class OperatorServiceImpl implements OperatorService {
     public List<BookingResponseDTO> getTodayBookings() {
         log.debug("Fetching today's bookings (active)");
         LocalDate today = LocalDate.now();
-        List<BookingEntity> bookings = bookingRepository.findActiveBookingsOnDateWithDetails(
-                today,
-                java.util.List.of(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.PENDING));
+        List<BookingStatus> statuses = List.of(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.PENDING);
+        List<BookingEntity> bookings = bookingRepository.findAllWithVehicle().stream()
+                .filter(booking -> statuses.contains(booking.getStatus()))
+                .filter(booking -> isBookedOnDate(booking, today))
+                .toList();
         return toResponseDTOList(bookings);
     }
 
@@ -246,7 +250,10 @@ public class OperatorServiceImpl implements OperatorService {
         log.debug("Fetching operator dashboard stats");
 
         long pendingBookings = bookingRepository.countByStatus(BookingStatus.PENDING);
-        long todayBookings = bookingRepository.findByStartDate(LocalDate.now()).size();
+        LocalDate today = LocalDate.now();
+        long todayBookings = bookingRepository.findAll().stream()
+                .filter(booking -> isBookedOnDate(booking, today))
+                .count();
         long pendingLicenses = userRepository.countByLicenseStatus(LicenseStatus.PENDING);
         long inProgressBookings = bookingRepository.countByStatus(BookingStatus.IN_PROGRESS);
         List<UserEntity> staff = userRepository.findByRole_RoleNameIn(STAFF_ROLE_NAMES);
@@ -325,6 +332,7 @@ public class OperatorServiceImpl implements OperatorService {
         if (operator != null) {
             dto.setAssignedByName(operator.getFullName());
         }
+        dto.setSelectedDates(resolveSelectedDatesFromBooking(entity));
 
         return dto;
     }
@@ -397,5 +405,51 @@ public class OperatorServiceImpl implements OperatorService {
                 .licenseStatus(user.getLicenseStatus())
                 .role(user.getRole() != null ? user.getRole().getRoleName() : null)
                 .build();
+    }
+
+    private boolean isBookedOnDate(BookingEntity booking, LocalDate date) {
+        return resolveSelectedDatesFromBooking(booking).contains(date);
+    }
+
+    private List<LocalDate> resolveSelectedDatesFromBooking(BookingEntity booking) {
+        List<LocalDate> parsed = parseSelectedDates(booking.getSelectedDates());
+        if (!parsed.isEmpty()) {
+            return parsed;
+        }
+
+        if (booking.getStartDate() == null || booking.getEndDate() == null) {
+            return List.of();
+        }
+
+        List<LocalDate> expanded = new ArrayList<>();
+        LocalDate cursor = booking.getStartDate();
+        while (!cursor.isAfter(booking.getEndDate())) {
+            expanded.add(cursor);
+            cursor = cursor.plusDays(1);
+        }
+        if (expanded.isEmpty()) {
+            expanded.add(booking.getStartDate());
+        }
+        return expanded;
+    }
+
+    private List<LocalDate> parseSelectedDates(String rawDates) {
+        if (rawDates == null || rawDates.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(rawDates.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> {
+                    try {
+                        return LocalDate.parse(value);
+                    } catch (DateTimeParseException ex) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
     }
 }

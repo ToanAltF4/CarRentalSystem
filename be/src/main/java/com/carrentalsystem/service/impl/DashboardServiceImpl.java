@@ -3,6 +3,7 @@ package com.carrentalsystem.service.impl;
 import com.carrentalsystem.dto.dashboard.DashboardOverviewDTO;
 import com.carrentalsystem.dto.dashboard.DashboardStatsDTO;
 import com.carrentalsystem.dto.dashboard.MonthlyRevenueDTO;
+import com.carrentalsystem.entity.BookingEntity;
 import com.carrentalsystem.entity.BookingStatus;
 import com.carrentalsystem.repository.BookingRepository;
 import com.carrentalsystem.repository.DashboardRepository;
@@ -13,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -104,8 +107,12 @@ public class DashboardServiceImpl implements DashboardService {
                 LocalDate date;
                 if (dateValue instanceof LocalDate localDate) {
                         date = localDate;
+                } else if (dateValue instanceof LocalDateTime localDateTime) {
+                        date = localDateTime.toLocalDate();
                 } else if (dateValue instanceof java.sql.Date sqlDate) {
                         date = sqlDate.toLocalDate();
+                } else if (dateValue instanceof java.sql.Timestamp timestamp) {
+                        date = timestamp.toLocalDateTime().toLocalDate();
                 } else {
                         return dateValue.toString();
                 }
@@ -185,28 +192,51 @@ public class DashboardServiceImpl implements DashboardService {
                                         .build());
                 }
 
-                LocalDate startDate = LocalDate.of(year, 1, 1);
-                LocalDate endDate = startDate.plusYears(1);
-                List<Object[]> aggregatedData = bookingRepository.findMonthlyRevenueByStartDateRange(
-                                startDate, endDate, BookingStatus.CANCELLED);
-
-                for (Object[] row : aggregatedData) {
-                        int month = row[0] instanceof Number ? ((Number) row[0]).intValue() : 0;
-                        if (month < 1 || month > 12) {
-                                continue;
-                        }
-                        BigDecimal revenue = row[1] instanceof BigDecimal
-                                        ? (BigDecimal) row[1]
-                                        : row[1] instanceof Number ? BigDecimal.valueOf(((Number) row[1]).doubleValue())
-                                                        : BigDecimal.ZERO;
-                        long count = row[2] instanceof Number ? ((Number) row[2]).longValue() : 0L;
-
-                        MonthlyRevenueDTO dto = result.get(month - 1);
-                        dto.setRevenue(revenue);
-                        dto.setBookingCount(count);
-                }
+                bookingRepository.findAll().stream()
+                                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED)
+                                .forEach(booking -> accumulateMonthlyRevenue(result, booking, year));
 
                 return result;
+        }
+
+        private void accumulateMonthlyRevenue(List<MonthlyRevenueDTO> result, BookingEntity booking, int year) {
+                LocalDate monthDate = resolveMonthDate(booking);
+                if (monthDate == null || monthDate.getYear() != year) {
+                        return;
+                }
+
+                int monthIndex = monthDate.getMonthValue() - 1;
+                MonthlyRevenueDTO dto = result.get(monthIndex);
+                dto.setRevenue(dto.getRevenue().add(booking.getTotalAmount() != null ? booking.getTotalAmount() : BigDecimal.ZERO));
+                dto.setBookingCount(dto.getBookingCount() + 1);
+        }
+
+        private LocalDate resolveMonthDate(BookingEntity booking) {
+                List<LocalDate> selectedDates = parseSelectedDates(booking.getSelectedDates());
+                if (!selectedDates.isEmpty()) {
+                        return selectedDates.get(0);
+                }
+                return booking.getStartDate();
+        }
+
+        private List<LocalDate> parseSelectedDates(String rawDates) {
+                if (rawDates == null || rawDates.isBlank()) {
+                        return List.of();
+                }
+                return java.util.Arrays.stream(rawDates.split(","))
+                                .map(String::trim)
+                                .filter(value -> !value.isBlank())
+                                .map(value -> {
+                                        try {
+                                                return LocalDate.parse(value);
+                                        } catch (DateTimeParseException ex) {
+                                                return null;
+                                        }
+                                })
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .sorted()
+                                .toList();
         }
 
         private List<MonthlyRevenueDTO> copyMonthlyRevenueList(List<MonthlyRevenueDTO> source) {

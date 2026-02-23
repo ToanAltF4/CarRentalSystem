@@ -3,6 +3,7 @@ package com.carrentalsystem.exception;
 import com.carrentalsystem.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -140,6 +141,26 @@ public class GlobalExceptionHandler {
                                 .status(HttpStatus.BAD_REQUEST.value())
                                 .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
                                 .message(ex.getMessage())
+                                .path(request.getRequestURI())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        /**
+         * Handle DB constraint violations as Bad Request instead of generic 500.
+         */
+        @ExceptionHandler(DataIntegrityViolationException.class)
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+                        DataIntegrityViolationException ex, HttpServletRequest request) {
+
+                log.warn("Data integrity violation: {}", ex.getMessage());
+
+                ErrorResponse error = ErrorResponse.builder()
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                .message("Invalid booking data or missing required fields")
                                 .path(request.getRequestURI())
                                 .timestamp(LocalDateTime.now())
                                 .build();

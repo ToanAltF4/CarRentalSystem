@@ -15,6 +15,7 @@ function LoginPage() {
     const [errors, setErrors] = useState({});
     const [generalError, setGeneralError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Get return URL from location state or default
     const from = location.state?.from || '/vehicles';
@@ -120,19 +121,43 @@ function LoginPage() {
                         <label htmlFor="password" style={styles.label}>
                             Password
                         </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            style={{
-                                ...styles.input,
-                                ...(errors.password ? styles.inputError : {})
-                            }}
-                            placeholder="••••••••"
-                        />
+                        <div style={styles.passwordWrapper}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                                style={{
+                                    ...styles.input,
+                                    ...styles.passwordInput,
+                                    ...(errors.password ? styles.inputError : {})
+                                }}
+                                placeholder="Enter your password"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                style={styles.passwordToggle}
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                aria-pressed={showPassword}
+                            >
+                                {showPassword ? (
+                                    <svg style={styles.passwordIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <path d="M17.94 17.94A10.94 10.94 0 0112 20C7 20 2.73 16.89 1 12a10.94 10.94 0 012.78-4.36" />
+                                        <path d="M10.58 10.58a2 2 0 002.83 2.83" />
+                                        <path d="M1 1l22 22" />
+                                        <path d="M9.88 4.24A10.95 10.95 0 0112 4c5 0 9.27 3.11 11 8a10.96 10.96 0 01-1.67 2.95" />
+                                    </svg>
+                                ) : (
+                                    <svg style={styles.passwordIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
                         {errors.password && (
                             <p style={styles.fieldError}>{errors.password}</p>
                         )}
@@ -242,6 +267,32 @@ const styles = {
         outline: 'none',
         transition: 'all 0.2s',
         boxSizing: 'border-box'
+    },
+    passwordWrapper: {
+        position: 'relative'
+    },
+    passwordInput: {
+        paddingRight: '44px'
+    },
+    passwordToggle: {
+        position: 'absolute',
+        top: '50%',
+        right: '12px',
+        transform: 'translateY(-50%)',
+        border: 'none',
+        backgroundColor: 'transparent',
+        color: '#718096',
+        width: '20px',
+        height: '20px',
+        padding: 0,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    passwordIcon: {
+        width: '18px',
+        height: '18px'
     },
     inputError: {
         borderColor: '#fc8181',

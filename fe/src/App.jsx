@@ -20,6 +20,7 @@ import AboutPage from './pages/AboutPage';
 
 // Customer Pages (require auth)
 import MyBookingsPage from './pages/MyBookingsPage';
+import BookingDetailPage from './pages/BookingDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import DriverLicenseUploadPage from './pages/DriverLicenseUploadPage';
 
@@ -85,6 +86,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <MyBookingsPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="my-bookings/:bookingCode"
+              element={
+                <PrivateRoute>
+                  <BookingDetailPage />
                 </PrivateRoute>
               }
             />

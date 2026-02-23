@@ -22,8 +22,10 @@ public class BookingSchemaHotfixRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         ensureColumn("bookings", "customer_phone", "VARCHAR(20) NULL");
         ensureColumn("bookings", "total_days", "INT NULL");
+        ensureColumn("bookings", "selected_dates", "TEXT NULL");
         ensureColumn("bookings", "delivery_address", "VARCHAR(255) NULL");
         ensureColumn("bookings", "delivery_distance_km", "DECIMAL(8,2) NULL");
+        ensureColumn("bookings", "driver_id", "BIGINT NULL");
         ensureColumn("bookings", "notes", "TEXT NULL");
         ensureColumn("bookings", "assigned_staff_id", "BIGINT NULL");
         ensureColumn("bookings", "assigned_at", "DATETIME NULL");

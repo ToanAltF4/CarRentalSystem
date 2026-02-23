@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Request DTO for creating a new booking.
@@ -19,8 +20,10 @@ public class BookingRequestDTO {
     private String customerName;
     private String customerEmail;
     private String customerPhone;
+    // Legacy fields kept for backward compatibility; business logic uses selectedDates.
     private LocalDate startDate;
     private LocalDate endDate;
+    private List<LocalDate> selectedDates;
     private String notes;
 
     // For booking by Model (system assigns specific vehicle)

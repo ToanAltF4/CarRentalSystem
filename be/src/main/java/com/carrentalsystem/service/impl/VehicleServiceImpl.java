@@ -19,9 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -130,15 +133,81 @@ public class VehicleServiceImpl implements VehicleService {
     public List<VehicleUnavailableDateRangeDTO> getUnavailableDateRanges(Long vehicleId) {
         findVehicleOrThrow(vehicleId);
 
-        List<BookingRepository.UnavailableDateRangeProjection> bookings = bookingRepository.findUnavailableBookingsByVehicle(
-                vehicleId, BookingStatus.CANCELLED.name(), LocalDate.now());
+        return bookingRepository.findByVehicleIdOrderByCreatedAtDescWithDetails(vehicleId).stream()
+                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED)
+                .flatMap(booking -> toUnavailableRanges(booking).stream())
+                .filter(range -> range.getEndDate() != null && !range.getEndDate().isBefore(LocalDate.now()))
+                .toList();
+    }
 
-        return bookings.stream()
-                .map(b -> VehicleUnavailableDateRangeDTO.builder()
-                        .startDate(b.getStartDate())
-                        .endDate(b.getEndDate())
-                        .status(normalizeBookingStatusLabel(b.getStatus()))
-                        .build())
+    private List<VehicleUnavailableDateRangeDTO> toUnavailableRanges(BookingEntity booking) {
+        List<LocalDate> days = resolveBookedDays(booking);
+        if (days.isEmpty()) {
+            return List.of();
+        }
+
+        List<VehicleUnavailableDateRangeDTO> ranges = new ArrayList<>();
+        LocalDate start = days.get(0);
+        LocalDate prev = start;
+
+        for (int i = 1; i < days.size(); i++) {
+            LocalDate current = days.get(i);
+            if (!current.equals(prev.plusDays(1))) {
+                ranges.add(buildRange(start, prev, booking.getStatus()));
+                start = current;
+            }
+            prev = current;
+        }
+        ranges.add(buildRange(start, prev, booking.getStatus()));
+        return ranges;
+    }
+
+    private VehicleUnavailableDateRangeDTO buildRange(LocalDate startInclusive, LocalDate endInclusive,
+            BookingStatus status) {
+        return VehicleUnavailableDateRangeDTO.builder()
+                .startDate(startInclusive)
+                .endDate(endInclusive.plusDays(1))
+                .status(normalizeBookingStatusLabel(status != null ? status.name() : null))
+                .build();
+    }
+
+    private List<LocalDate> resolveBookedDays(BookingEntity booking) {
+        List<LocalDate> parsedSelectedDates = parseSelectedDates(booking.getSelectedDates());
+        if (!parsedSelectedDates.isEmpty()) {
+            return parsedSelectedDates;
+        }
+        if (booking.getStartDate() == null || booking.getEndDate() == null) {
+            return List.of();
+        }
+        List<LocalDate> rangeDates = new ArrayList<>();
+        LocalDate cursor = booking.getStartDate();
+        while (!cursor.isAfter(booking.getEndDate())) {
+            rangeDates.add(cursor);
+            cursor = cursor.plusDays(1);
+        }
+        if (rangeDates.isEmpty()) {
+            rangeDates.add(booking.getStartDate());
+        }
+        return rangeDates;
+    }
+
+    private List<LocalDate> parseSelectedDates(String rawDates) {
+        if (rawDates == null || rawDates.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(rawDates.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(value -> {
+                    try {
+                        return LocalDate.parse(value);
+                    } catch (DateTimeParseException ex) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
                 .toList();
     }
 

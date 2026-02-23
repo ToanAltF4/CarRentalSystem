@@ -4,9 +4,9 @@ import {
     AlertCircle,
     Armchair,
     BadgeCheck,
-    Calendar,
     CarFront,
     CheckCircle2,
+    ChevronLeft,
     ChevronRight,
     Fuel,
     Gauge,
@@ -36,6 +36,7 @@ const INSURANCE_FEES = {
     personalAccident: 30000,
     theft: 40000
 };
+const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const toNumber = (value) => {
     const num = Number(value);
@@ -47,6 +48,52 @@ const formatIsoDate = (value) => {
     const parts = value.split('-');
     if (parts.length !== 3) return value;
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const toIsoDate = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const addDays = (isoDate, days) => {
+    const date = new Date(`${isoDate}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return isoDate;
+    date.setDate(date.getDate() + days);
+    return toIsoDate(date);
+};
+
+const enumerateRangeDates = (startDate, endDate) => {
+    if (!startDate || !endDate) return [];
+    const dates = [];
+    let cursor = startDate;
+    while (cursor < endDate) {
+        dates.push(cursor);
+        cursor = addDays(cursor, 1);
+    }
+    if (dates.length === 0 && startDate === endDate) {
+        dates.push(startDate);
+    }
+    return dates;
+};
+
+const buildCalendarCells = (monthDate) => {
+    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const firstGridDate = new Date(monthStart);
+    firstGridDate.setDate(monthStart.getDate() - monthStart.getDay());
+
+    return Array.from({ length: 42 }, (_, index) => {
+        const date = new Date(firstGridDate);
+        date.setDate(firstGridDate.getDate() + index);
+        return {
+            date,
+            iso: toIsoDate(date),
+            day: date.getDate(),
+            isCurrentMonth: date.getMonth() === monthDate.getMonth()
+        };
+    });
 };
 
 const buildDisplayCar = (category) => {
@@ -102,8 +149,11 @@ const CarDetailPage = () => {
     const [bookingError, setBookingError] = useState('');
     const [showWizard, setShowWizard] = useState(false);
 
-    const [pickupDate, setPickupDate] = useState('');
-    const [dropoffDate, setDropoffDate] = useState('');
+    const [selectedDates, setSelectedDates] = useState([]);
+    const [calendarMonth, setCalendarMonth] = useState(() => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+    });
     const [insuranceOptions, setInsuranceOptions] = useState({
         vehicleDamage: true,
         thirdParty: true,
@@ -129,16 +179,9 @@ const CarDetailPage = () => {
         };
     }, [displayCar, selectedVehicle]);
 
-    const calculateRentalDays = () => {
-        if (!pickupDate || !dropoffDate) return 1;
-        const start = new Date(pickupDate);
-        const end = new Date(dropoffDate);
-        const diffTime = end - start;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays > 0 ? diffDays : 1;
-    };
-
-    const rentalDays = calculateRentalDays();
+    const rentalDays = selectedDates.length > 0 ? selectedDates.length : 1;
+    const pickupDate = selectedDates[0] || '';
+    const dropoffDate = selectedDates.length > 0 ? selectedDates[selectedDates.length - 1] : '';
     const rentalFee = bookingCar ? bookingCar.price * rentalDays : 0;
 
     const calculateInsuranceFee = () => {
@@ -153,70 +196,56 @@ const CarDetailPage = () => {
     const serviceFee = SERVICE_FEE;
     const totalPrice = rentalFee + insuranceFee + serviceFee;
 
+    const unavailableDateSet = useMemo(() => {
+        const dates = new Set();
+        unavailableRanges.forEach((range) => {
+            enumerateRangeDates(range.startDate, range.endDate).forEach((date) => dates.add(date));
+        });
+        return dates;
+    }, [unavailableRanges]);
+
+    const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth]);
+    const calendarTitle = useMemo(
+        () => calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        [calendarMonth]
+    );
+
     const isDateUnavailable = (date) => {
         if (!date) return false;
-        return unavailableRanges.some((range) => date >= range.startDate && date <= range.endDate);
-    };
-
-    const isOverlappingUnavailableRange = (startDate, endDate) => {
-        if (!startDate || !endDate) return false;
-        return unavailableRanges.some(
-            (range) => startDate <= range.endDate && endDate >= range.startDate
-        );
+        return unavailableDateSet.has(date);
     };
 
     const validateDates = () => {
         if (!selectedVehicle) return 'Please select a vehicle license plate';
-        if (!pickupDate || !dropoffDate) return 'Please select pickup and return dates';
-        if (pickupDate < today) return 'Pickup date cannot be in the past';
-        if (dropoffDate <= pickupDate) return 'Return date must be after pickup date';
-        if (isOverlappingUnavailableRange(pickupDate, dropoffDate)) {
-            return 'Selected dates have already been booked for this vehicle';
+        if (selectedDates.length === 0) return 'Please select at least one rental day';
+        if (selectedDates.some((date) => date < today)) {
+            return 'Selected dates cannot be in the past';
+        }
+        if (selectedDates.some((date) => isDateUnavailable(date))) {
+            return 'Some selected dates are already booked for this vehicle';
         }
         return null;
     };
 
-    const handlePickupDateChange = (value) => {
+    const toggleSelectedDate = (value) => {
         if (!value) {
-            setPickupDate('');
             setBookingError('');
             return;
         }
         if (value < today) {
-            setBookingError('Pickup date cannot be in the past');
+            setBookingError('Selected date cannot be in the past');
             return;
         }
         if (isDateUnavailable(value)) {
-            setBookingError('This pickup date is already booked for the selected vehicle');
+            setBookingError('This date is already booked for the selected vehicle');
             return;
         }
 
-        setPickupDate(value);
-        if (dropoffDate && (dropoffDate <= value || isOverlappingUnavailableRange(value, dropoffDate))) {
-            setDropoffDate('');
-        }
-        setBookingError('');
-    };
-
-    const handleDropoffDateChange = (value) => {
-        if (!value) {
-            setDropoffDate('');
-            setBookingError('');
-            return;
-        }
-        if (!pickupDate) {
-            setBookingError('Please select pickup date first');
-            return;
-        }
-        if (value <= pickupDate) {
-            setBookingError('Return date must be after pickup date');
-            return;
-        }
-        if (isDateUnavailable(value) || isOverlappingUnavailableRange(pickupDate, value)) {
-            setBookingError('Selected date range is already booked for this vehicle');
-            return;
-        }
-        setDropoffDate(value);
+        setSelectedDates((prev) => {
+            const exists = prev.includes(value);
+            const next = exists ? prev.filter((d) => d !== value) : [...prev, value];
+            return next.sort();
+        });
         setBookingError('');
     };
 
@@ -233,6 +262,14 @@ const CarDetailPage = () => {
         }
         setBookingError('');
         setShowWizard(true);
+    };
+
+    const goPrevMonth = () => {
+        setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    };
+
+    const goNextMonth = () => {
+        setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
     };
 
     const handleBookingComplete = (result) => {
@@ -290,8 +327,8 @@ const CarDetailPage = () => {
                 setVehiclesInCategory(normalizedVehicles);
                 setSelectedVehicleId(initialVehicleId);
                 setUnavailableRanges([]);
-                setPickupDate('');
-                setDropoffDate('');
+                setSelectedDates([]);
+                setCalendarMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
                 setActiveImage(0);
             } catch (error) {
                 console.error('Failed to load detail page:', error);
@@ -355,8 +392,8 @@ const CarDetailPage = () => {
     const handleVehicleSelect = (value) => {
         const nextVehicleId = Number(value);
         setSelectedVehicleId(Number.isFinite(nextVehicleId) ? nextVehicleId : null);
-        setPickupDate('');
-        setDropoffDate('');
+        setSelectedDates([]);
+        setCalendarMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
         setBookingError('');
     };
 
@@ -638,7 +675,7 @@ const CarDetailPage = () => {
                                     <div className="space-y-1 max-h-24 overflow-y-auto">
                                         {unavailableRanges.map((range, index) => (
                                             <div key={`${range.startDate}-${range.endDate}-${index}`} className="text-xs text-red-600">
-                                                {formatIsoDate(range.startDate)} - {formatIsoDate(range.endDate)} ({range.status})
+                                                {formatIsoDate(range.startDate)} - {formatIsoDate(addDays(range.endDate, -1))} ({range.status})
                                             </div>
                                         ))}
                                     </div>
@@ -648,32 +685,98 @@ const CarDetailPage = () => {
 
                         <div className="mb-6 space-y-3">
                             <div className="space-y-1">
-                                <label className="text-xs font-bold uppercase text-gray-500">Pick-up Date</label>
-                                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-                                    <Calendar size={18} className="text-gray-400" />
-                                    <input
-                                        type="date"
-                                        value={pickupDate}
-                                        onChange={(e) => handlePickupDateChange(e.target.value)}
-                                        min={today}
-                                        disabled={!selectedVehicle || loadingUnavailable}
-                                        className="w-full bg-transparent text-sm outline-none disabled:cursor-not-allowed"
-                                    />
+                                <label className="text-xs font-bold uppercase text-gray-500">
+                                    Select Rental Days (single calendar, multi-select)
+                                </label>
+                                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            onClick={goPrevMonth}
+                                            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <span className="text-sm font-semibold text-gray-800">{calendarTitle}</span>
+                                        <button
+                                            type="button"
+                                            onClick={goNextMonth}
+                                            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-1 grid grid-cols-7 gap-1">
+                                        {WEEKDAY_LABELS.map((day) => (
+                                            <div key={day} className="py-1 text-center text-[10px] font-semibold uppercase text-gray-400">
+                                                {day}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-7 gap-1">
+                                        {calendarCells.map((cell) => {
+                                            const isPast = cell.iso < today;
+                                            const unavailable = isDateUnavailable(cell.iso);
+                                            const selected = selectedDates.includes(cell.iso);
+                                            const disabled = isPast || unavailable;
+
+                                            let dayClass = 'border-gray-100 text-gray-700 hover:border-[#5fcf86]/40 hover:bg-green-50';
+                                            if (!cell.isCurrentMonth) {
+                                                dayClass = 'border-transparent text-gray-300';
+                                            }
+                                            if (disabled) {
+                                                dayClass = unavailable
+                                                    ? 'border-red-100 bg-red-50 text-red-300 cursor-not-allowed'
+                                                    : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed';
+                                            }
+                                            if (selected) {
+                                                dayClass = 'border-[#5fcf86] bg-[#5fcf86] text-white font-bold shadow-sm';
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={cell.iso}
+                                                    type="button"
+                                                    disabled={disabled}
+                                                    onClick={() => toggleSelectedDate(cell.iso)}
+                                                    className={`h-9 rounded-md border text-sm transition-colors ${dayClass}`}
+                                                    title={cell.iso}
+                                                >
+                                                    {cell.day}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
+                                <p className="text-xs text-gray-500">
+                                    Click a day to add/remove. You can choose continuous days (24,25,26) or separate days (24,26,27).
+                                </p>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold uppercase text-gray-500">Return Date</label>
-                                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-                                    <Calendar size={18} className="text-gray-400" />
-                                    <input
-                                        type="date"
-                                        value={dropoffDate}
-                                        onChange={(e) => handleDropoffDateChange(e.target.value)}
-                                        min={pickupDate || today}
-                                        disabled={!selectedVehicle || !pickupDate || loadingUnavailable}
-                                        className="w-full bg-transparent text-sm outline-none disabled:cursor-not-allowed"
-                                    />
+
+                            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-semibold text-gray-600 uppercase">Selected Days</span>
+                                    <span className="text-xs text-[#5fcf86] font-semibold">{selectedDates.length} day(s)</span>
                                 </div>
+                                {selectedDates.length === 0 ? (
+                                    <p className="text-xs text-gray-500">No day selected yet</p>
+                                ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedDates.map((date) => (
+                                            <button
+                                                key={date}
+                                                type="button"
+                                                onClick={() => toggleSelectedDate(date)}
+                                                className="px-2 py-1 rounded-md text-xs bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                                                title="Click to remove"
+                                            >
+                                                {formatIsoDate(date)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -820,6 +923,7 @@ const CarDetailPage = () => {
                 car={bookingCar}
                 pickupDate={pickupDate}
                 dropoffDate={dropoffDate}
+                selectedDates={selectedDates}
                 user={user}
                 onBookingComplete={handleBookingComplete}
             />

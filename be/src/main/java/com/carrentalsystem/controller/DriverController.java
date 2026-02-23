@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +69,7 @@ public class DriverController {
                 // Today's trips
                 LocalDate today = LocalDate.now();
                 long todayTrips = myTrips.stream()
-                                .filter(b -> b.getStartDate() != null && b.getStartDate().equals(today))
+                                .filter(b -> isBookedOnDate(b, today))
                                 .count();
                 stats.put("todayTrips", todayTrips);
 
@@ -261,8 +263,9 @@ public class DriverController {
 
                 // This month earnings
                 LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+                LocalDate firstDayOfNextMonth = firstDayOfMonth.plusMonths(1);
                 BigDecimal thisMonthEarnings = completedTrips.stream()
-                                .filter(b -> b.getEndDate() != null && !b.getEndDate().isBefore(firstDayOfMonth))
+                                .filter(b -> hasBookedDayInRange(b, firstDayOfMonth, firstDayOfNextMonth))
                                 .map(b -> b.getDriverFee() != null ? b.getDriverFee() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -286,13 +289,66 @@ public class DriverController {
                                                 ? booking.getVehicle().getVehicleCategory().getName()
                                                 : null);
                 dto.put("vehiclePlate", booking.getVehicle() != null ? booking.getVehicle().getLicensePlate() : null);
-                dto.put("startDate", booking.getStartDate());
-                dto.put("endDate", booking.getEndDate());
+                List<LocalDate> selectedDates = resolveSelectedDatesFromBooking(booking);
+                dto.put("startDate", selectedDates.isEmpty() ? booking.getStartDate() : selectedDates.get(0));
+                dto.put("endDate", selectedDates.isEmpty() ? booking.getEndDate() : selectedDates.get(selectedDates.size() - 1));
+                dto.put("selectedDates", selectedDates);
                 dto.put("status", booking.getStatus() != null ? booking.getStatus().name() : null);
                 dto.put("deliveryAddress", booking.getDeliveryAddress());
                 dto.put("driverFee", booking.getDriverFee());
                 dto.put("totalAmount", booking.getTotalAmount());
                 dto.put("notes", booking.getNotes());
                 return dto;
+        }
+
+        private boolean isBookedOnDate(BookingEntity booking, LocalDate date) {
+                return resolveSelectedDatesFromBooking(booking).contains(date);
+        }
+
+        private boolean hasBookedDayInRange(BookingEntity booking, LocalDate startInclusive, LocalDate endExclusive) {
+                return resolveSelectedDatesFromBooking(booking).stream()
+                                .anyMatch(day -> !day.isBefore(startInclusive) && day.isBefore(endExclusive));
+        }
+
+        private List<LocalDate> resolveSelectedDatesFromBooking(BookingEntity booking) {
+                List<LocalDate> parsed = parseSelectedDates(booking.getSelectedDates());
+                if (!parsed.isEmpty()) {
+                        return parsed;
+                }
+
+                if (booking.getStartDate() == null || booking.getEndDate() == null) {
+                        return List.of();
+                }
+
+                List<LocalDate> expanded = new ArrayList<>();
+                LocalDate cursor = booking.getStartDate();
+                while (!cursor.isAfter(booking.getEndDate())) {
+                        expanded.add(cursor);
+                        cursor = cursor.plusDays(1);
+                }
+                if (expanded.isEmpty()) {
+                        expanded.add(booking.getStartDate());
+                }
+                return expanded;
+        }
+
+        private List<LocalDate> parseSelectedDates(String rawDates) {
+                if (rawDates == null || rawDates.isBlank()) {
+                        return List.of();
+                }
+                return java.util.Arrays.stream(rawDates.split(","))
+                                .map(String::trim)
+                                .filter(value -> !value.isBlank())
+                                .map(value -> {
+                                        try {
+                                                return LocalDate.parse(value);
+                                        } catch (DateTimeParseException ex) {
+                                                return null;
+                                        }
+                                })
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .sorted()
+                                .toList();
         }
 }
