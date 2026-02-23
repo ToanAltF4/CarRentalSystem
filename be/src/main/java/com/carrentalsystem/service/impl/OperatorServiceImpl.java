@@ -17,7 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +38,11 @@ public class OperatorServiceImpl implements OperatorService {
     private final RoleRepository roleRepository;
     private final BookingMapper bookingMapper;
 
+    private static final List<String> STAFF_ROLE_NAMES = List.of("ROLE_STAFF", "STAFF", "ROLE_OPERATOR", "OPERATOR");
+    private static final List<String> DRIVER_ROLE_NAMES = List.of("ROLE_DRIVER", "DRIVER");
+    private static final List<BookingStatus> ACTIVE_ASSIGNMENT_STATUSES = List.of(
+            BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS);
+
     // ==================== Booking Management ====================
 
     // ==================== Booking Management ====================
@@ -44,7 +52,7 @@ public class OperatorServiceImpl implements OperatorService {
     public List<BookingResponseDTO> getTodayBookings() {
         log.debug("Fetching today's bookings (active)");
         LocalDate today = LocalDate.now();
-        List<BookingEntity> bookings = bookingRepository.findActiveBookingsOnDate(
+        List<BookingEntity> bookings = bookingRepository.findActiveBookingsOnDateWithDetails(
                 today,
                 java.util.List.of(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.PENDING));
         return toResponseDTOList(bookings);
@@ -54,7 +62,7 @@ public class OperatorServiceImpl implements OperatorService {
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getConfirmedBookings() {
         log.debug("Fetching confirmed bookings");
-        List<BookingEntity> bookings = bookingRepository.findByStatus(BookingStatus.CONFIRMED);
+        List<BookingEntity> bookings = bookingRepository.findByStatusWithDetails(BookingStatus.CONFIRMED);
         return toResponseDTOList(bookings);
     }
 
@@ -93,20 +101,12 @@ public class OperatorServiceImpl implements OperatorService {
     @Transactional(readOnly = true)
     public List<StaffListDTO> getAvailableStaff() {
         log.debug("Fetching available staff");
-        // Simplified fetching strategy for now: Filter all users
-        List<UserEntity> staff = userRepository.findAll().stream()
-                .filter(u -> {
-                    if (u.getRole() == null)
-                        return false;
-                    String roleName = u.getRole().getRoleName();
-                    // Check for ROLE_STAFF, STAFF, or Operator roles
-                    return "ROLE_STAFF".equals(roleName) || "STAFF".equals(roleName) ||
-                            "ROLE_OPERATOR".equals(roleName) || "OPERATOR".equals(roleName);
-                })
-                .collect(Collectors.toList());
+        List<UserEntity> staff = userRepository.findByRole_RoleNameIn(STAFF_ROLE_NAMES);
+        Map<Long, Integer> assignmentCountMap = loadAssignmentCountMap(
+                staff.stream().map(UserEntity::getId).toList());
 
         return staff.stream()
-                .map(this::toStaffListDTO)
+                .map(user -> toStaffListDTO(user, assignmentCountMap))
                 .collect(Collectors.toList());
     }
 
@@ -114,19 +114,12 @@ public class OperatorServiceImpl implements OperatorService {
     @Transactional(readOnly = true)
     public List<StaffListDTO> getAvailableDrivers() {
         log.debug("Fetching available drivers");
-        // Drivers are users with ROLE_DRIVER
-        List<UserEntity> drivers = userRepository.findAll().stream()
-                .filter(u -> {
-                    if (u.getRole() == null)
-                        return false;
-                    String roleName = u.getRole().getRoleName();
-                    // User explicitly requested adding ROLE_DRIVER logic
-                    return "ROLE_DRIVER".equals(roleName) || "DRIVER".equals(roleName);
-                })
-                .collect(Collectors.toList());
+        List<UserEntity> drivers = userRepository.findByRole_RoleNameIn(DRIVER_ROLE_NAMES);
+        Map<Long, Integer> assignmentCountMap = loadAssignmentCountMap(
+                drivers.stream().map(UserEntity::getId).toList());
 
         return drivers.stream()
-                .map(this::toStaffListDTO)
+                .map(user -> toStaffListDTO(user, assignmentCountMap))
                 .collect(Collectors.toList());
     }
 
@@ -198,10 +191,10 @@ public class OperatorServiceImpl implements OperatorService {
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getStaffAssignedBookings(Long staffId) {
         log.info("Fetching bookings assigned to staff {}", staffId);
-        List<BookingEntity> bookings = bookingRepository.findByAssignedStaffId(staffId);
+        List<BookingEntity> bookings = bookingRepository.findByAssignedStaffIdWithDetails(staffId);
         return bookings.stream()
                 .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // ==================== License Verification ====================
@@ -256,22 +249,12 @@ public class OperatorServiceImpl implements OperatorService {
         long todayBookings = bookingRepository.findByStartDate(LocalDate.now()).size();
         long pendingLicenses = userRepository.countByLicenseStatus(LicenseStatus.PENDING);
         long inProgressBookings = bookingRepository.countByStatus(BookingStatus.IN_PROGRESS);
-        long availableStaff = getAvailableStaff().size();
-        long availableDrivers = getAvailableDrivers().size();
-
-        // Calculate totals
-        List<String> staffRoles = java.util.List.of("ROLE_STAFF", "STAFF", "ROLE_OPERATOR", "OPERATOR");
-        long totalStaff = userRepository.countByRole_RoleNameIn(staffRoles);
-
-        // Calculate total drivers (users with ROLE_DRIVER)
-        long totalDrivers = userRepository.findAll().stream()
-                .filter(u -> {
-                    if (u.getRole() == null)
-                        return false;
-                    String r = u.getRole().getRoleName();
-                    return "ROLE_DRIVER".equals(r) || "DRIVER".equals(r);
-                })
-                .count();
+        List<UserEntity> staff = userRepository.findByRole_RoleNameIn(STAFF_ROLE_NAMES);
+        List<UserEntity> drivers = userRepository.findByRole_RoleNameIn(DRIVER_ROLE_NAMES);
+        Map<Long, Integer> staffAssignments = loadAssignmentCountMap(staff.stream().map(UserEntity::getId).toList());
+        Map<Long, Integer> driverAssignments = loadAssignmentCountMap(drivers.stream().map(UserEntity::getId).toList());
+        long availableStaff = staff.stream().filter(u -> staffAssignments.getOrDefault(u.getId(), 0) < 5).count();
+        long availableDrivers = drivers.stream().filter(u -> driverAssignments.getOrDefault(u.getId(), 0) < 5).count();
 
         return new OperatorDashboardStats(
                 pendingBookings,
@@ -295,7 +278,21 @@ public class OperatorServiceImpl implements OperatorService {
     }
 
     private BookingResponseDTO toResponseDTO(BookingEntity entity) {
+        return toResponseDTO(entity, null);
+    }
+
+    private BookingResponseDTO toResponseDTO(BookingEntity entity, Map<Long, UserEntity> userMap) {
         BookingResponseDTO dto = bookingMapper.toResponseDTO(entity);
+
+        java.util.function.Function<Long, UserEntity> resolveUser = (id) -> {
+            if (id == null) {
+                return null;
+            }
+            if (userMap != null && userMap.containsKey(id)) {
+                return userMap.get(id);
+            }
+            return userRepository.findById(id).orElse(null);
+        };
 
         // Add assignment details
         dto.setAssignedStaffId(entity.getAssignedStaffId());
@@ -312,37 +309,48 @@ public class OperatorServiceImpl implements OperatorService {
         }
 
         // Resolve staff name
-        if (entity.getAssignedStaffId() != null) {
-            userRepository.findById(entity.getAssignedStaffId())
-                    .ifPresent(staff -> dto.setAssignedStaffName(staff.getFullName()));
+        UserEntity staff = resolveUser.apply(entity.getAssignedStaffId());
+        if (staff != null) {
+            dto.setAssignedStaffName(staff.getFullName());
         }
 
         // Resolve driver name
-        if (entity.getDriverId() != null) {
-            userRepository.findById(entity.getDriverId())
-                    .ifPresent(driver -> dto.setDriverName(driver.getFullName()));
+        UserEntity driver = resolveUser.apply(entity.getDriverId());
+        if (driver != null) {
+            dto.setDriverName(driver.getFullName());
         }
 
         // Resolve assigned by name
-        if (entity.getAssignedBy() != null) {
-            userRepository.findById(entity.getAssignedBy())
-                    .ifPresent(operator -> dto.setAssignedByName(operator.getFullName()));
+        UserEntity operator = resolveUser.apply(entity.getAssignedBy());
+        if (operator != null) {
+            dto.setAssignedByName(operator.getFullName());
         }
 
         return dto;
     }
 
     private List<BookingResponseDTO> toResponseDTOList(List<BookingEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> userIds = entities.stream()
+                .flatMap(b -> java.util.stream.Stream.of(b.getAssignedStaffId(), b.getDriverId(), b.getAssignedBy()))
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, UserEntity> userMap = userIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserEntity::getId, u -> u));
+
         return entities.stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(entity -> toResponseDTO(entity, userMap))
+                .toList();
     }
 
-    private StaffListDTO toStaffListDTO(UserEntity user) {
-        // Count current active assignments using optimized query
-        int currentAssignments = bookingRepository.countActiveBookingsByStaff(
-                user.getId(),
-                java.util.List.of(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS));
+    private StaffListDTO toStaffListDTO(UserEntity user, Map<Long, Integer> assignmentCountMap) {
+        int currentAssignments = assignmentCountMap.getOrDefault(user.getId(), 0);
 
         return StaffListDTO.builder()
                 .id(user.getId())
@@ -353,6 +361,27 @@ public class OperatorServiceImpl implements OperatorService {
                 .currentAssignments(currentAssignments)
                 .available(currentAssignments < 5) // Max 5 concurrent assignments
                 .build();
+    }
+
+    private Map<Long, Integer> loadAssignmentCountMap(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Integer> countMap = new HashMap<>();
+
+        bookingRepository.countAssignmentsGroupedByAssignedStaff(userIds, ACTIVE_ASSIGNMENT_STATUSES)
+                .forEach(row -> countMap.put(
+                        row.getUserId(),
+                        (int) (row.getCount() != null ? row.getCount() : 0L)));
+
+        bookingRepository.countAssignmentsGroupedByDriver(userIds, ACTIVE_ASSIGNMENT_STATUSES)
+                .forEach(row -> countMap.merge(
+                        row.getUserId(),
+                        (int) (row.getCount() != null ? row.getCount() : 0L),
+                        Integer::sum));
+
+        return countMap;
     }
 
     private UserLicenseDTO toUserLicenseDTO(UserEntity user) {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import profileService from '../services/profileService';
@@ -105,21 +105,29 @@ export function AuthProvider({ children }) {
      * Refresh user data from backend (e.g., after license status update)
      * @returns {Promise<Object|null>} Updated user data
      */
-    const refreshUser = async () => {
+    const refreshUser = useCallback(async () => {
         if (!isAuthenticated) return null;
 
         try {
             const profileData = await profileService.getProfile();
+            let storedUser = {};
 
-            // Update user with new data from profile
+            try {
+                storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            } catch {
+                storedUser = {};
+            }
+
+            // Keep a stable refresh callback: derive from persisted user, not hook dependency `user`.
             const updatedUser = {
-                ...user,
-                licenseStatus: profileData.licenseStatus || 'NONE',
-                fullName: profileData.fullName || user.fullName,
-                email: profileData.email || user.email
+                ...storedUser,
+                id: profileData.id ?? storedUser.id,
+                role: profileData.role ?? storedUser.role,
+                licenseStatus: profileData.licenseStatus || storedUser.licenseStatus || 'NONE',
+                fullName: profileData.fullName || storedUser.fullName || '',
+                email: profileData.email || storedUser.email || ''
             };
 
-            // Update localStorage and state
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setUser(updatedUser);
 
@@ -128,9 +136,9 @@ export function AuthProvider({ children }) {
             console.error('Failed to refresh user data:', error);
             return null;
         }
-    };
+    }, [isAuthenticated]);
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         isAuthenticated,
         loading,
@@ -138,7 +146,7 @@ export function AuthProvider({ children }) {
         register,
         logout,
         refreshUser
-    };
+    }), [user, isAuthenticated, loading, refreshUser]);
 
     return (
         <AuthContext.Provider value={value}>

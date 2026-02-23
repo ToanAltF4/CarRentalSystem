@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import dashboardService from '../../services/dashboardService';
-import bookingService from '../../services/bookingService';
 import { formatPrice } from '../../utils/formatters';
 
 /**
@@ -15,6 +14,7 @@ import { formatPrice } from '../../utils/formatters';
  * B2C Enterprise Dashboard for E-Fleet
  */
 const AdminDashboardPage = () => {
+    const OVERVIEW_CACHE_KEY = 'admin_dashboard_overview_v1';
     const [stats, setStats] = useState(null);
     const [recentBookings, setRecentBookings] = useState([]);
     const [revenueData, setRevenueData] = useState([]);
@@ -23,35 +23,48 @@ const AdminDashboardPage = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                // Fetch all dashboard data in parallel
-                const [statsData, revenue] = await Promise.all([
-                    dashboardService.getStats(),
-                    dashboardService.getMonthlyRevenue()
-                ]);
-
-                // Update state
-                setStats(statsData);
-
-                // Use recent bookings from stats DTO (optimized backend)
-                if (statsData?.recentBookings) {
-                    setRecentBookings(statsData.recentBookings);
-                } else {
-                    setRecentBookings([]);
+            // Render cached snapshot immediately for faster perceived load after login.
+            const cachedOverview = sessionStorage.getItem(OVERVIEW_CACHE_KEY);
+            if (cachedOverview) {
+                try {
+                    const parsed = JSON.parse(cachedOverview);
+                    if (parsed?.stats) {
+                        setStats(parsed.stats);
+                        setRecentBookings(parsed.stats.recentBookings || []);
+                    }
+                    setRevenueData(Array.isArray(parsed?.monthlyRevenue) ? parsed.monthlyRevenue : []);
+                    setLoading(false);
+                } catch {
+                    sessionStorage.removeItem(OVERVIEW_CACHE_KEY);
                 }
+            }
 
-                setRevenueData(revenue);
+            try {
+                const overview = await dashboardService.getOverview();
+                const nextStats = overview?.stats || null;
+                const nextRevenue = Array.isArray(overview?.monthlyRevenue) ? overview.monthlyRevenue : [];
+
+                setStats(nextStats);
+                setRecentBookings(nextStats?.recentBookings || []);
+                setRevenueData(nextRevenue);
+                sessionStorage.setItem(OVERVIEW_CACHE_KEY, JSON.stringify({
+                    stats: nextStats,
+                    monthlyRevenue: nextRevenue
+                }));
             } catch (err) {
                 console.error('Failed to fetch dashboard data:', err);
-                // Set default mock data if API fails
-                setStats({
-                    totalRevenue: 0,
-                    activeBookings: 0,
-                    totalVehicles: 0,
-                    pendingApprovals: 0,
-                    availableVehicles: 0
-                });
-                setError('Using demo data - API connection failed');
+                if (!cachedOverview) {
+                    setStats({
+                        totalRevenue: 0,
+                        activeBookings: 0,
+                        totalVehicles: 0,
+                        pendingApprovals: 0,
+                        availableVehicles: 0
+                    });
+                    setError('Using demo data - API connection failed');
+                } else {
+                    setError('Showing cached dashboard data');
+                }
             } finally {
                 setLoading(false);
             }
@@ -174,6 +187,16 @@ const AdminDashboardPage = () => {
                     <div>
                         <h3 className="font-bold text-gray-900">Fleet Management</h3>
                         <p className="text-xs text-gray-500">Manage vehicles</p>
+                    </div>
+                </Link>
+
+                <Link to="/admin/categories" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#5fcf86] hover:shadow-md transition-all flex items-center gap-4 group">
+                    <div className="bg-emerald-50 p-3 rounded-lg group-hover:bg-[#5fcf86] group-hover:text-white transition-colors text-emerald-600">
+                        <Car size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900">Categories</h3>
+                        <p className="text-xs text-gray-500">Model catalog & pricing</p>
                     </div>
                 </Link>
 

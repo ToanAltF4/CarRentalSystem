@@ -1,60 +1,134 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-    Star, MapPin, Zap, Fuel, Gauge, Armchair,
-    Calendar, ShieldCheck, CheckCircle2, Share2,
-    Heart, ChevronRight, Truck, Loader2, AlertCircle,
-    Sparkles, Headphones, BadgeCheck, CarFront
+    AlertCircle,
+    Armchair,
+    BadgeCheck,
+    Calendar,
+    CarFront,
+    CheckCircle2,
+    ChevronRight,
+    Fuel,
+    Gauge,
+    Headphones,
+    Heart,
+    Loader2,
+    MapPin,
+    Share2,
+    ShieldCheck,
+    Sparkles,
+    Star,
+    Truck,
+    Zap
 } from 'lucide-react';
 
-import { useAuth } from '../context/AuthContext';
-import vehicleService from '../services/vehicleService';
-import bookingService from '../services/bookingService';
-import { formatPrice } from '../utils/formatters';
 import BookingWizardModal from '../components/BookingWizardModal';
+import { useAuth } from '../context/AuthContext';
+import vehicleCategoryService from '../services/vehicleCategoryService';
+import vehicleService from '../services/vehicleService';
+import { formatPrice } from '../utils/formatters';
 
-/**
- * B2C Car Detail Page
- * - No owner information (Company owns all vehicles)
- * - Company Guarantee section instead
- */
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7';
+const SERVICE_FEE = 45000;
+const INSURANCE_FEES = {
+    vehicleDamage: 50000,
+    thirdParty: 25000,
+    personalAccident: 30000,
+    theft: 40000
+};
+
+const toNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+};
+
+const formatIsoDate = (value) => {
+    if (!value || typeof value !== 'string') return value;
+    const parts = value.split('-');
+    if (parts.length !== 3) return value;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const buildDisplayCar = (category) => {
+    if (!category) return null;
+    const images = (category.imageUrls?.length ? category.imageUrls : [category.primaryImageUrl]).filter(Boolean);
+    return {
+        id: category.id,
+        categoryId: category.id,
+        name: `${category.brand || ''} ${category.name || ''}`.trim(),
+        categoryName: category.name || '',
+        brand: category.brand || '',
+        model: category.model || '',
+        price: toNumber(category.dailyPrice),
+        dailyRate: toNumber(category.dailyPrice),
+        range: category.rangeKm || 0,
+        battery: category.batteryCapacityKwh ? `${category.batteryCapacityKwh} kWh` : '75 kWh',
+        seats: category.seats || 5,
+        transmission: 'Automatic',
+        charging: 'Type 2 / CCS2',
+        images: images.length > 0 ? images : [FALLBACK_IMAGE],
+        imageUrl: images[0] || FALLBACK_IMAGE,
+        rating: 5.0,
+        reviews: 0,
+        year: 2024,
+        description: category.description || '',
+        overtimeFeePerHour: toNumber(category.overtimeFeePerHour)
+    };
+};
+
+const getInitialVehicleId = (vehicles, preferredVehicleId) => {
+    if (!Array.isArray(vehicles) || vehicles.length === 0) return null;
+    if (preferredVehicleId && vehicles.some((vehicle) => vehicle.id === preferredVehicleId)) {
+        return preferredVehicleId;
+    }
+    const available = vehicles.find((vehicle) => vehicle.status === 'AVAILABLE');
+    return available?.id || vehicles[0]?.id || null;
+};
+
 const CarDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, isAuthenticated, refreshUser } = useAuth();
 
-    const [car, setCar] = useState(null);
+    const [category, setCategory] = useState(null);
+    const [vehiclesInCategory, setVehiclesInCategory] = useState([]);
+    const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+    const [unavailableRanges, setUnavailableRanges] = useState([]);
+
     const [loading, setLoading] = useState(true);
+    const [loadingUnavailable, setLoadingUnavailable] = useState(false);
     const [activeImage, setActiveImage] = useState(0);
-    const [bookingLoading, setBookingLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [pageError, setPageError] = useState('');
+    const [bookingError, setBookingError] = useState('');
     const [showWizard, setShowWizard] = useState(false);
 
-    // Date picker state
     const [pickupDate, setPickupDate] = useState('');
     const [dropoffDate, setDropoffDate] = useState('');
-
-    // Insurance options state
     const [insuranceOptions, setInsuranceOptions] = useState({
-        vehicleDamage: true,      // Bảo hiểm thân vỏ - Optional
-        thirdParty: true,          // TNDS - Required by law (always on)
-        personalAccident: false,   // Tai nạn cá nhân - Optional
-        theft: false               // Mất cắp - Optional
+        vehicleDamage: true,
+        thirdParty: true,
+        personalAccident: false,
+        theft: false
     });
 
-    // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
+    const displayCar = useMemo(() => buildDisplayCar(category), [category]);
 
-    // Insurance fees per day (VND)
-    const INSURANCE_FEES = {
-        vehicleDamage: 50000,      // 50k/day
-        thirdParty: 25000,         // 25k/day (required)
-        personalAccident: 30000,   // 30k/day
-        theft: 40000               // 40k/day
-    };
-    const SERVICE_FEE = 45000;
+    const selectedVehicle = useMemo(
+        () => vehiclesInCategory.find((vehicle) => vehicle.id === selectedVehicleId) || null,
+        [vehiclesInCategory, selectedVehicleId]
+    );
 
-    // Calculate rental days
+    const bookingCar = useMemo(() => {
+        if (!displayCar || !selectedVehicle) return null;
+        return {
+            ...displayCar,
+            id: selectedVehicle.id,
+            licensePlate: selectedVehicle.licensePlate,
+            status: selectedVehicle.status
+        };
+    }, [displayCar, selectedVehicle]);
+
     const calculateRentalDays = () => {
         if (!pickupDate || !dropoffDate) return 1;
         const start = new Date(pickupDate);
@@ -65,11 +139,10 @@ const CarDetailPage = () => {
     };
 
     const rentalDays = calculateRentalDays();
-    const rentalFee = car ? car.price * rentalDays : 0;
+    const rentalFee = bookingCar ? bookingCar.price * rentalDays : 0;
 
-    // Calculate total insurance fee
     const calculateInsuranceFee = () => {
-        let total = INSURANCE_FEES.thirdParty * rentalDays; // Always include TNDS
+        let total = INSURANCE_FEES.thirdParty * rentalDays;
         if (insuranceOptions.vehicleDamage) total += INSURANCE_FEES.vehicleDamage * rentalDays;
         if (insuranceOptions.personalAccident) total += INSURANCE_FEES.personalAccident * rentalDays;
         if (insuranceOptions.theft) total += INSURANCE_FEES.theft * rentalDays;
@@ -80,23 +153,74 @@ const CarDetailPage = () => {
     const serviceFee = SERVICE_FEE;
     const totalPrice = rentalFee + insuranceFee + serviceFee;
 
-    // Validate dates
+    const isDateUnavailable = (date) => {
+        if (!date) return false;
+        return unavailableRanges.some((range) => date >= range.startDate && date <= range.endDate);
+    };
+
+    const isOverlappingUnavailableRange = (startDate, endDate) => {
+        if (!startDate || !endDate) return false;
+        return unavailableRanges.some(
+            (range) => startDate <= range.endDate && endDate >= range.startDate
+        );
+    };
+
     const validateDates = () => {
-        if (!pickupDate || !dropoffDate) {
-            return 'Please select pickup and return dates';
-        }
-        if (pickupDate < today) {
-            return 'Pickup date cannot be in the past';
-        }
-        if (dropoffDate <= pickupDate) {
-            return 'Return date must be after pickup date';
+        if (!selectedVehicle) return 'Please select a vehicle license plate';
+        if (!pickupDate || !dropoffDate) return 'Please select pickup and return dates';
+        if (pickupDate < today) return 'Pickup date cannot be in the past';
+        if (dropoffDate <= pickupDate) return 'Return date must be after pickup date';
+        if (isOverlappingUnavailableRange(pickupDate, dropoffDate)) {
+            return 'Selected dates have already been booked for this vehicle';
         }
         return null;
     };
 
-    // Handle booking submission - now opens wizard instead of direct booking
+    const handlePickupDateChange = (value) => {
+        if (!value) {
+            setPickupDate('');
+            setBookingError('');
+            return;
+        }
+        if (value < today) {
+            setBookingError('Pickup date cannot be in the past');
+            return;
+        }
+        if (isDateUnavailable(value)) {
+            setBookingError('This pickup date is already booked for the selected vehicle');
+            return;
+        }
+
+        setPickupDate(value);
+        if (dropoffDate && (dropoffDate <= value || isOverlappingUnavailableRange(value, dropoffDate))) {
+            setDropoffDate('');
+        }
+        setBookingError('');
+    };
+
+    const handleDropoffDateChange = (value) => {
+        if (!value) {
+            setDropoffDate('');
+            setBookingError('');
+            return;
+        }
+        if (!pickupDate) {
+            setBookingError('Please select pickup date first');
+            return;
+        }
+        if (value <= pickupDate) {
+            setBookingError('Return date must be after pickup date');
+            return;
+        }
+        if (isDateUnavailable(value) || isOverlappingUnavailableRange(pickupDate, value)) {
+            setBookingError('Selected date range is already booked for this vehicle');
+            return;
+        }
+        setDropoffDate(value);
+        setBookingError('');
+    };
+
     const handleBookNow = async () => {
-        // Check if user is authenticated
         if (!isAuthenticated || !user) {
             navigate('/login', { state: { from: `/vehicles/${id}` } });
             return;
@@ -104,63 +228,137 @@ const CarDetailPage = () => {
 
         const validationError = validateDates();
         if (validationError) {
-            setError(validationError);
+            setBookingError(validationError);
             return;
         }
-
-        setError('');
-        // Open booking wizard instead of direct booking
+        setBookingError('');
         setShowWizard(true);
     };
 
-    // Handle booking completion from wizard
     const handleBookingComplete = (result) => {
         setShowWizard(false);
         navigate('/booking-success', {
             state: {
                 booking: result,
-                vehicle: car
+                vehicle: bookingCar
             }
         });
     };
 
     useEffect(() => {
-        const fetchCar = async () => {
+        let cancelled = false;
+
+        const fetchDetailData = async () => {
             setLoading(true);
+            setPageError('');
+            setShowWizard(false);
+            setBookingError('');
+
             try {
-                const data = await vehicleService.getById(id);
-                const mappedCar = {
-                    ...data,
-                    price: data.dailyRate,
-                    range: data.rangeKm,
-                    battery: data.batteryCapacityKwh ? `${data.batteryCapacityKwh} kWh` : "75 kWh",
-                    seats: data.seats || 5,
-                    transmission: "Automatic",
-                    charging: "Type 2 / CCS2",
-                    images: [data.imageUrl || "https://images.unsplash.com/photo-1593941707882-a5bba14938c7"],
-                    rating: 5.0,
-                    reviews: 0,
-                    year: 2024,
-                    overtimeFeePerHour: data.overtimeFeePerHour
-                };
-                setCar(mappedCar);
-            } catch (err) {
-                console.error("Failed to load car details:", err);
-                setCar(null);
+                let resolvedCategory = null;
+                let resolvedVehicles = [];
+                let preferredVehicleId = null;
+
+                try {
+                    const [categoryRaw, categoryVehicles] = await Promise.all([
+                        vehicleCategoryService.getById(id),
+                        vehicleService.getByCategory(id)
+                    ]);
+                    resolvedCategory = vehicleCategoryService.normalizeCategory(categoryRaw);
+                    resolvedVehicles = categoryVehicles;
+                } catch (categoryError) {
+                    const vehicle = await vehicleService.getById(id);
+                    if (!vehicle?.categoryId) {
+                        throw categoryError;
+                    }
+                    preferredVehicleId = vehicle.id;
+                    const [categoryRaw, categoryVehicles] = await Promise.all([
+                        vehicleCategoryService.getById(vehicle.categoryId),
+                        vehicleService.getByCategory(vehicle.categoryId)
+                    ]);
+                    resolvedCategory = vehicleCategoryService.normalizeCategory(categoryRaw);
+                    resolvedVehicles = categoryVehicles;
+                }
+
+                const normalizedVehicles = Array.isArray(resolvedVehicles)
+                    ? resolvedVehicles
+                    : vehicleService.normalizeVehicleList(resolvedVehicles);
+                const initialVehicleId = getInitialVehicleId(normalizedVehicles, preferredVehicleId);
+
+                if (cancelled) return;
+                setCategory(resolvedCategory);
+                setVehiclesInCategory(normalizedVehicles);
+                setSelectedVehicleId(initialVehicleId);
+                setUnavailableRanges([]);
+                setPickupDate('');
+                setDropoffDate('');
+                setActiveImage(0);
+            } catch (error) {
+                console.error('Failed to load detail page:', error);
+                if (cancelled) return;
+                setCategory(null);
+                setVehiclesInCategory([]);
+                setSelectedVehicleId(null);
+                setUnavailableRanges([]);
+                setPageError('Vehicle type not found');
             } finally {
+                if (cancelled) return;
                 setLoading(false);
             }
         };
 
-        if (id) fetchCar();
+        if (id) {
+            fetchDetailData();
+        }
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
 
-    // Auto-refresh user data (license status) when page loads
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchUnavailableDates = async () => {
+            if (!selectedVehicleId) {
+                setUnavailableRanges([]);
+                return;
+            }
+            setLoadingUnavailable(true);
+            try {
+                const ranges = await vehicleService.getUnavailableDates(selectedVehicleId);
+                if (cancelled) return;
+                setUnavailableRanges(ranges);
+            } catch (error) {
+                console.error('Failed to load unavailable dates:', error);
+                if (cancelled) return;
+                setUnavailableRanges([]);
+            } finally {
+                if (cancelled) return;
+                setLoadingUnavailable(false);
+            }
+        };
+
+        fetchUnavailableDates();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedVehicleId]);
+
     useEffect(() => {
         if (isAuthenticated) {
-            refreshUser();
+            void refreshUser();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, refreshUser]);
+
+    const handleVehicleSelect = (value) => {
+        const nextVehicleId = Number(value);
+        setSelectedVehicleId(Number.isFinite(nextVehicleId) ? nextVehicleId : null);
+        setPickupDate('');
+        setDropoffDate('');
+        setBookingError('');
+    };
 
     if (loading) {
         return (
@@ -170,55 +368,55 @@ const CarDetailPage = () => {
         );
     }
 
-    if (!car) return <div className="text-center py-20">Vehicle not found</div>;
+    if (!displayCar) {
+        return (
+            <div className="text-center py-20">
+                <p className="text-lg text-gray-700">{pageError || 'Vehicle type not found'}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
-            {/* Breadcrumb */}
             <div className="mb-6 flex items-center gap-2 text-sm text-gray-500">
                 <Link to="/" className="hover:text-[#5fcf86]">Home</Link>
                 <ChevronRight size={14} />
                 <Link to="/vehicles" className="hover:text-[#5fcf86]">Fleet</Link>
                 <ChevronRight size={14} />
-                <span className="font-medium text-gray-900">{car.name}</span>
+                <span className="font-medium text-gray-900">{displayCar.name}</span>
             </div>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12">
-                {/* Left Column: Main Detail */}
                 <div className="lg:col-span-2 space-y-8">
-
-                    {/* Image Gallery */}
                     <div className="space-y-4">
                         <div className="relative aspect-video overflow-hidden rounded-2xl bg-gray-100 shadow-sm">
                             <img
-                                src={car.images[activeImage] || car.images[0]}
-                                alt={car.name}
+                                src={displayCar.images[activeImage] || displayCar.images[0]}
+                                alt={displayCar.name}
                                 className="h-full w-full object-cover transition-all duration-300"
                             />
-                            {/* Electric Badge */}
                             <div className="absolute top-4 left-4 bg-[#5fcf86] text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
                                 <Zap size={14} />
                                 Electric
                             </div>
                         </div>
                         <div className="flex gap-4 overflow-x-auto pb-2">
-                            {car.images.map((img, idx) => (
+                            {displayCar.images.map((image, index) => (
                                 <button
-                                    key={idx}
-                                    onClick={() => setActiveImage(idx)}
-                                    className={`relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === idx ? 'border-[#5fcf86] opacity-100' : 'border-transparent opacity-60 hover:opacity-100'
+                                    key={index}
+                                    onClick={() => setActiveImage(index)}
+                                    className={`relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === index ? 'border-[#5fcf86] opacity-100' : 'border-transparent opacity-60 hover:opacity-100'
                                         }`}
                                 >
-                                    <img src={img} alt="Thumb" className="h-full w-full object-cover" />
+                                    <img src={image} alt="Thumb" className="h-full w-full object-cover" />
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Car Header Info */}
                     <div>
                         <div className="mb-2 flex items-center justify-between">
-                            <h1 className="text-3xl font-bold text-[#141414]">{car.name}</h1>
+                            <h1 className="text-3xl font-bold text-[#141414]">{displayCar.name}</h1>
                             <div className="flex items-center gap-3">
                                 <button className="rounded-full bg-gray-50 p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
                                     <Heart size={20} />
@@ -231,12 +429,12 @@ const CarDetailPage = () => {
                         <div className="flex flex-wrap items-center gap-6 text-sm text-gray-500">
                             <div className="flex items-center gap-1 text-yellow-500">
                                 <Star size={16} fill="currentColor" />
-                                <span className="font-bold text-gray-900">{car.rating}</span>
-                                <span className="text-gray-400">({car.reviews} reviews)</span>
+                                <span className="font-bold text-gray-900">{displayCar.rating}</span>
+                                <span className="text-gray-400">({displayCar.reviews} reviews)</span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <Gauge size={16} className="text-[#5fcf86]" />
-                                <span className="font-medium text-gray-900">{car.range}km</span> range
+                                <span className="font-medium text-gray-900">{displayCar.range}km</span> range
                             </div>
                             <div className="flex items-center gap-1">
                                 <MapPin size={16} className="text-blue-500" />
@@ -247,44 +445,43 @@ const CarDetailPage = () => {
 
                     <hr className="border-gray-100" />
 
-                    {/* Specs Grid */}
                     <div>
                         <h3 className="mb-4 text-lg font-bold text-[#141414]">Technical Specs</h3>
                         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                             <div className="rounded-xl bg-gray-50 p-4">
                                 <Armchair className="mb-2 text-gray-400" size={24} />
                                 <p className="text-xs text-gray-500">Seats</p>
-                                <p className="font-semibold text-[#141414]">{car.seats} seats</p>
+                                <p className="font-semibold text-[#141414]">{displayCar.seats} seats</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-4">
                                 <Truck className="mb-2 text-gray-400" size={24} />
                                 <p className="text-xs text-gray-500">Transmission</p>
-                                <p className="font-semibold text-[#141414]">{car.transmission}</p>
+                                <p className="font-semibold text-[#141414]">{displayCar.transmission}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-4">
                                 <Zap className="mb-2 text-[#5fcf86]" size={24} />
                                 <p className="text-xs text-gray-500">Battery</p>
-                                <p className="font-semibold text-[#141414]">{car.battery}</p>
+                                <p className="font-semibold text-[#141414]">{displayCar.battery}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-4">
                                 <Fuel className="mb-2 text-blue-500" size={24} />
                                 <p className="text-xs text-gray-500">Charging</p>
-                                <p className="font-semibold text-[#141414] truncate" title={car.charging}>{car.charging}</p>
+                                <p className="font-semibold text-[#141414] truncate" title={displayCar.charging}>
+                                    {displayCar.charging}
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Description */}
                     <div>
                         <h3 className="mb-4 text-lg font-bold text-[#141414]">Description</h3>
                         <p className="leading-relaxed text-gray-600">
-                            {car.description || `Experience the future of driving with ${car.name}. Premium electric vehicle with superior range, advanced technology, and eco-friendly performance.`}
+                            {displayCar.description || `Experience premium electric driving with ${displayCar.name}.`}
                         </p>
                     </div>
 
                     <hr className="border-gray-100" />
 
-                    {/* ============ COMPANY GUARANTEE SECTION ============ */}
                     <div className="bg-gradient-to-br from-[#5fcf86]/10 to-[#5fcf86]/5 rounded-2xl p-6 border border-[#5fcf86]/20">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-12 h-12 bg-[#5fcf86] rounded-xl flex items-center justify-center">
@@ -300,7 +497,7 @@ const CarDetailPage = () => {
                                 <Sparkles className="text-[#5fcf86] mt-0.5" size={20} />
                                 <div>
                                     <p className="font-semibold text-[#141414] text-sm">New Vehicles</p>
-                                    <p className="text-xs text-gray-500">2023-2024 models, regularly maintained</p>
+                                    <p className="text-xs text-gray-500">Regularly maintained</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 bg-white rounded-xl p-4">
@@ -321,37 +518,33 @@ const CarDetailPage = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Booking Widget */}
                 <div className="lg:col-span-1">
                     <div className="sticky top-24 rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
                         <div className="mb-6">
                             <span className="text-sm text-gray-500">Daily Rate</span>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-[#5fcf86]">{formatPrice(car.price)}</span>
+                                <span className="text-3xl font-bold text-[#5fcf86]">{formatPrice(displayCar.price)}</span>
                                 <span className="text-sm text-gray-400">/ day</span>
                             </div>
-                            {/* Overtime Fee Info */}
-                            {car.overtimeFeePerHour && (
+                            {displayCar.overtimeFeePerHour > 0 && (
                                 <div className="mt-3 flex items-center gap-2 text-orange-700 bg-orange-50 border border-orange-200 px-4 py-3 rounded-xl">
                                     <AlertCircle size={20} className="shrink-0" />
                                     <div>
                                         <span className="font-medium">Late Return Fee:</span>
-                                        <span className="ml-1 text-lg font-bold">{formatPrice(car.overtimeFeePerHour)}</span>
+                                        <span className="ml-1 text-lg font-bold">{formatPrice(displayCar.overtimeFeePerHour)}</span>
                                         <span className="text-sm">/hour</span>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* Error Message */}
-                        {error && (
+                        {bookingError && (
                             <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-600">
                                 <AlertCircle size={16} />
-                                {error}
+                                {bookingError}
                             </div>
                         )}
 
-                        {/* Customer Info & License Status */}
                         <div className="mb-4 rounded-lg bg-blue-50 p-3">
                             {isAuthenticated && user ? (
                                 <>
@@ -359,7 +552,6 @@ const CarDetailPage = () => {
                                     <p className="font-medium text-gray-900">{user.fullName}</p>
                                     <p className="text-sm text-gray-500">{user.email}</p>
 
-                                    {/* License Status Badge */}
                                     <div className="mt-2 pt-2 border-t border-blue-100">
                                         <p className="text-xs text-gray-500 mb-1">Driver's License:</p>
                                         {user.licenseStatus === 'APPROVED' ? (
@@ -387,7 +579,6 @@ const CarDetailPage = () => {
                             )}
                         </div>
 
-                        {/* License Required Warning */}
                         {isAuthenticated && user && user.licenseStatus !== 'APPROVED' && (
                             <div className="mb-4 rounded-lg bg-orange-50 border border-orange-200 p-4">
                                 <div className="flex items-start gap-3">
@@ -397,14 +588,14 @@ const CarDetailPage = () => {
                                         <p className="text-xs text-orange-600 mt-1">
                                             {user.licenseStatus === 'PENDING'
                                                 ? 'Your license is being reviewed. Please wait for approval before booking.'
-                                                : 'Please upload your driver\'s license to book a vehicle.'}
+                                                : 'Please upload your driver license to book a vehicle.'}
                                         </p>
                                         {user.licenseStatus !== 'PENDING' && (
                                             <Link
                                                 to="/profile"
                                                 className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-orange-700 hover:text-orange-800 underline"
                                             >
-                                                Upload License →
+                                                Upload License
                                             </Link>
                                         )}
                                     </div>
@@ -412,7 +603,49 @@ const CarDetailPage = () => {
                             </div>
                         )}
 
-                        {/* Date Picker */}
+                        <div className="mb-5 p-4 border border-gray-200 rounded-xl bg-gray-50">
+                            <label className="text-xs font-bold uppercase text-gray-500 block mb-2">
+                                Select Vehicle License Plate
+                            </label>
+                            <select
+                                value={selectedVehicleId || ''}
+                                onChange={(e) => handleVehicleSelect(e.target.value)}
+                                className="w-full border border-gray-200 bg-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-[#5fcf86]"
+                            >
+                                {vehiclesInCategory.map((vehicle) => (
+                                    <option key={vehicle.id} value={vehicle.id}>
+                                        {vehicle.licensePlate} ({vehicle.status})
+                                    </option>
+                                ))}
+                            </select>
+
+                            {selectedVehicle && (
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Selected: <span className="font-semibold text-gray-800">{selectedVehicle.licensePlate}</span>
+                                </p>
+                            )}
+
+                            <div className="mt-3 border-t border-gray-200 pt-3">
+                                <p className="text-xs font-semibold text-gray-600 mb-2">Booked date ranges for this plate</p>
+                                {loadingUnavailable ? (
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <Loader2 size={12} className="animate-spin" />
+                                        Loading unavailable dates...
+                                    </div>
+                                ) : unavailableRanges.length === 0 ? (
+                                    <p className="text-xs text-green-600">No booked dates yet</p>
+                                ) : (
+                                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                                        {unavailableRanges.map((range, index) => (
+                                            <div key={`${range.startDate}-${range.endDate}-${index}`} className="text-xs text-red-600">
+                                                {formatIsoDate(range.startDate)} - {formatIsoDate(range.endDate)} ({range.status})
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="mb-6 space-y-3">
                             <div className="space-y-1">
                                 <label className="text-xs font-bold uppercase text-gray-500">Pick-up Date</label>
@@ -421,12 +654,10 @@ const CarDetailPage = () => {
                                     <input
                                         type="date"
                                         value={pickupDate}
-                                        onChange={(e) => {
-                                            setPickupDate(e.target.value);
-                                            setError('');
-                                        }}
+                                        onChange={(e) => handlePickupDateChange(e.target.value)}
                                         min={today}
-                                        className="w-full bg-transparent text-sm outline-none"
+                                        disabled={!selectedVehicle || loadingUnavailable}
+                                        className="w-full bg-transparent text-sm outline-none disabled:cursor-not-allowed"
                                     />
                                 </div>
                             </div>
@@ -437,48 +668,41 @@ const CarDetailPage = () => {
                                     <input
                                         type="date"
                                         value={dropoffDate}
-                                        onChange={(e) => {
-                                            setDropoffDate(e.target.value);
-                                            setError('');
-                                        }}
+                                        onChange={(e) => handleDropoffDateChange(e.target.value)}
                                         min={pickupDate || today}
-                                        className="w-full bg-transparent text-sm outline-none"
+                                        disabled={!selectedVehicle || !pickupDate || loadingUnavailable}
+                                        className="w-full bg-transparent text-sm outline-none disabled:cursor-not-allowed"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Summary */}
                         <div className="mb-6 space-y-3 border-t border-gray-100 pt-4 text-sm">
-                            {/* Rental Fee */}
                             <div className="flex justify-between items-center">
                                 <div>
                                     <span className="text-gray-800 font-medium">Rental Fee</span>
-                                    <p className="text-xs text-gray-400">{formatPrice(car?.price || 0)} × {rentalDays} days</p>
+                                    <p className="text-xs text-gray-400">{formatPrice(displayCar.price)} x {rentalDays} days</p>
                                 </div>
                                 <span className="font-semibold text-gray-900">{formatPrice(rentalFee)}</span>
                             </div>
 
-                            {/* Insurance Section */}
                             <div className="border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50/50">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-gray-800 font-medium text-xs uppercase tracking-wide">Insurance</span>
                                     <span className="text-xs text-gray-500">{formatPrice(insuranceFee)}</span>
                                 </div>
 
-                                {/* Third Party Liability - Required */}
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-gray-700 text-xs font-medium">Third Party Liability</span>
                                             <span className="text-[9px] text-white bg-red-500 px-1 py-0.5 rounded">Required</span>
                                         </div>
-                                        <p className="text-[10px] text-gray-400">Compensation for third party damages</p>
+                                        <p className="text-[10px] text-gray-400">Compensation for third-party damages</p>
                                     </div>
                                     <span className="text-xs text-gray-600">{formatPrice(INSURANCE_FEES.thirdParty * rentalDays)}</span>
                                 </div>
 
-                                {/* Vehicle Damage */}
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
                                         <span className="text-gray-700 text-xs font-medium">Vehicle Body</span>
@@ -500,11 +724,10 @@ const CarDetailPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Personal Accident */}
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
                                         <span className="text-gray-700 text-xs font-medium">Personal Accident</span>
-                                        <p className="text-[10px] text-gray-400">Medical expenses for driver & passengers</p>
+                                        <p className="text-[10px] text-gray-400">Medical expenses for driver and passengers</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className={`text-xs ${insuranceOptions.personalAccident ? 'text-gray-600' : 'text-gray-300'}`}>
@@ -522,7 +745,6 @@ const CarDetailPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Theft */}
                                 <div className="flex justify-between items-center py-1.5">
                                     <div className="flex-1">
                                         <span className="text-gray-700 text-xs font-medium">Vehicle Theft</span>
@@ -545,7 +767,6 @@ const CarDetailPage = () => {
                                 </div>
                             </div>
 
-                            {/* Service Fee */}
                             <div className="flex justify-between items-center">
                                 <div>
                                     <span className="text-gray-800 font-medium">Service Fee</span>
@@ -554,28 +775,20 @@ const CarDetailPage = () => {
                                 <span className="font-semibold text-gray-900">{formatPrice(serviceFee)}</span>
                             </div>
 
-                            {/* Divider */}
                             <div className="border-t border-gray-200"></div>
 
-                            {/* Total */}
                             <div className="flex justify-between items-center pt-1">
                                 <span className="text-gray-900 font-bold text-base">Total</span>
                                 <span className="text-[#5fcf86] font-bold text-xl">{formatPrice(totalPrice)}</span>
                             </div>
                         </div>
 
-                        {/* Book Now Button */}
                         <button
                             onClick={handleBookNow}
-                            disabled={bookingLoading || (isAuthenticated && user?.licenseStatus !== 'APPROVED')}
+                            disabled={!selectedVehicle || (isAuthenticated && user?.licenseStatus !== 'APPROVED')}
                             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#5fcf86] py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-[#4bc076] hover:shadow-[#5fcf86]/30 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {bookingLoading ? (
-                                <>
-                                    <Loader2 size={20} className="animate-spin" />
-                                    Processing...
-                                </>
-                            ) : !isAuthenticated ? (
+                            {!isAuthenticated ? (
                                 <>
                                     <CheckCircle2 size={20} />
                                     Login to Book
@@ -601,11 +814,10 @@ const CarDetailPage = () => {
                 </div>
             </div>
 
-            {/* Booking Wizard Modal */}
             <BookingWizardModal
                 isOpen={showWizard}
                 onClose={() => setShowWizard(false)}
-                car={car}
+                car={bookingCar}
                 pickupDate={pickupDate}
                 dropoffDate={dropoffDate}
                 user={user}

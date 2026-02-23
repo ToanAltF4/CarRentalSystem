@@ -31,10 +31,10 @@ public class RefreshTokenEntity {
     private Long id;
 
     /**
-     * OneToOne relationship with User - ensures 1 user = 1 session.
-     * The unique=true constraint prevents multiple tokens per user at DB level.
+     * Mapped as ManyToOne + unique user_id to preserve "1 user = 1 refresh token"
+     * while keeping association truly lazy.
      */
-    @OneToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true, nullable = false)
     private UserEntity user;
 

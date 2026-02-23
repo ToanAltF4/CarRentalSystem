@@ -7,6 +7,17 @@ import api from './api';
  */
 const dashboardService = {
     /**
+     * Get dashboard overview in one request
+     * @param {number} year - Year to get revenue for
+     * @returns {Promise<{stats: DashboardStatsDTO, monthlyRevenue: MonthlyRevenueDTO[]}>}
+     */
+    getOverview: async (year) => {
+        const params = year ? { year } : {};
+        const response = await api.get('/v1/admin/overview', { params });
+        return response.data;
+    },
+
+    /**
      * Get dashboard statistics
      * @returns {Promise<DashboardStatsDTO>}
      */

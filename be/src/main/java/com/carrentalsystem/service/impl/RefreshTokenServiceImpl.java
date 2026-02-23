@@ -69,11 +69,11 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
         // Check if expired
         if (refreshToken.getExpiryDate() != null && refreshToken.getExpiryDate().isBefore(Instant.now())) {
-            log.warn("Refresh token has expired for user: {}", refreshToken.getUser().getEmail());
+            log.warn("Refresh token has expired");
             throw new IllegalArgumentException("Refresh token has expired");
         }
 
-        log.debug("Refresh token is valid for user: {}", refreshToken.getUser().getEmail());
+        log.debug("Refresh token is valid");
         return refreshToken;
     }
 
@@ -82,8 +82,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public void revokeByUser(UserEntity user) {
         log.info("Revoking refresh token for user: {}", user.getEmail());
 
-        if (refreshTokenRepository.findByUserId(user.getId()).isPresent()) {
-            refreshTokenRepository.deleteByUserId(user.getId());
+        long deleted = refreshTokenRepository.deleteByUserId(user.getId());
+        if (deleted > 0) {
             log.info("Successfully revoked refresh token for user: {}", user.getEmail());
         } else {
             log.warn("No refresh token found for user: {}", user.getEmail());

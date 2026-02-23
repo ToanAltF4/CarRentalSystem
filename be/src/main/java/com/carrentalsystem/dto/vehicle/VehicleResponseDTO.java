@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 
 /**
  * Response DTO for Vehicle data returned to clients.
+ * Includes denormalized category info and active pricing.
  */
 @Data
 @Builder
@@ -17,23 +18,35 @@ import java.time.LocalDateTime;
 public class VehicleResponseDTO {
 
     private Long id;
-    private String name;
-    private String model;
-    private String brand;
     private String licensePlate;
+    private VehicleStatus status;
+    private String vin;
+    private Integer odometer;
+    private Integer currentBatteryPercent;
+
+    // Category info (denormalized)
+    private Long categoryId;
+    private String categoryBrand;
+    private String categoryName;
+    private String categoryModel;
+    private Integer seats;
     private BigDecimal batteryCapacityKwh;
     private Integer rangeKm;
     private BigDecimal chargingTimeHours;
-    private BigDecimal dailyRate;
-    private VehicleStatus status;
-    private String imageUrl;
-
-    // New fields for complete data
-    private Integer seats;
     private String description;
-    private Long categoryId; // Category ID for pricing lookup
-    private String categoryName; // Category name for display
-    private BigDecimal overtimeFeePerHour; // Overtime fee per hour from pricing
+    private String imageUrl; // Primary image from category
+
+    // Pricing info (from active pricing of category)
+    private BigDecimal dailyPrice;
+    private BigDecimal weeklyPrice;
+    private BigDecimal monthlyPrice;
+    private BigDecimal overtimeFeePerHour;
+
+    // Legacy compatibility fields
+    private String name; // = categoryName
+    private String model; // = categoryModel
+    private String brand; // = categoryBrand
+    private BigDecimal dailyRate; // = dailyPrice
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;

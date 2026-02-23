@@ -3,6 +3,8 @@ package com.carrentalsystem.repository;
 import com.carrentalsystem.entity.RefreshTokenEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +26,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
      * Find refresh token by user ID - CRITICAL for single-session enforcement.
      * Used to check if user already has an existing token (upsert logic).
      */
-    Optional<RefreshTokenEntity> findByUserId(Long userId);
+    @Query(value = "SELECT * FROM refresh_tokens WHERE user_id = :userId", nativeQuery = true)
+    Optional<RefreshTokenEntity> findByUserId(@Param("userId") Long userId);
 
     /**
      * Delete refresh token by user ID - used for session cleanup.
@@ -32,5 +35,5 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
      */
     @Modifying
     @Transactional
-    void deleteByUserId(Long userId);
+    long deleteByUserId(Long userId);
 }

@@ -1,116 +1,142 @@
 import api from './api';
 
-const normalizeVehicle = (vehicle) => {
-    if (!vehicle) return vehicle;
-
-    const imageUrl =
-        vehicle.imageUrl ||
-        vehicle.image_url ||
-        vehicle.image ||
-        vehicle.vehicleImage ||
-        vehicle.vehicleImageUrl ||
-        vehicle.vehicle_image ||
-        null;
-
-    return {
-        ...vehicle,
-        id: vehicle.id ?? vehicle.vehicleId ?? vehicle.vehicle_id,
-        name: vehicle.name || vehicle.vehicleName || vehicle.vehicle_name,
-        model: vehicle.model || vehicle.vehicleModel || vehicle.vehicle_model,
-        brand: vehicle.brand || vehicle.vehicleBrand || vehicle.vehicle_brand,
-        licensePlate: vehicle.licensePlate || vehicle.vehicleLicensePlate || vehicle.license_plate,
-        batteryCapacityKwh: vehicle.batteryCapacityKwh ?? vehicle.battery_capacity_kwh,
-        rangeKm: vehicle.rangeKm ?? vehicle.range_km,
-        chargingTimeHours: vehicle.chargingTimeHours ?? vehicle.charging_time_hours,
-        dailyRate: vehicle.dailyRate ?? vehicle.daily_rate ?? vehicle.price_per_day ?? vehicle.price,
-        status: vehicle.status || vehicle.vehicle_status,
-        imageUrl,
-        seats: vehicle.seats ?? vehicle.seat_count,
-        description: vehicle.description || vehicle.desc,
-        categoryName: vehicle.categoryName || vehicle.category_name,
-        overtimeFeePerHour: vehicle.overtimeFeePerHour ?? vehicle.overtime_fee_per_hour,
-        createdAt: vehicle.createdAt || vehicle.created_at,
-        updatedAt: vehicle.updatedAt || vehicle.updated_at
-    };
-};
-
-const normalizeVehicleList = (vehicles) => {
-    if (!Array.isArray(vehicles)) return [];
-    return vehicles.map(normalizeVehicle);
-};
-
 const vehicleService = {
-    getAll: async () => {
-        const response = await api.get('/v1/vehicles');
-        return normalizeVehicleList(response.data);
+    normalizeVehicle: (v) => {
+        if (!v) return null;
+        return {
+            id: v.id,
+            licensePlate: v.licensePlate || '',
+            status: v.status || 'AVAILABLE',
+            vin: v.vin || '',
+            odometer: v.odometer || 0,
+            currentBatteryPercent: v.currentBatteryPercent || 0,
+            // Category info (denormalized from backend)
+            categoryId: v.categoryId || v.vehicleCategoryId || null,
+            categoryBrand: v.categoryBrand || v.brand || '',
+            categoryName: v.categoryName || v.name || '',
+            categoryModel: v.categoryModel || v.model || '',
+            seats: v.seats || 0,
+            batteryCapacityKwh: v.batteryCapacityKwh || 0,
+            rangeKm: v.rangeKm || 0,
+            chargingTimeHours: v.chargingTimeHours || 0,
+            description: v.description || '',
+            imageUrl: v.imageUrl || '',
+            // Pricing
+            dailyPrice: v.dailyPrice || v.dailyRate || 0,
+            weeklyPrice: v.weeklyPrice || 0,
+            monthlyPrice: v.monthlyPrice || 0,
+            overtimeFeePerHour: v.overtimeFeePerHour || 0,
+            // Legacy
+            name: v.categoryName || v.name || '',
+            brand: v.categoryBrand || v.brand || '',
+            model: v.categoryModel || v.model || '',
+            dailyRate: v.dailyPrice || v.dailyRate || 0,
+            // Timestamps
+            createdAt: v.createdAt || '',
+            updatedAt: v.updatedAt || '',
+        };
     },
 
-    getModels: async () => {
-        const response = await api.get('/v1/vehicles/models');
-        // Models come as DTOs, we might need to normalize them or they are already good.
-        // The DTO structure is similar to VehicleEntity but slightly different.
-        // Let's assume response.data is good or apply minimal normalization if needed.
-        return response.data;
+    normalizeVehicleList: (list) => {
+        if (!Array.isArray(list)) return [];
+        return list.map(vehicleService.normalizeVehicle).filter(Boolean);
+    },
+
+    normalizeUnavailableDateRange: (range) => {
+        if (!range) return null;
+        return {
+            startDate: range.startDate || '',
+            endDate: range.endDate || '',
+            status: range.status || '',
+        };
+    },
+
+    normalizeUnavailableDateRangeList: (list) => {
+        if (!Array.isArray(list)) return [];
+        return list
+            .map(vehicleService.normalizeUnavailableDateRange)
+            .filter(Boolean);
+    },
+
+    getAll: async () => {
+        const res = await api.get('/v1/vehicles');
+        return vehicleService.normalizeVehicleList(res.data);
     },
 
     getById: async (id) => {
-        const response = await api.get(`/v1/vehicles/${id}`);
-        return normalizeVehicle(response.data);
+        const res = await api.get(`/v1/vehicles/${id}`);
+        return vehicleService.normalizeVehicle(res.data);
     },
 
     search: async (keyword) => {
-        const response = await api.get('/v1/vehicles/search', { params: { keyword } });
-        return normalizeVehicleList(response.data);
+        const res = await api.get('/v1/vehicles/search', { params: { keyword } });
+        return vehicleService.normalizeVehicleList(res.data);
     },
 
     getAvailable: async (startDate, endDate) => {
-        const response = await api.get('/v1/vehicles/available', {
-            params: { startDate, endDate }
-        });
-        return normalizeVehicleList(response.data);
+        const res = await api.get('/v1/vehicles/available', { params: { startDate, endDate } });
+        return vehicleService.normalizeVehicleList(res.data);
     },
 
-    getBrands: async () => {
-        const response = await api.get('/v1/vehicles/brands');
-        return response.data;
+    getByCategory: async (categoryId) => {
+        const res = await api.get(`/v1/vehicles/category/${categoryId}`);
+        return vehicleService.normalizeVehicleList(res.data);
     },
 
-    // Admin Methods
-    create: async (vehicleData) => {
-        const response = await api.post('/v1/vehicles', vehicleData);
-        return normalizeVehicle(response.data);
+    getUnavailableDates: async (vehicleId) => {
+        const res = await api.get(`/v1/vehicles/${vehicleId}/unavailable-dates`);
+        return vehicleService.normalizeUnavailableDateRangeList(res.data);
     },
 
-    update: async (id, vehicleData) => {
-        const response = await api.put(`/v1/vehicles/${id}`, vehicleData);
-        return normalizeVehicle(response.data);
+    create: async (data) => {
+        const payload = {
+            vehicleCategoryId: data.vehicleCategoryId,
+            licensePlate: data.licensePlate,
+            vin: data.vin || null,
+            odometer: data.odometer ? parseInt(data.odometer) : null,
+            currentBatteryPercent: data.currentBatteryPercent ? parseInt(data.currentBatteryPercent) : null,
+        };
+        const res = await api.post('/v1/vehicles', payload);
+        return vehicleService.normalizeVehicle(res.data);
+    },
+
+    update: async (id, data) => {
+        const payload = {
+            vehicleCategoryId: data.vehicleCategoryId,
+            licensePlate: data.licensePlate,
+            vin: data.vin || null,
+            odometer: data.odometer ? parseInt(data.odometer) : null,
+            currentBatteryPercent: data.currentBatteryPercent ? parseInt(data.currentBatteryPercent) : null,
+        };
+        const res = await api.put(`/v1/vehicles/${id}`, payload);
+        return vehicleService.normalizeVehicle(res.data);
     },
 
     updateStatus: async (id, status) => {
-        const response = await api.patch(`/v1/vehicles/${id}/status`, null, { params: { status } });
-        return normalizeVehicle(response.data);
+        const res = await api.patch(`/v1/vehicles/${id}/status`, null, { params: { status } });
+        return vehicleService.normalizeVehicle(res.data);
     },
 
     delete: async (id) => {
-        await api.delete(`/v1/vehicles/${id}`);
+        return api.delete(`/v1/vehicles/${id}`);
     },
 
-    // Helper to map backend DTO to Frontend CarCard format
-    mapToCarCard: (vehicle) => {
-        const normalized = normalizeVehicle(vehicle);
+    mapToCarCard: (v) => {
+        const normalized = vehicleService.normalizeVehicle(v);
+        if (!normalized) return null;
         return {
-            ...normalized,
-            id: normalized?.id,
-            name: normalized?.name,
-            brand: normalized?.brand || 'EV',
-            year: '2024',
-            image: normalized?.imageUrl || 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=1000',
-            price: normalized?.dailyRate,
-            rating: 5.0,
-            range: normalized?.rangeKm ?? 400,
-            isNew: true
+            id: normalized.id,
+            name: `${normalized.categoryBrand} ${normalized.categoryName}`,
+            model: normalized.categoryModel,
+            brand: normalized.categoryBrand,
+            dailyRate: normalized.dailyPrice,
+            imageUrl: normalized.imageUrl,
+            seats: normalized.seats,
+            range: normalized.rangeKm,
+            status: normalized.status,
+            licensePlate: normalized.licensePlate,
         };
-    }
+    },
 };
 
 export default vehicleService;

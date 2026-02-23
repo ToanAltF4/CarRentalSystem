@@ -31,6 +31,9 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminBookingList from './pages/admin/AdminBookingList';
 import AdminUserList from './pages/admin/AdminUserList';
 import AdminRoleList from './pages/admin/AdminRoleList';
+import AdminCategoryList from './pages/admin/AdminCategoryList';
+import AdminAddCategoryPage from './pages/admin/AdminAddCategoryPage';
+import AdminEditCategoryPage from './pages/admin/AdminEditCategoryPage';
 
 // Operator Pages
 import OperatorRoute from './components/routes/OperatorRoute';
@@ -164,6 +167,30 @@ function App() {
               element={
                 <PrivateRoute allowedRoles={['ADMIN']}>
                   <AdminRoleList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/categories"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminCategoryList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/categories/add"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminAddCategoryPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/categories/edit/:id"
+              element={
+                <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                  <AdminEditCategoryPage />
                 </PrivateRoute>
               }
             />

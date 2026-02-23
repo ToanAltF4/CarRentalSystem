@@ -33,7 +33,7 @@ public class UserEntity {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    @Transient
+    @Column(name = "phone", length = 20)
     private String phoneNumber;
 
     @Transient
@@ -68,11 +68,12 @@ public class UserEntity {
 
     /**
      * Driver-specific fields (for users with ROLE_DRIVER)
+     * These are transient - not persisted in the V19 schema
      */
-    @Column(name = "driver_status", length = 30)
+    @Transient
     private String driverStatus;
 
-    @Column(name = "driver_available")
+    @Transient
     @Builder.Default
     private Boolean driverAvailable = false;
 
@@ -80,12 +81,9 @@ public class UserEntity {
     @JoinColumn(name = "role_id")
     private RoleEntity role;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private RefreshTokenEntity refreshToken;
-
-    @Transient
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Transient
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

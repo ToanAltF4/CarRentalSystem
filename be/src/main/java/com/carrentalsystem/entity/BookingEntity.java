@@ -46,7 +46,7 @@ public class BookingEntity {
     @JoinColumn(name = "pickup_method_id")
     private PickupMethodEntity pickupMethod;
 
-    @Column(name = "driver_id")
+    @Column(name = "driver_user_id")
     private Long driverId;
 
     @Column(name = "customer_name", nullable = false, length = 100)

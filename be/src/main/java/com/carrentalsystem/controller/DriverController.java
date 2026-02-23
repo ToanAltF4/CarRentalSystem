@@ -43,7 +43,7 @@ public class DriverController {
                 UserEntity driver = userRepository.findByEmail(userDetails.getUsername())
                                 .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
 
-                List<BookingEntity> myTrips = bookingRepository.findByDriverId(driver.getId());
+                List<BookingEntity> myTrips = bookingRepository.findByDriverIdWithDetails(driver.getId());
 
                 Map<String, Object> stats = new HashMap<>();
                 stats.put("totalTrips", myTrips.size());
@@ -81,7 +81,7 @@ public class DriverController {
                 UserEntity driver = userRepository.findByEmail(userDetails.getUsername())
                                 .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
 
-                List<BookingEntity> trips = bookingRepository.findByDriverId(driver.getId());
+                List<BookingEntity> trips = bookingRepository.findByDriverIdWithDetails(driver.getId());
 
                 List<Map<String, Object>> tripDTOs = trips.stream()
                                 .map(this::toTripDTO)
@@ -100,7 +100,8 @@ public class DriverController {
                                 .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
 
                 BookingStatus bookingStatus = BookingStatus.valueOf(status.toUpperCase());
-                List<BookingEntity> trips = bookingRepository.findByDriverIdAndStatus(driver.getId(), bookingStatus);
+                List<BookingEntity> trips = bookingRepository.findByDriverIdAndStatusWithDetails(driver.getId(),
+                                bookingStatus);
 
                 List<Map<String, Object>> tripDTOs = trips.stream()
                                 .map(this::toTripDTO)
@@ -250,7 +251,8 @@ public class DriverController {
                 UserEntity driver = userRepository.findByEmail(userDetails.getUsername())
                                 .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
 
-                List<BookingEntity> completedTrips = bookingRepository.findByDriverIdAndStatus(driver.getId(),
+                List<BookingEntity> completedTrips = bookingRepository.findByDriverIdAndStatusWithDetails(
+                                driver.getId(),
                                 BookingStatus.COMPLETED);
 
                 BigDecimal totalEarnings = completedTrips.stream()
@@ -279,7 +281,10 @@ public class DriverController {
                 dto.put("customerName", booking.getCustomerName());
                 dto.put("customerPhone", booking.getCustomerPhone());
                 dto.put("customerEmail", booking.getCustomerEmail());
-                dto.put("vehicleName", booking.getVehicle() != null ? booking.getVehicle().getName() : null);
+                dto.put("vehicleName",
+                                booking.getVehicle() != null && booking.getVehicle().getVehicleCategory() != null
+                                                ? booking.getVehicle().getVehicleCategory().getName()
+                                                : null);
                 dto.put("vehiclePlate", booking.getVehicle() != null ? booking.getVehicle().getLicensePlate() : null);
                 dto.put("startDate", booking.getStartDate());
                 dto.put("endDate", booking.getEndDate());

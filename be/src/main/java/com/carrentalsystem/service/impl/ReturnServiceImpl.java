@@ -158,8 +158,8 @@ public class ReturnServiceImpl implements ReturnService {
     }
 
     private BigDecimal getOvertimeFeePerHour(VehicleEntity vehicle) {
-        if (vehicle.getCategory() != null) {
-            return pricingRepository.findCurrentPricingByCategory(vehicle.getCategory().getId())
+        if (vehicle.getVehicleCategory() != null) {
+            return pricingRepository.findCurrentPricingByCategory(vehicle.getVehicleCategory().getId())
                     .map(PricingEntity::getOvertimeFeePerHour)
                     .orElse(BigDecimal.valueOf(10.00));
         }
@@ -218,7 +218,7 @@ public class ReturnServiceImpl implements ReturnService {
                 .bookingCode(booking.getBookingCode())
                 // Vehicle info
                 .vehicleId(vehicle.getId())
-                .vehicleName(vehicle.getName())
+                .vehicleName(vehicle.getVehicleCategory() != null ? vehicle.getVehicleCategory().getName() : "Unknown")
                 .vehicleLicensePlate(vehicle.getLicensePlate())
                 // Customer info
                 .customerName(booking.getCustomerName())

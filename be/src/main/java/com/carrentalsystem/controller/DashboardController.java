@@ -1,5 +1,6 @@
 package com.carrentalsystem.controller;
 
+import com.carrentalsystem.dto.dashboard.DashboardOverviewDTO;
 import com.carrentalsystem.dto.dashboard.DashboardStatsDTO;
 import com.carrentalsystem.dto.dashboard.MonthlyRevenueDTO;
 import com.carrentalsystem.service.DashboardService;
@@ -38,5 +39,15 @@ public class DashboardController {
             year = LocalDate.now().getYear();
         }
         return ResponseEntity.ok(dashboardService.getMonthlyRevenue(year));
+    }
+
+    @GetMapping("/overview")
+    @Operation(summary = "Get dashboard overview", description = "Returns stats and monthly revenue in one request")
+    public ResponseEntity<DashboardOverviewDTO> getDashboardOverview(
+            @Parameter(description = "Year to get revenue for (defaults to current year)") @RequestParam(required = false) Integer year) {
+        if (year == null) {
+            year = LocalDate.now().getYear();
+        }
+        return ResponseEntity.ok(dashboardService.getDashboardOverview(year));
     }
 }

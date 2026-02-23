@@ -14,7 +14,8 @@ public class VehicleSpecification {
     }
 
     /**
-     * Search by keyword in name, model, or brand (case-insensitive)
+     * Search by keyword in license plate, VIN, or category brand/name
+     * (case-insensitive)
      */
     public static Specification<VehicleEntity> containsKeyword(String keyword) {
         return (root, query, criteriaBuilder) -> {
@@ -23,9 +24,10 @@ public class VehicleSpecification {
             }
             String pattern = "%" + keyword.toLowerCase() + "%";
             return criteriaBuilder.or(
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern),
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("model")), pattern),
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("brand")), pattern));
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("licensePlate")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("vin")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("vehicleCategory").get("brand")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("vehicleCategory").get("name")), pattern));
         };
     }
 
@@ -42,35 +44,14 @@ public class VehicleSpecification {
     }
 
     /**
-     * Filter by brand (case-insensitive)
+     * Filter by category ID
      */
-    public static Specification<VehicleEntity> hasBrand(String brand) {
+    public static Specification<VehicleEntity> hasCategoryId(Long categoryId) {
         return (root, query, criteriaBuilder) -> {
-            if (brand == null || brand.trim().isEmpty()) {
+            if (categoryId == null) {
                 return criteriaBuilder.conjunction();
             }
-            return criteriaBuilder.equal(criteriaBuilder.lower(root.get("brand")), brand.toLowerCase());
-        };
-    }
-
-    /**
-     * Filter by minimum range
-     */
-    public static Specification<VehicleEntity> hasMinRange(Integer minRange) {
-        return (root, query, criteriaBuilder) -> {
-            return criteriaBuilder.conjunction();
-        };
-    }
-
-    /**
-     * Filter by maximum daily rate
-     */
-    public static Specification<VehicleEntity> hasMaxDailyRate(java.math.BigDecimal maxRate) {
-        return (root, query, criteriaBuilder) -> {
-            if (maxRate == null) {
-                return criteriaBuilder.conjunction();
-            }
-            return criteriaBuilder.lessThanOrEqualTo(root.get("dailyRate"), maxRate);
+            return criteriaBuilder.equal(root.get("vehicleCategory").get("id"), categoryId);
         };
     }
 }

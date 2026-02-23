@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "pricing", indexes = {
-        @Index(name = "idx_pricing_category", columnList = "vehicle_category_id"),
-        @Index(name = "idx_pricing_active", columnList = "is_active, effective_from, effective_to")
+        @Index(name = "idx_pricing_vehicle_category", columnList = "vehicle_category_id"),
+        @Index(name = "idx_pricing_effective", columnList = "vehicle_category_id, effective_from, effective_to, is_active")
 })
 @Getter
 @Setter
@@ -38,23 +38,20 @@ public class PricingEntity {
     @Column(name = "monthly_price", precision = 10, scale = 2)
     private BigDecimal monthlyPrice;
 
+    @Column(name = "overtime_fee_per_hour", nullable = false, precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal overtimeFeePerHour = BigDecimal.valueOf(50000);
+
     @Column(name = "effective_from", nullable = false)
     private LocalDate effectiveFrom;
 
     @Column(name = "effective_to")
     private LocalDate effectiveTo;
 
-    @Column(name = "overtime_fee_per_hour", precision = 8, scale = 2)
-    @Builder.Default
-    private BigDecimal overtimeFeePerHour = BigDecimal.valueOf(10.00);
-
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
 
-    @Transient
+    @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @Transient
-    private LocalDateTime updatedAt;
 }

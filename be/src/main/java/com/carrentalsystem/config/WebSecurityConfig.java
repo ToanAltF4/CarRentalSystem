@@ -14,8 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
@@ -46,14 +46,21 @@ public class WebSecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 // 2. Enable CORS
-                .cors(cors -> {
-                })
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // Return 401 for unauthenticated requests (instead of default 403)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+                    response.sendError(401, "Unauthorized");
+                }))
 
                 // 3. Stateless session
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 4. Authorization rules
                 .authorizeHttpRequests(auth -> auth
+                        // CORS preflight requests
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         // ========== PUBLIC ENDPOINTS ==========
                         // Auth endpoints
                         .requestMatchers("/api/auth/**").permitAll()
@@ -73,6 +80,9 @@ public class WebSecurityConfig {
                         // Vehicles - View fleet is public
                         .requestMatchers(HttpMethod.GET, "/api/v1/vehicles/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/vehicles").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/vehicles/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vehicle-categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/vehicle-categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
 
                         // Booking options - Public for browsing rental types/pickup methods
@@ -152,10 +162,10 @@ public class WebSecurityConfig {
 
     // ====== CORS CONFIG ======
     @Bean
-    public CorsFilter corsFilter() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
@@ -163,7 +173,7 @@ public class WebSecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
 
-        return new CorsFilter(source);
+        return source;
     }
 
     // ====== AUTH MANAGER ======

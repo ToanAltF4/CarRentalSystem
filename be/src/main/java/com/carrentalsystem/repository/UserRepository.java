@@ -39,4 +39,14 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      * Count users by role names
      */
     long countByRole_RoleNameIn(List<String> roleNames);
+
+    /**
+     * Find users by role names.
+     */
+    List<UserEntity> findByRole_RoleNameIn(List<String> roleNames);
+
+    /**
+     * Find users by exact role name.
+     */
+    List<UserEntity> findByRole_RoleName(String roleName);
 }

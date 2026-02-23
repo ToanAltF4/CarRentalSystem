@@ -2,30 +2,30 @@ package com.carrentalsystem.service.impl;
 
 import com.carrentalsystem.dto.vehicle.VehicleRequestDTO;
 import com.carrentalsystem.dto.vehicle.VehicleResponseDTO;
-import com.carrentalsystem.entity.PricingEntity;
-import com.carrentalsystem.entity.VehicleCategoryEntity;
-import com.carrentalsystem.entity.VehicleEntity;
-import com.carrentalsystem.entity.VehicleStatus;
+import com.carrentalsystem.dto.vehicle.VehicleUnavailableDateRangeDTO;
+import com.carrentalsystem.entity.*;
 import com.carrentalsystem.exception.DuplicateResourceException;
 import com.carrentalsystem.exception.ResourceNotFoundException;
 import com.carrentalsystem.mapper.VehicleMapper;
+import com.carrentalsystem.repository.BookingRepository;
 import com.carrentalsystem.repository.PricingRepository;
 import com.carrentalsystem.repository.VehicleCategoryRepository;
 import com.carrentalsystem.repository.VehicleRepository;
 import com.carrentalsystem.service.VehicleService;
-import com.carrentalsystem.specification.VehicleSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * Implementation of VehicleService.
+ * Implementation of VehicleService for physical car management.
  */
 @Slf4j
 @Service
@@ -37,69 +37,72 @@ public class VehicleServiceImpl implements VehicleService {
     private final VehicleMapper vehicleMapper;
     private final VehicleCategoryRepository vehicleCategoryRepository;
     private final PricingRepository pricingRepository;
+    private final BookingRepository bookingRepository;
 
     @Override
     @Transactional
     public VehicleResponseDTO createVehicle(VehicleRequestDTO request) {
-        log.info("Creating new vehicle: {} - {}", request.getBrand(), request.getModel());
+        log.info("Creating new vehicle with plate: {}", request.getLicensePlate());
 
         // Check for duplicate license plate
         if (vehicleRepository.existsByLicensePlate(request.getLicensePlate())) {
             throw new DuplicateResourceException("Vehicle", "licensePlate", request.getLicensePlate());
         }
 
-        VehicleEntity entity = vehicleMapper.toEntity(request);
+        // Check for duplicate VIN
+        if (request.getVin() != null && !request.getVin().isBlank()
+                && vehicleRepository.existsByVin(request.getVin())) {
+            throw new DuplicateResourceException("Vehicle", "vin", request.getVin());
+        }
 
-        // Map Category
-        VehicleCategoryEntity category = vehicleCategoryRepository.findByName(request.getCategory())
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "name", request.getCategory()));
-        entity.setCategory(category);
+        // Find category
+        VehicleCategoryEntity category = vehicleCategoryRepository.findById(request.getVehicleCategoryId())
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("VehicleCategory", "id", request.getVehicleCategoryId()));
 
-        entity.setStatus(VehicleStatus.AVAILABLE);
+        VehicleEntity entity = VehicleEntity.builder()
+                .vehicleCategory(category)
+                .licensePlate(request.getLicensePlate())
+                .vin(request.getVin())
+                .odometer(request.getOdometer())
+                .currentBatteryPercent(request.getCurrentBatteryPercent())
+                .status(VehicleStatus.AVAILABLE)
+                .build();
 
         VehicleEntity saved = vehicleRepository.save(entity);
         log.info("Vehicle created with ID: {}", saved.getId());
 
-        return vehicleMapper.toResponseDTO(saved);
+        return enrichResponseDTO(saved);
     }
 
     @Override
     public VehicleResponseDTO getVehicleById(Long id) {
         log.debug("Fetching vehicle by ID: {}", id);
-
         VehicleEntity entity = findVehicleOrThrow(id);
-        return toResponseWithOvertimeFee(entity);
+        return enrichResponseDTO(entity);
     }
 
     @Override
     public List<VehicleResponseDTO> getAllVehicles() {
-        log.debug("Fetching all vehicles (Joined)");
-
-        // Use new method with JOIN FETCH
+        log.debug("Fetching all vehicles");
         List<VehicleEntity> vehicles = vehicleRepository.findAllWithCategory();
-        return toResponseListWithOvertimeFee(vehicles);
+        return enrichResponseDTOList(vehicles);
     }
 
     @Override
     public List<VehicleResponseDTO> searchVehicles(String keyword) {
         log.debug("Searching vehicles with keyword: {}", keyword);
-
         if (keyword == null || keyword.trim().isEmpty()) {
             return getAllVehicles();
         }
-
-        // Using JPA Specification for flexible search
-        Specification<VehicleEntity> spec = VehicleSpecification.containsKeyword(keyword);
-        List<VehicleEntity> vehicles = vehicleRepository.findAll(spec);
-
-        return toResponseListWithOvertimeFee(vehicles);
+        List<VehicleEntity> vehicles = vehicleRepository.searchByKeyword(keyword);
+        return enrichResponseDTOList(vehicles);
     }
 
     @Override
     public List<VehicleResponseDTO> getAvailableVehicles(LocalDate startDate, LocalDate endDate) {
         log.debug("Fetching available vehicles from {} to {}", startDate, endDate);
 
-        // Validate date range
         if (startDate == null || endDate == null) {
             throw new IllegalArgumentException("Start date and end date are required");
         }
@@ -110,18 +113,39 @@ public class VehicleServiceImpl implements VehicleService {
             throw new IllegalArgumentException("Start date cannot be in the past");
         }
 
-        // TODO: Once Rental entity is implemented, update this query to check for
-        // booking conflicts.
         List<VehicleEntity> availableVehicles = vehicleRepository.findByStatusWithCategory(VehicleStatus.AVAILABLE);
+        return enrichResponseDTOList(availableVehicles);
+    }
 
-        return toResponseListWithOvertimeFee(availableVehicles);
+    @Override
+    public List<VehicleResponseDTO> getVehiclesByCategory(Long categoryId) {
+        if (!vehicleCategoryRepository.existsById(categoryId)) {
+            throw new ResourceNotFoundException("VehicleCategory", "id", categoryId);
+        }
+        List<VehicleEntity> vehicles = vehicleRepository.findByVehicleCategoryIdWithCategory(categoryId);
+        return enrichResponseDTOList(vehicles);
+    }
+
+    @Override
+    public List<VehicleUnavailableDateRangeDTO> getUnavailableDateRanges(Long vehicleId) {
+        findVehicleOrThrow(vehicleId);
+
+        List<BookingRepository.UnavailableDateRangeProjection> bookings = bookingRepository.findUnavailableBookingsByVehicle(
+                vehicleId, BookingStatus.CANCELLED.name(), LocalDate.now());
+
+        return bookings.stream()
+                .map(b -> VehicleUnavailableDateRangeDTO.builder()
+                        .startDate(b.getStartDate())
+                        .endDate(b.getEndDate())
+                        .status(normalizeBookingStatusLabel(b.getStatus()))
+                        .build())
+                .toList();
     }
 
     @Override
     @Transactional
     public VehicleResponseDTO updateVehicle(Long id, VehicleRequestDTO request) {
         log.info("Updating vehicle ID: {}", id);
-
         VehicleEntity entity = findVehicleOrThrow(id);
 
         // Check for duplicate license plate (if changed)
@@ -130,162 +154,147 @@ public class VehicleServiceImpl implements VehicleService {
             throw new DuplicateResourceException("Vehicle", "licensePlate", request.getLicensePlate());
         }
 
-        vehicleMapper.updateEntityFromDTO(request, entity);
-
-        // Update category if provided
-        if (request.getCategory() != null) {
-            VehicleCategoryEntity category = vehicleCategoryRepository.findByName(request.getCategory())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category", "name", request.getCategory()));
-            entity.setCategory(category);
+        // Check for duplicate VIN (if changed)
+        if (request.getVin() != null && !request.getVin().isBlank()) {
+            if (entity.getVin() == null || !entity.getVin().equals(request.getVin())) {
+                if (vehicleRepository.existsByVin(request.getVin())) {
+                    throw new DuplicateResourceException("Vehicle", "vin", request.getVin());
+                }
+            }
         }
 
-        VehicleEntity updated = vehicleRepository.save(entity);
+        // Update category if changed
+        if (request.getVehicleCategoryId() != null
+                && !request.getVehicleCategoryId().equals(entity.getVehicleCategory().getId())) {
+            VehicleCategoryEntity category = vehicleCategoryRepository.findById(request.getVehicleCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("VehicleCategory", "id",
+                            request.getVehicleCategoryId()));
+            entity.setVehicleCategory(category);
+        }
 
+        entity.setLicensePlate(request.getLicensePlate());
+        entity.setVin(request.getVin());
+        entity.setOdometer(request.getOdometer());
+        entity.setCurrentBatteryPercent(request.getCurrentBatteryPercent());
+
+        VehicleEntity updated = vehicleRepository.save(entity);
         log.info("Vehicle ID: {} updated successfully", id);
-        return vehicleMapper.toResponseDTO(updated);
+
+        return enrichResponseDTO(updated);
     }
 
     @Override
     @Transactional
     public VehicleResponseDTO updateVehicleStatus(Long id, VehicleStatus status) {
         log.info("Updating vehicle ID: {} status to: {}", id, status);
-
         VehicleEntity entity = findVehicleOrThrow(id);
         entity.setStatus(status);
-
         VehicleEntity updated = vehicleRepository.save(entity);
-        return vehicleMapper.toResponseDTO(updated);
+        return enrichResponseDTO(updated);
     }
 
     @Override
     @Transactional
     public void deleteVehicle(Long id) {
         log.info("Deleting vehicle ID: {}", id);
-
         VehicleEntity entity = findVehicleOrThrow(id);
-
-        // Prevent deletion if vehicle is currently rented
         if (entity.getStatus() == VehicleStatus.RENTED) {
             throw new IllegalArgumentException("Cannot delete a vehicle that is currently rented");
         }
-
         vehicleRepository.delete(entity);
         log.info("Vehicle ID: {} deleted successfully", id);
     }
 
-    @Override
-    public List<String> getAllBrands() {
-        return vehicleRepository.findAllBrands();
-    }
+    // =================== Private helpers ===================
 
-    /**
-     * Helper method to find vehicle or throw ResourceNotFoundException
-     */
     private VehicleEntity findVehicleOrThrow(Long id) {
-        return vehicleRepository.findById(id)
+        return vehicleRepository.findByIdWithCategory(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle", "id", id));
     }
 
     /**
-     * Get overtime fee per hour for a vehicle based on its category's active
-     * pricing
+     * Enrich a single VehicleResponseDTO with category images and pricing
      */
-    private BigDecimal getOvertimeFeePerHour(VehicleEntity vehicle) {
-        if (vehicle.getCategory() == null) {
-            return BigDecimal.valueOf(50000); // Default 50,000 VND
-        }
-        return pricingRepository.findCurrentPricingByCategory(vehicle.getCategory().getId())
-                .map(PricingEntity::getOvertimeFeePerHour)
-                .orElse(BigDecimal.valueOf(50000)); // Default 50,000 VND
-    }
+    private VehicleResponseDTO enrichResponseDTO(VehicleEntity entity) {
+        VehicleResponseDTO dto = vehicleMapper.toResponseDTO(entity);
 
-    /**
-     * Enrich VehicleResponseDTO with overtime fee from pricing
-     */
-    private VehicleResponseDTO enrichWithOvertimeFee(VehicleResponseDTO dto, VehicleEntity entity) {
-        dto.setOvertimeFeePerHour(getOvertimeFeePerHour(entity));
+        // Primary image from category
+        String primaryImage = getPrimaryImage(entity.getVehicleCategory());
+        dto.setImageUrl(primaryImage);
+
+        // Pricing from category
+        enrichWithPricing(dto, entity.getVehicleCategory());
+
         return dto;
     }
 
     /**
-     * Convert entity to DTO with overtime fee
+     * Enrich a list of VehicleResponseDTOs with category images and pricing (batch)
      */
-    private VehicleResponseDTO toResponseWithOvertimeFee(VehicleEntity entity) {
-        VehicleResponseDTO dto = vehicleMapper.toResponseDTO(entity);
-        return enrichWithOvertimeFee(dto, entity);
-    }
-
-    /**
-     * Convert list of entities to DTOs with overtime fee, using batch pricing
-     * lookup to avoid N+1 queries.
-     */
-    private List<VehicleResponseDTO> toResponseListWithOvertimeFee(List<VehicleEntity> entities) {
-        if (entities.isEmpty()) {
+    private List<VehicleResponseDTO> enrichResponseDTOList(List<VehicleEntity> entities) {
+        if (entities.isEmpty())
             return List.of();
-        }
 
         // Batch fetch all active pricing
         List<PricingEntity> allPricings = pricingRepository.findAllCurrentPricings();
-
-        // Map CategoryID -> OvertimeFee
-        java.util.Map<Long, BigDecimal> pricingMap = allPricings.stream()
-                .collect(java.util.stream.Collectors.toMap(
+        Map<Long, PricingEntity> pricingMap = allPricings.stream()
+                .collect(Collectors.toMap(
                         p -> p.getVehicleCategory().getId(),
-                        PricingEntity::getOvertimeFeePerHour,
-                        (existing, replacement) -> existing // In case of duplicate active pricing (shouldn't happen),
-                                                            // keep first
-                ));
+                        p -> p,
+                        (existing, replacement) -> existing));
 
         return entities.stream()
                 .map(entity -> {
                     VehicleResponseDTO dto = vehicleMapper.toResponseDTO(entity);
 
-                    // Lookup fee from map, default to 50,000 if not found
-                    BigDecimal fee = BigDecimal.valueOf(50000);
-                    if (entity.getCategory() != null) {
-                        fee = pricingMap.getOrDefault(entity.getCategory().getId(), BigDecimal.valueOf(50000));
+                    // Primary image
+                    dto.setImageUrl(getPrimaryImage(entity.getVehicleCategory()));
+
+                    // Pricing from map
+                    if (entity.getVehicleCategory() != null) {
+                        PricingEntity pricing = pricingMap.get(entity.getVehicleCategory().getId());
+                        if (pricing != null) {
+                            dto.setDailyPrice(pricing.getDailyPrice());
+                            dto.setWeeklyPrice(pricing.getWeeklyPrice());
+                            dto.setMonthlyPrice(pricing.getMonthlyPrice());
+                            dto.setOvertimeFeePerHour(pricing.getOvertimeFeePerHour());
+                            dto.setDailyRate(pricing.getDailyPrice()); // Legacy
+                        }
                     }
 
-                    dto.setOvertimeFeePerHour(fee);
                     return dto;
                 })
                 .toList();
     }
 
-    @Override
-    public List<com.carrentalsystem.dto.vehicle.VehicleModelDTO> getVehicleModels() {
-        // Since we are back to single Entity model (no Category entity), we group by
-        // Brand + Model
-        // Ideally we should use a custom DTO projection query, but for now we fetch all
-        // and group in memory
-        List<VehicleEntity> allVehicles = vehicleRepository.findAll();
+    private String getPrimaryImage(VehicleCategoryEntity category) {
+        if (category == null || category.getImages() == null || category.getImages().isEmpty()) {
+            return null;
+        }
+        return category.getImages().stream()
+                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                .findFirst()
+                .map(VehicleCategoryImageEntity::getImageUrl)
+                .orElse(category.getImages().get(0).getImageUrl());
+    }
 
-        return allVehicles.stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        v -> v.getBrand() + "|" + v.getModel(), // Key
-                        java.util.stream.Collectors.toList() // Value: List of vehicles
-                ))
-                .values().stream()
-                .map(list -> {
-                    VehicleEntity prototype = list.get(0); // Use first one as template
-                    long availableCount = list.stream().filter(v -> v.getStatus() == VehicleStatus.AVAILABLE).count();
+    private void enrichWithPricing(VehicleResponseDTO dto, VehicleCategoryEntity category) {
+        if (category == null)
+            return;
+        pricingRepository.findCurrentPricingByCategory(category.getId())
+                .ifPresent(pricing -> {
+                    dto.setDailyPrice(pricing.getDailyPrice());
+                    dto.setWeeklyPrice(pricing.getWeeklyPrice());
+                    dto.setMonthlyPrice(pricing.getMonthlyPrice());
+                    dto.setOvertimeFeePerHour(pricing.getOvertimeFeePerHour());
+                    dto.setDailyRate(pricing.getDailyPrice()); // Legacy compatibility
+                });
+    }
 
-                    return com.carrentalsystem.dto.vehicle.VehicleModelDTO.builder()
-                            .id(prototype.getId()) // Use any ID, frontend just needs it for linking
-                            .name(prototype.getName())
-                            .model(prototype.getModel())
-                            .brand(prototype.getBrand())
-                            .batteryCapacityKwh(prototype.getBatteryCapacityKwh())
-                            .rangeKm(prototype.getRangeKm())
-                            .chargingTimeHours(prototype.getChargingTimeHours())
-                            .dailyRate(prototype.getDailyRate())
-                            .imageUrl(prototype.getImageUrl())
-                            .seats(prototype.getSeats())
-                            .description(prototype.getDescription())
-                            .categoryName(prototype.getBrand() + " " + prototype.getModel())
-                            .availableCount((int) availableCount)
-                            .build();
-                })
-                .toList();
+    private String normalizeBookingStatusLabel(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return null;
+        }
+        return rawStatus.trim().toUpperCase(Locale.ROOT);
     }
 }

@@ -84,8 +84,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserResponseDTO> getUsersByRole(String roleName) {
-        return userRepository.findAll().stream()
-                .filter(u -> u.getRole() != null && roleName.equals(u.getRole().getRoleName()))
+        return userRepository.findByRole_RoleName(roleName).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }

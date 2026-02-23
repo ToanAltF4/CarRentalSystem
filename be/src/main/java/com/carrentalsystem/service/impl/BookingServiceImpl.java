@@ -8,6 +8,7 @@ import com.carrentalsystem.entity.*;
 import com.carrentalsystem.exception.*;
 import com.carrentalsystem.mapper.BookingMapper;
 import com.carrentalsystem.repository.*;
+import com.carrentalsystem.repository.VehicleCategoryRepository;
 import com.carrentalsystem.service.BookingService;
 import com.carrentalsystem.service.PriceCalculationService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
     private final VehicleRepository vehicleRepository;
+    private final VehicleCategoryRepository vehicleCategoryRepository;
     private final UserRepository userRepository;
     private final PricingRepository pricingRepository;
     private final RentalTypeRepository rentalTypeRepository;
@@ -78,9 +80,16 @@ public class BookingServiceImpl implements BookingService {
             vehicle = vehicleRepository.findById(request.getVehicleId())
                     .orElseThrow(() -> new ResourceNotFoundException("Vehicle", "id", request.getVehicleId()));
         } else if (request.getBrand() != null && request.getModel() != null) {
-            // Case 2: Booking by Model (Auto-assign available vehicle)
-            List<VehicleEntity> candidates = vehicleRepository.findByBrandAndModelAndStatus(
-                    request.getBrand(), request.getModel(), VehicleStatus.AVAILABLE);
+            // Case 2: Booking by Model (Auto-assign available vehicle from category)
+            var category = vehicleCategoryRepository.findByBrandAndNameAndModel(
+                    request.getBrand(), request.getModel(), request.getModel());
+            List<VehicleEntity> candidates;
+            if (category.isPresent()) {
+                candidates = vehicleRepository.findByVehicleCategoryId(category.get().getId())
+                        .stream().filter(v -> v.getStatus() == VehicleStatus.AVAILABLE).toList();
+            } else {
+                candidates = List.of();
+            }
 
             // Filter for one that has no conflicting bookings
             vehicle = candidates.stream()
@@ -154,9 +163,9 @@ public class BookingServiceImpl implements BookingService {
             if (isWithDriver(rentalType.getName())) {
                 // WITH_DRIVER: Calculate driver fee, no pickup method
                 DriverFeeResponseDTO driverFeeResult;
-                if (vehicle.getCategory() != null) {
+                if (vehicle.getVehicleCategory() != null) {
                     driverFeeResult = priceCalculationService.calculateDriverFeeByCategory(totalDays,
-                            vehicle.getCategory().getId());
+                            vehicle.getVehicleCategory().getId());
                 } else {
                     driverFeeResult = priceCalculationService.calculateDriverFee(totalDays);
                 }
@@ -245,13 +254,13 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
-        List<BookingEntity> bookings = bookingRepository.findByStatusOrderByStartDateDesc(status);
+        List<BookingEntity> bookings = bookingRepository.findByStatusOrderByStartDateDescWithDetails(status);
         return toEnrichedDTOList(bookings);
     }
 
     @Override
     public List<BookingResponseDTO> getBookingsByCustomerEmail(String email) {
-        List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByStartDateDesc(email);
+        List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByStartDateDescWithDetails(email);
         return toEnrichedDTOList(bookings);
     }
 
@@ -261,7 +270,7 @@ public class BookingServiceImpl implements BookingService {
         if (!vehicleRepository.existsById(vehicleId)) {
             throw new ResourceNotFoundException("Vehicle", "id", vehicleId);
         }
-        List<BookingEntity> bookings = bookingRepository.findByVehicleIdOrderByStartDateDesc(vehicleId);
+        List<BookingEntity> bookings = bookingRepository.findByVehicleIdOrderByStartDateDescWithDetails(vehicleId);
         return toEnrichedDTOList(bookings);
     }
 
@@ -318,7 +327,8 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getUpcomingBookings() {
-        List<BookingEntity> bookings = bookingRepository.findUpcomingBookings(LocalDate.now(), BookingStatus.CANCELLED);
+        List<BookingEntity> bookings = bookingRepository.findUpcomingBookingsWithDetails(
+                LocalDate.now(), BookingStatus.CANCELLED);
         return toEnrichedDTOList(bookings);
     }
 
@@ -430,22 +440,14 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BigDecimal calculateDailyRate(VehicleEntity vehicle) {
-        // Try to get pricing from vehicle category
-        if (vehicle.getCategory() != null) {
-            return pricingRepository.findCurrentPricingByCategory(vehicle.getCategory().getId())
+        // Get pricing from vehicle category
+        if (vehicle.getVehicleCategory() != null) {
+            return pricingRepository.findCurrentPricingByCategory(vehicle.getVehicleCategory().getId())
                     .map(PricingEntity::getDailyPrice)
-                    .orElseGet(() -> {
-                        log.warn("No active pricing found for category ID: {}, using vehicle daily rate",
-                                vehicle.getCategory().getId());
-                        return vehicle.getDailyRate();
-                    });
+                    .orElseThrow(() -> new PricingNotFoundException(
+                            "No active pricing found for category ID: " + vehicle.getVehicleCategory().getId()));
         }
-
-        // Fallback to vehicle's own daily rate
-        if (vehicle.getDailyRate() == null) {
-            throw new PricingNotFoundException("No pricing available for vehicle ID: " + vehicle.getId());
-        }
-        return vehicle.getDailyRate();
+        throw new PricingNotFoundException("No pricing available for vehicle ID: " + vehicle.getId());
     }
 
     private int calculateTotalDays(LocalDate startDate, LocalDate endDate) {

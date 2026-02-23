@@ -1,5 +1,6 @@
 package com.carrentalsystem.service;
 
+import com.carrentalsystem.dto.dashboard.DashboardOverviewDTO;
 import com.carrentalsystem.dto.dashboard.DashboardStatsDTO;
 import com.carrentalsystem.dto.dashboard.MonthlyRevenueDTO;
 
@@ -19,4 +20,9 @@ public interface DashboardService {
      * Get monthly revenue for the current year.
      */
     List<MonthlyRevenueDTO> getMonthlyRevenue(Integer year);
+
+    /**
+     * Get combined dashboard payload in a single request.
+     */
+    DashboardOverviewDTO getDashboardOverview(Integer year);
 }

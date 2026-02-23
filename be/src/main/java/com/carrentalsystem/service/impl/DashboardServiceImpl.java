@@ -1,20 +1,24 @@
 package com.carrentalsystem.service.impl;
 
+import com.carrentalsystem.dto.dashboard.DashboardOverviewDTO;
 import com.carrentalsystem.dto.dashboard.DashboardStatsDTO;
 import com.carrentalsystem.dto.dashboard.MonthlyRevenueDTO;
-import com.carrentalsystem.entity.*;
-import com.carrentalsystem.repository.*;
+import com.carrentalsystem.entity.BookingStatus;
+import com.carrentalsystem.repository.BookingRepository;
+import com.carrentalsystem.repository.DashboardRepository;
 import com.carrentalsystem.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Implementation of Dashboard Service.
@@ -24,73 +28,152 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
 
+        private static final long DASHBOARD_CACHE_TTL_MS = 30_000L;
         private final BookingRepository bookingRepository;
-        private final VehicleRepository vehicleRepository;
-        private final InvoiceRepository invoiceRepository;
-        private final com.carrentalsystem.repository.DashboardRepository dashboardRepository;
+        private final DashboardRepository dashboardRepository;
+        private final Map<Integer, TimedValue<List<MonthlyRevenueDTO>>> monthlyRevenueCache = new ConcurrentHashMap<>();
+        private volatile DashboardStatsDTO cachedStats;
+        private volatile long cachedStatsAtMs;
+
+        private record TimedValue<T>(T value, long cachedAtMs) {
+        }
+
+        /** Get value from map by camelCase or lowercase key; null-safe for Number/BigDecimal. */
+        private static BigDecimal getBigDecimal(Map<String, Object> map, String key) {
+                Object v = map.get(key);
+                if (v == null) v = map.get(key.toLowerCase());
+                if (v == null) return BigDecimal.ZERO;
+                if (v instanceof BigDecimal) return (BigDecimal) v;
+                if (v instanceof Number) return BigDecimal.valueOf(((Number) v).doubleValue());
+                return BigDecimal.ZERO;
+        }
+
+        private static long getLong(Map<String, Object> map, String key) {
+                Object v = map.get(key);
+                if (v == null) v = map.get(key.toLowerCase());
+                if (v == null) return 0L;
+                if (v instanceof Number) return ((Number) v).longValue();
+                return 0L;
+        }
 
         @Override
         public DashboardStatsDTO getDashboardStats() {
-                try {
-                        System.out.println("DEBUG: Starting getDashboardStats (Optimized)");
-
-                        // Execute single aggregated query
-                        java.util.Map<String, Object> stats = dashboardRepository.getDashboardStats();
-
-                        BigDecimal totalRevenue = (BigDecimal) stats.get("totalRevenue");
-                        long totalBookings = ((Number) stats.get("totalBookings")).longValue();
-                        long activeRentals = ((Number) stats.get("activeRentals")).longValue();
-                        long pendingBookings = ((Number) stats.get("pendingBookings")).longValue();
-                        long availableVehicles = ((Number) stats.get("availableVehicles")).longValue();
-                        long totalVehicles = ((Number) stats.get("totalVehicles")).longValue();
-
-                        // Get recent bookings (last 5)
-                        List<BookingEntity> recentList = bookingRepository.findRecentBookingsWithVehicle(
-                                        org.springframework.data.domain.PageRequest.of(0, 5));
-
-                        List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentList.stream()
-                                        .map(b -> {
-                                                BookingEntity.BookingEntityBuilder builder = BookingEntity.builder();
-                                                // Used only to avoid unused variable warning if mapping logic changes
-
-                                                return DashboardStatsDTO.RecentBookingDTO.builder()
-                                                                .id(b.getId())
-                                                                .bookingCode(b.getBookingCode())
-                                                                .customerName(b.getCustomerName())
-                                                                .vehicleName(b.getVehicle() != null
-                                                                                ? b.getVehicle().getName() + " "
-                                                                                                + b.getVehicle().getModel()
-                                                                                : "Unknown Vehicle")
-                                                                .status(b.getStatus() != null ? b.getStatus().name()
-                                                                                : "UNKNOWN")
-                                                                .createdAt(b.getStartDate() != null ? b.getStartDate()
-                                                                                .atStartOfDay().format(
-                                                                                                DateTimeFormatter
-                                                                                                                .ofPattern("dd/MM/yyyy HH:mm"))
-                                                                                : "N/A")
-                                                                .build();
-                                        })
-                                        .collect(Collectors.toList());
-
-                        return DashboardStatsDTO.builder()
-                                        .totalRevenue(totalRevenue)
-                                        .totalBookings(totalBookings)
-                                        .activeRentals(activeRentals)
-                                        .pendingBookings(pendingBookings)
-                                        .availableVehicles(availableVehicles)
-                                        .totalVehicles(totalVehicles)
-                                        .recentBookings(recentBookings)
-                                        .build();
-                } catch (Exception e) {
-                        System.err.println("ERROR in getDashboardStats: " + e.getMessage());
-                        e.printStackTrace();
-                        throw e;
+                long now = System.currentTimeMillis();
+                DashboardStatsDTO snapshot = cachedStats;
+                if (snapshot != null && isFresh(cachedStatsAtMs, now)) {
+                        return snapshot;
                 }
+
+                synchronized (this) {
+                        now = System.currentTimeMillis();
+                        snapshot = cachedStats;
+                        if (snapshot != null && isFresh(cachedStatsAtMs, now)) {
+                                return snapshot;
+                        }
+
+                        DashboardStatsDTO freshValue = loadDashboardStatsFromDb();
+                        cachedStats = freshValue;
+                        cachedStatsAtMs = now;
+                        return freshValue;
+                }
+        }
+
+        private DashboardStatsDTO.RecentBookingDTO toRecentBookingDTO(Object[] row) {
+                String name = row[5] != null ? row[5].toString().trim() : "";
+                String model = row[6] != null ? row[6].toString().trim() : "";
+                String vehicleName = (name + " " + model).trim();
+                if (vehicleName.isEmpty()) {
+                        vehicleName = "Unknown Vehicle";
+                }
+
+                return DashboardStatsDTO.RecentBookingDTO.builder()
+                                .id(row[0] instanceof Number ? ((Number) row[0]).longValue() : null)
+                                .bookingCode(row[1] != null ? row[1].toString() : null)
+                                .customerName(row[2] != null ? row[2].toString() : null)
+                                .vehicleName(vehicleName)
+                                .status(row[4] != null ? row[4].toString() : "UNKNOWN")
+                                .createdAt(formatDate(row[3]))
+                                .build();
+        }
+
+        private String formatDate(Object dateValue) {
+                if (dateValue == null) {
+                        return "N/A";
+                }
+
+                LocalDate date;
+                if (dateValue instanceof LocalDate localDate) {
+                        date = localDate;
+                } else if (dateValue instanceof java.sql.Date sqlDate) {
+                        date = sqlDate.toLocalDate();
+                } else {
+                        return dateValue.toString();
+                }
+
+                return date.atStartOfDay().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
         }
 
         @Override
         public List<MonthlyRevenueDTO> getMonthlyRevenue(Integer year) {
-                // Initialize result with all 12 months set to zero
+                int targetYear = year != null ? year : LocalDate.now().getYear();
+                long now = System.currentTimeMillis();
+
+                TimedValue<List<MonthlyRevenueDTO>> cachedValue = monthlyRevenueCache.get(targetYear);
+                if (cachedValue != null && isFresh(cachedValue.cachedAtMs(), now)) {
+                        return copyMonthlyRevenueList(cachedValue.value());
+                }
+
+                List<MonthlyRevenueDTO> freshValue = loadMonthlyRevenueFromDb(targetYear);
+                monthlyRevenueCache.put(targetYear, new TimedValue<>(freshValue, now));
+                return copyMonthlyRevenueList(freshValue);
+        }
+
+        @Override
+        public DashboardOverviewDTO getDashboardOverview(Integer year) {
+                return DashboardOverviewDTO.builder()
+                                .stats(getDashboardStats())
+                                .monthlyRevenue(getMonthlyRevenue(year))
+                                .build();
+        }
+
+        private DashboardStatsDTO loadDashboardStatsFromDb() {
+                Map<String, Object> stats = dashboardRepository.getDashboardStats();
+                if (stats == null) {
+                        return DashboardStatsDTO.builder()
+                                        .totalRevenue(BigDecimal.ZERO)
+                                        .totalBookings(0L)
+                                        .activeRentals(0L)
+                                        .pendingBookings(0L)
+                                        .availableVehicles(0L)
+                                        .totalVehicles(0L)
+                                        .recentBookings(List.of())
+                                        .build();
+                }
+
+                BigDecimal totalRevenue = getBigDecimal(stats, "totalRevenue");
+                long totalBookings = getLong(stats, "totalBookings");
+                long activeRentals = getLong(stats, "activeRentals");
+                long pendingBookings = getLong(stats, "pendingBookings");
+                long availableVehicles = getLong(stats, "availableVehicles");
+                long totalVehicles = getLong(stats, "totalVehicles");
+
+                List<Object[]> recentRows = bookingRepository.findRecentBookingSummaries();
+                List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentRows.stream()
+                                .map(this::toRecentBookingDTO)
+                                .toList();
+
+                return DashboardStatsDTO.builder()
+                                .totalRevenue(totalRevenue)
+                                .totalBookings(totalBookings)
+                                .activeRentals(activeRentals)
+                                .pendingBookings(pendingBookings)
+                                .availableVehicles(availableVehicles)
+                                .totalVehicles(totalVehicles)
+                                .recentBookings(recentBookings)
+                                .build();
+        }
+
+        private List<MonthlyRevenueDTO> loadMonthlyRevenueFromDb(int year) {
                 List<MonthlyRevenueDTO> result = new ArrayList<>();
                 for (int m = 1; m <= 12; m++) {
                         result.add(MonthlyRevenueDTO.builder()
@@ -102,22 +185,43 @@ public class DashboardServiceImpl implements DashboardService {
                                         .build());
                 }
 
-                // Fetch aggregated data from DB
-                List<Object[]> aggregatedData = bookingRepository.findMonthlyRevenueByYear(year,
-                                BookingStatus.CANCELLED);
+                LocalDate startDate = LocalDate.of(year, 1, 1);
+                LocalDate endDate = startDate.plusYears(1);
+                List<Object[]> aggregatedData = bookingRepository.findMonthlyRevenueByStartDateRange(
+                                startDate, endDate, BookingStatus.CANCELLED);
 
-                // Update the result list with actual data
                 for (Object[] row : aggregatedData) {
-                        int month = (int) row[0];
-                        BigDecimal revenue = (BigDecimal) row[1];
-                        long count = (long) row[2];
+                        int month = row[0] instanceof Number ? ((Number) row[0]).intValue() : 0;
+                        if (month < 1 || month > 12) {
+                                continue;
+                        }
+                        BigDecimal revenue = row[1] instanceof BigDecimal
+                                        ? (BigDecimal) row[1]
+                                        : row[1] instanceof Number ? BigDecimal.valueOf(((Number) row[1]).doubleValue())
+                                                        : BigDecimal.ZERO;
+                        long count = row[2] instanceof Number ? ((Number) row[2]).longValue() : 0L;
 
-                        // Arrays are 0-indexed, months are 1-12
                         MonthlyRevenueDTO dto = result.get(month - 1);
-                        dto.setRevenue(revenue != null ? revenue : BigDecimal.ZERO);
+                        dto.setRevenue(revenue);
                         dto.setBookingCount(count);
                 }
 
                 return result;
+        }
+
+        private List<MonthlyRevenueDTO> copyMonthlyRevenueList(List<MonthlyRevenueDTO> source) {
+                return source.stream()
+                                .map(item -> MonthlyRevenueDTO.builder()
+                                                .year(item.getYear())
+                                                .month(item.getMonth())
+                                                .monthName(item.getMonthName())
+                                                .revenue(item.getRevenue())
+                                                .bookingCount(item.getBookingCount())
+                                                .build())
+                                .toList();
+        }
+
+        private boolean isFresh(long cachedAtMs, long nowMs) {
+                return nowMs - cachedAtMs < DASHBOARD_CACHE_TTL_MS;
         }
 }

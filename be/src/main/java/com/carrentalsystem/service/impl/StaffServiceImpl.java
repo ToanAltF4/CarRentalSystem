@@ -33,8 +33,8 @@ public class StaffServiceImpl implements StaffService {
         log.debug("Fetching assigned tasks for staff ID: {}", staffId);
 
         // Find bookings assigned to staff or where user is the driver
-        List<BookingEntity> staffTasks = bookingRepository.findByAssignedStaffId(staffId);
-        List<BookingEntity> driverTasks = bookingRepository.findByDriverId(staffId);
+        List<BookingEntity> staffTasks = bookingRepository.findByAssignedStaffIdWithDetails(staffId);
+        List<BookingEntity> driverTasks = bookingRepository.findByDriverIdWithDetails(staffId);
 
         // Merge lists (avoid duplicates if same person is both staff and driver on same
         // booking, unlikely but possible)

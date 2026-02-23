@@ -42,11 +42,11 @@ public interface BookingMapper {
      * Convert entity to response DTO with vehicle details.
      */
     @Mapping(source = "vehicle.id", target = "vehicleId")
-    @Mapping(source = "vehicle.name", target = "vehicleName")
-    @Mapping(source = "vehicle.brand", target = "vehicleBrand")
-    @Mapping(source = "vehicle.model", target = "vehicleModel")
+    @Mapping(source = "vehicle.vehicleCategory.name", target = "vehicleName")
+    @Mapping(source = "vehicle.vehicleCategory.brand", target = "vehicleBrand")
+    @Mapping(source = "vehicle.vehicleCategory.model", target = "vehicleModel")
     @Mapping(source = "vehicle.licensePlate", target = "vehicleLicensePlate")
-    @Mapping(source = "vehicle.imageUrl", target = "vehicleImage")
+    @Mapping(target = "vehicleImage", ignore = true)
     @Mapping(source = "rentalType.id", target = "rentalTypeId")
     @Mapping(source = "rentalType.name", target = "rentalTypeName")
     @Mapping(source = "pickupMethod.id", target = "pickupMethodId")
