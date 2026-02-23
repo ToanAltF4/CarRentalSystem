@@ -162,7 +162,7 @@ const BookingWizardModal = ({
 
         try {
             const bookingData = {
-                vehicleId: car.id,  // Use actual vehicle ID from car detail
+                vehicleId: car.id,
                 brand: car.brand,
                 model: car.model,
                 userId: user.id,

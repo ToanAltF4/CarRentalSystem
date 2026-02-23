@@ -109,15 +109,27 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
         @Query("SELECT COUNT(b) FROM BookingEntity b WHERE (b.assignedStaffId = :staffId OR b.driverId = :staffId) AND b.status IN :statuses")
         int countActiveBookingsByStaff(@Param("staffId") Long staffId, @Param("statuses") List<BookingStatus> statuses);
 
-        @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "vehicle")
-        @Query("SELECT b FROM BookingEntity b ORDER BY b.startDate DESC")
+        @Query("SELECT b FROM BookingEntity b " +
+                        "LEFT JOIN FETCH b.vehicle " +
+                        "LEFT JOIN FETCH b.rentalType " +
+                        "LEFT JOIN FETCH b.pickupMethod " +
+                        "ORDER BY b.startDate DESC")
         List<BookingEntity> findRecentBookingsWithVehicle(org.springframework.data.domain.Pageable pageable);
 
-        @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "vehicle")
-        @Query("SELECT b FROM BookingEntity b ORDER BY b.createdAt DESC")
+        @Query("SELECT b FROM BookingEntity b " +
+                        "LEFT JOIN FETCH b.vehicle " +
+                        "LEFT JOIN FETCH b.rentalType " +
+                        "LEFT JOIN FETCH b.pickupMethod " +
+                        "ORDER BY b.createdAt DESC")
         List<BookingEntity> findAllWithVehicle();
 
         @Query("SELECT b FROM BookingEntity b WHERE b.startDate <= :date AND b.endDate >= :date AND b.status IN :statuses")
         List<BookingEntity> findActiveBookingsOnDate(@Param("date") LocalDate date,
                         @Param("statuses") List<BookingStatus> statuses);
+
+        @Query("SELECT MONTH(b.startDate) as month, SUM(b.totalAmount) as revenue, COUNT(b) as count " +
+                        "FROM BookingEntity b " +
+                        "WHERE YEAR(b.startDate) = :year AND b.status != :cancelled " +
+                        "GROUP BY MONTH(b.startDate) ORDER BY MONTH(b.startDate)")
+        List<Object[]> findMonthlyRevenueByYear(@Param("year") int year, @Param("cancelled") BookingStatus cancelled);
 }

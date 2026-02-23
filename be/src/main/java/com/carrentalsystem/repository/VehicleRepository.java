@@ -56,4 +56,10 @@ public interface VehicleRepository extends JpaRepository<VehicleEntity, Long>,
         List<String> findAllBrands();
 
         List<VehicleEntity> findByBrandAndModelAndStatus(String brand, String model, VehicleStatus status);
+
+        @Query("SELECT v FROM VehicleEntity v LEFT JOIN FETCH v.category")
+        List<VehicleEntity> findAllWithCategory();
+
+        @Query("SELECT v FROM VehicleEntity v LEFT JOIN FETCH v.category WHERE v.status = :status")
+        List<VehicleEntity> findByStatusWithCategory(@Param("status") VehicleStatus status);
 }

@@ -73,9 +73,10 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     public List<VehicleResponseDTO> getAllVehicles() {
-        log.debug("Fetching all vehicles");
+        log.debug("Fetching all vehicles (Joined)");
 
-        List<VehicleEntity> vehicles = vehicleRepository.findAll();
+        // Use new method with JOIN FETCH
+        List<VehicleEntity> vehicles = vehicleRepository.findAllWithCategory();
         return toResponseListWithOvertimeFee(vehicles);
     }
 
@@ -111,7 +112,7 @@ public class VehicleServiceImpl implements VehicleService {
 
         // TODO: Once Rental entity is implemented, update this query to check for
         // booking conflicts.
-        List<VehicleEntity> availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE);
+        List<VehicleEntity> availableVehicles = vehicleRepository.findByStatusWithCategory(VehicleStatus.AVAILABLE);
 
         return toResponseListWithOvertimeFee(availableVehicles);
     }
@@ -215,14 +216,39 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     /**
-     * Convert list of entities to DTOs with overtime fee
-     */
-    /**
-     * Convert list of entities to DTOs with overtime fee
+     * Convert list of entities to DTOs with overtime fee, using batch pricing
+     * lookup to avoid N+1 queries.
      */
     private List<VehicleResponseDTO> toResponseListWithOvertimeFee(List<VehicleEntity> entities) {
+        if (entities.isEmpty()) {
+            return List.of();
+        }
+
+        // Batch fetch all active pricing
+        List<PricingEntity> allPricings = pricingRepository.findAllCurrentPricings();
+
+        // Map CategoryID -> OvertimeFee
+        java.util.Map<Long, BigDecimal> pricingMap = allPricings.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        p -> p.getVehicleCategory().getId(),
+                        PricingEntity::getOvertimeFeePerHour,
+                        (existing, replacement) -> existing // In case of duplicate active pricing (shouldn't happen),
+                                                            // keep first
+                ));
+
         return entities.stream()
-                .map(this::toResponseWithOvertimeFee)
+                .map(entity -> {
+                    VehicleResponseDTO dto = vehicleMapper.toResponseDTO(entity);
+
+                    // Lookup fee from map, default to 50,000 if not found
+                    BigDecimal fee = BigDecimal.valueOf(50000);
+                    if (entity.getCategory() != null) {
+                        fee = pricingMap.getOrDefault(entity.getCategory().getId(), BigDecimal.valueOf(50000));
+                    }
+
+                    dto.setOvertimeFeePerHour(fee);
+                    return dto;
+                })
                 .toList();
     }
 
