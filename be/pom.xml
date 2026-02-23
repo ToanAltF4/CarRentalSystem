@@ -167,6 +167,8 @@
           <user>evfleet</user>
           <password>evfleet123</password>
           <cleanDisabled>false</cleanDisabled>
+          <encoding>UTF-8</encoding>
+          <detectEncoding>true</detectEncoding>
         </configuration>
       </plugin>
     </plugins>

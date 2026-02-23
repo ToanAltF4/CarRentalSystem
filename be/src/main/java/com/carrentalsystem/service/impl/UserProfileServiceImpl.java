@@ -25,8 +25,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     private static final Set<String> LICENSE_TYPES = Set.of(
             "PET license (fixed-term)",
             "PET license (no expiry)",
-            "Legacy license (paper-based)"
-    );
+            "Legacy license (paper-based)");
     private final UserRepository userRepository;
     private final R2Service r2Service;
 

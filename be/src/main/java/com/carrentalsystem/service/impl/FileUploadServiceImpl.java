@@ -44,7 +44,8 @@ public class FileUploadServiceImpl implements FileUploadService {
 
     @Override
     @Transactional
-    public String uploadLicense(String email, MultipartFile file, String licenseType, String licenseNumber, LocalDate dateOfBirth) throws IOException {
+    public String uploadLicense(String email, MultipartFile file, String licenseType, String licenseNumber,
+            LocalDate dateOfBirth) throws IOException {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
