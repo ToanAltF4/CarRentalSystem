@@ -92,12 +92,6 @@ public class StaffServiceImpl implements StaffService {
         } else if (request.getType() == InspectionType.RETURN) {
             if (booking.getStatus() == BookingStatus.IN_PROGRESS) {
                 booking.setStatus(BookingStatus.COMPLETED);
-                // Can also update vehicle mileage/fuel/status here
-                if (booking.getVehicle() != null) {
-                    booking.getVehicle().setStatus(VehicleStatus.AVAILABLE); // Make vehicle available again
-                    // Also update mileage/battery if VehicleEntity supports it?
-                    // ignoring for now
-                }
                 bookingRepository.save(booking);
             }
         }

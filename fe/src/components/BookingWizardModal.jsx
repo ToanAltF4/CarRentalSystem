@@ -55,28 +55,38 @@ const BookingWizardModal = ({
     const bookingEndDate = selectedDates.length > 0 ? selectedDates[selectedDates.length - 1] : dropoffDate;
     const rentalFee = car ? car.price * rentalDays : 0;
 
-    // Helper functions for flexible name matching
-    const isWithDriver = (name) => {
-        return name && (name.toUpperCase().includes('DRIVER') || name.toLowerCase().includes('tài xế'));
+    const normalizeOptionText = (option) => {
+        if (!option) return '';
+        if (typeof option === 'string') return option.trim().toUpperCase();
+        return `${option.code || ''} ${option.name || ''}`.trim().toUpperCase();
     };
-    const isSelfDrive = (name) => {
-        return name && (name.toUpperCase().includes('SELF') || name.toLowerCase().includes('tự lái'));
+
+    // Helper functions for flexible code/name matching
+    const isWithDriver = (option) => {
+        const text = normalizeOptionText(option);
+        return text.includes('WITH_DRIVER') || text.includes('WITH DRIVER') || (text.includes('DRIVER') && !text.includes('SELF'));
     };
-    const isDelivery = (name) => {
-        return name && (name.toUpperCase().includes('DELIVERY') || name.toLowerCase().includes('giao'));
+    const isSelfDrive = (option) => {
+        const text = normalizeOptionText(option);
+        return text.includes('SELF_DRIVE') || text.includes('SELF DRIVE') || text.includes('SELF');
     };
-    const isStorePickup = (name) => {
-        return name && (name.toUpperCase().includes('STORE') || name.toLowerCase().includes('cửa hàng'));
+    const isDelivery = (option) => {
+        const text = normalizeOptionText(option);
+        return text.includes('DELIVERY');
+    };
+    const isStorePickup = (option) => {
+        const text = normalizeOptionText(option);
+        return text.includes('STORE');
     };
 
     // Calculate total
     const calculateTotal = () => {
         let total = rentalFee;
-        if (isWithDriver(selectedRentalType?.name) && driverFeeData) {
-            total += parseFloat(driverFeeData.totalDriverFee) || 0;
+        if (isWithDriver(selectedRentalType) && driverFeeData) {
+            total += Number(driverFeeData.totalDriverFee) || 0;
         }
-        if (isDelivery(selectedPickupMethod?.name) && deliveryFeeData) {
-            total += parseFloat(deliveryFeeData.totalDeliveryFee) || 0;
+        if (isDelivery(selectedPickupMethod) && deliveryFeeData) {
+            total += Number(deliveryFeeData.totalDeliveryFee) || 0;
         }
         return total;
     };
@@ -112,17 +122,25 @@ const BookingWizardModal = ({
 
     // Calculate driver fee when selecting WITH_DRIVER
     const handleRentalTypeSelect = async (type) => {
+        setError('');
         setSelectedRentalType(type);
         setSelectedPickupMethod(null);
         setDeliveryFeeData(null);
 
-        if (isWithDriver(type.name)) {
+        if (isWithDriver(type)) {
             setCalculatingFee(true);
+            setDriverFeeData(null);
             try {
-                const feeData = await bookingService.getDriverFee(rentalDays, car?.categoryId);
+                const categoryId = Number(car?.categoryId);
+                const feeData = await bookingService.getDriverFee(
+                    rentalDays,
+                    Number.isFinite(categoryId) && categoryId > 0 ? categoryId : undefined
+                );
                 setDriverFeeData(feeData);
             } catch (err) {
                 console.error('Failed to calculate driver fee:', err);
+                setDriverFeeData(null);
+                setError('Unable to calculate driver fee for this vehicle category. Please try again.');
             } finally {
                 setCalculatingFee(false);
             }
@@ -134,7 +152,7 @@ const BookingWizardModal = ({
     // Handle pickup method selection
     const handlePickupMethodSelect = (method) => {
         setSelectedPickupMethod(method);
-        if (!isDelivery(method.name)) {
+        if (!isDelivery(method)) {
             setDeliveryAddress('');
             setDeliveryFeeData(null);
         }
@@ -193,19 +211,23 @@ const BookingWizardModal = ({
     };
 
     // Navigation helpers
-    const canProceedStep1 = selectedRentalType !== null;
+    const canProceedStep1 = () => {
+        if (!selectedRentalType) return false;
+        if (!isWithDriver(selectedRentalType)) return true;
+        return !calculatingFee && driverFeeData !== null;
+    };
     const canProceedStep2 = () => {
-        if (isWithDriver(selectedRentalType?.name)) return true;
+        if (isWithDriver(selectedRentalType)) return true;
         if (!selectedPickupMethod) return false;
-        if (isDelivery(selectedPickupMethod.name)) {
+        if (isDelivery(selectedPickupMethod)) {
             return deliveryFeeData !== null;
         }
         return true;
     };
 
     const goNext = () => {
-        if (step === 1 && canProceedStep1) {
-            if (isWithDriver(selectedRentalType?.name)) {
+        if (step === 1 && canProceedStep1()) {
+            if (isWithDriver(selectedRentalType)) {
                 setStep(3); // Skip step 2 for WITH_DRIVER
             } else {
                 setStep(2);
@@ -218,7 +240,7 @@ const BookingWizardModal = ({
     const goBack = () => {
         if (step === 2) setStep(1);
         if (step === 3) {
-            if (isWithDriver(selectedRentalType?.name)) {
+            if (isWithDriver(selectedRentalType)) {
                 setStep(1);
             } else {
                 setStep(2);
@@ -238,8 +260,8 @@ const BookingWizardModal = ({
                         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Book Vehicle</h2>
                         <div className="flex items-center gap-2 mt-1 text-gray-500">
                             <span className="font-medium text-gray-900">{car?.name}</span>
-                            <span>•</span>
-                            <span className="text-sm">{selectedDates.length > 0 ? `${selectedDates.length} day(s) selected` : `${pickupDate} → ${dropoffDate}`}</span>
+                            <span>â€¢</span>
+                            <span className="text-sm">{selectedDates.length > 0 ? `${selectedDates.length} day(s) selected` : `${pickupDate} â†’ ${dropoffDate}`}</span>
                         </div>
                     </div>
                     <button
@@ -310,7 +332,7 @@ const BookingWizardModal = ({
                             <div className="grid grid-cols-1 gap-4">
                                 {rentalTypes.map((type) => {
                                     const selected = selectedRentalType?.id === type.id;
-                                    const isSelf = isSelfDrive(type.name);
+                                    const isSelf = isSelfDrive(type);
 
                                     return (
                                         <button
@@ -346,7 +368,7 @@ const BookingWizardModal = ({
                             </div>
 
                             {/* Driver Fee Preview */}
-                            {isWithDriver(selectedRentalType?.name) && (
+                            {isWithDriver(selectedRentalType) && (
                                 <div className="mt-6 p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
@@ -385,7 +407,7 @@ const BookingWizardModal = ({
                             <div className="grid grid-cols-2 gap-4">
                                 {pickupMethods.map((method) => {
                                     const selected = selectedPickupMethod?.id === method.id;
-                                    const isStore = isStorePickup(method.name);
+                                    const isStore = isStorePickup(method);
 
                                     return (
                                         <button
@@ -414,7 +436,7 @@ const BookingWizardModal = ({
                             </div>
 
                             {/* Delivery Address Input */}
-                            {isDelivery(selectedPickupMethod?.name) && (
+                            {isDelivery(selectedPickupMethod) && (
                                 <div className="mt-8 space-y-4 animate-fadeIn">
                                     <h4 className="font-bold text-gray-900 flex items-center gap-2">
                                         <MapPin size={18} className="text-[#5fcf86]" />
@@ -496,13 +518,13 @@ const BookingWizardModal = ({
                                 <div className="grid grid-cols-2 gap-y-4 gap-x-8">
                                     <div className="space-y-1">
                                         <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Duration</p>
-                                        <p className="font-semibold text-gray-900">{selectedDates.length > 0 ? selectedDates.join(", ") : `${pickupDate} → ${dropoffDate}`}</p>
+                                        <p className="font-semibold text-gray-900">{selectedDates.length > 0 ? selectedDates.join(", ") : `${pickupDate} â†’ ${dropoffDate}`}</p>
                                         <p className="text-xs text-[#5fcf86] font-medium">{rentalDays} Days</p>
                                     </div>
                                     <div className="space-y-1 text-right">
                                         <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Type</p>
                                         <p className="font-semibold text-gray-900">
-                                            {isSelfDrive(selectedRentalType?.name) ? 'Self-Drive' : 'With Driver'}
+                                            {isSelfDrive(selectedRentalType) ? 'Self-Drive' : 'With Driver'}
                                         </p>
                                     </div>
 
@@ -523,14 +545,14 @@ const BookingWizardModal = ({
                                         <span className="font-medium text-gray-900">{formatPrice(rentalFee)}</span>
                                     </div>
 
-                                    {isWithDriver(selectedRentalType?.name) && driverFeeData && (
+                                    {isWithDriver(selectedRentalType) && driverFeeData && (
                                         <div className="flex justify-between items-center text-blue-600 bg-blue-50/50 p-2 rounded-lg -mx-2">
                                             <span className="flex items-center gap-2 text-sm"><User size={14} /> Driver Fee</span>
                                             <span className="font-bold">{formatPrice(driverFeeData.totalDriverFee)}</span>
                                         </div>
                                     )}
 
-                                    {isDelivery(selectedPickupMethod?.name) && deliveryFeeData && (
+                                    {isDelivery(selectedPickupMethod) && deliveryFeeData && (
                                         <div className="flex justify-between items-center text-orange-600 bg-orange-50/50 p-2 rounded-lg -mx-2">
                                             <span className="flex items-center gap-2 text-sm"><Truck size={14} /> Delivery Fee</span>
                                             <span className="font-bold">{formatPrice(deliveryFeeData.totalDeliveryFee)}</span>
@@ -564,8 +586,8 @@ const BookingWizardModal = ({
 
                     <button
                         onClick={step === 3 ? handleConfirmBooking : goNext}
-                        disabled={(step === 1 ? !canProceedStep1 : step === 2 ? !canProceedStep2() : loading)}
-                        className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-100 transition-all transform active:scale-[0.98] ${(step === 1 ? !canProceedStep1 : step === 2 ? !canProceedStep2() : loading)
+                        disabled={(step === 1 ? !canProceedStep1() : step === 2 ? !canProceedStep2() : loading)}
+                        className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-100 transition-all transform active:scale-[0.98] ${(step === 1 ? !canProceedStep1() : step === 2 ? !canProceedStep2() : loading)
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                             : 'bg-[#5fcf86] text-white hover:bg-[#4bc076] hover:shadow-green-200'
                             }`}

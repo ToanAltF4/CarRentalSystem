@@ -322,7 +322,8 @@ CREATE TABLE vehicle_last_location (
 
 INSERT INTO vehicle_statuses VALUES
 (1,'AVAILABLE','Available'),
-(2,'RENTED','Rented');
+(2,'MAINTENANCE','Maintenance'),
+(3,'INACTIVE','Inactive');
 
 INSERT INTO booking_statuses VALUES
 (1,'PENDING','Pending'),

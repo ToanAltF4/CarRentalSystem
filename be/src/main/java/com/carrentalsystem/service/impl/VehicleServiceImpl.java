@@ -267,8 +267,8 @@ public class VehicleServiceImpl implements VehicleService {
     public void deleteVehicle(Long id) {
         log.info("Deleting vehicle ID: {}", id);
         VehicleEntity entity = findVehicleOrThrow(id);
-        if (entity.getStatus() == VehicleStatus.RENTED) {
-            throw new IllegalArgumentException("Cannot delete a vehicle that is currently rented");
+        if (entity.getStatus() != VehicleStatus.INACTIVE) {
+            throw new IllegalArgumentException("Cannot delete an active vehicle. Set status to INACTIVE first");
         }
         vehicleRepository.delete(entity);
         log.info("Vehicle ID: {} deleted successfully", id);

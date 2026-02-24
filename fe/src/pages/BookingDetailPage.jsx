@@ -4,13 +4,18 @@ import {
     AlertCircle,
     Calendar,
     Car,
+    ClipboardList,
     ChevronRight,
     Clock,
     DollarSign,
     Loader2,
     MapPin,
     User,
-    Eye
+    Eye,
+    FileText,
+    Hash,
+    ShieldCheck,
+    Truck
 } from 'lucide-react';
 import bookingService from '../services/bookingService';
 import { formatPrice } from '../utils/formatters';
@@ -18,6 +23,7 @@ import { formatPrice } from '../utils/formatters';
 const BookingDetailPage = () => {
     const { bookingCode } = useParams();
     const [booking, setBooking] = useState(null);
+    const [returnDetails, setReturnDetails] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -33,6 +39,15 @@ const BookingDetailPage = () => {
             try {
                 const data = await bookingService.getByCode(decodeURIComponent(bookingCode));
                 setBooking(data);
+                setReturnDetails(null);
+                if (data?.id && data?.status === 'COMPLETED') {
+                    try {
+                        const details = await bookingService.getReturnDetails(data.id);
+                        setReturnDetails(details);
+                    } catch {
+                        // Return details are optional on this page.
+                    }
+                }
             } catch (err) {
                 console.error('Failed to fetch booking details:', err);
                 setError('Failed to load booking details');
@@ -49,6 +64,8 @@ const BookingDetailPage = () => {
             PENDING: 'bg-yellow-100 text-yellow-700',
             CONFIRMED: 'bg-blue-100 text-blue-700',
             IN_PROGRESS: 'bg-green-100 text-green-700',
+            ONGOING: 'bg-green-100 text-green-700',
+            ASSIGNED: 'bg-indigo-100 text-indigo-700',
             COMPLETED: 'bg-gray-100 text-gray-700',
             CANCELLED: 'bg-red-100 text-red-700'
         };
@@ -57,9 +74,23 @@ const BookingDetailPage = () => {
 
         return (
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
-                {status.replace('_', ' ')}
+                {status.replace(/_/g, ' ')}
             </span>
         );
+    };
+
+    const formatDate = (value) => {
+        if (!value) return '-';
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleDateString('en-GB');
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString('en-GB');
     };
 
     if (loading) {
@@ -120,16 +151,28 @@ const BookingDetailPage = () => {
                                     <div className="space-y-2 text-sm text-gray-700">
                                         <div className="flex items-center gap-2">
                                             <Calendar size={16} className="text-gray-400" />
-                                            <span>Pick-up: {booking.startDate || '-'}</span>
+                                            <span>Pick-up: {formatDate(booking.startDate)}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Calendar size={16} className="text-gray-400" />
-                                            <span>Drop-off: {booking.endDate || '-'}</span>
+                                            <span>Drop-off: {formatDate(booking.endDate)}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Clock size={16} className="text-gray-400" />
                                             <span>Duration: {booking.totalDays || 0} days</span>
                                         </div>
+                                        {Array.isArray(booking.selectedDates) && booking.selectedDates.length > 0 && (
+                                            <div className="pt-2">
+                                                <p className="text-xs text-gray-400 mb-2">Selected Dates</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {booking.selectedDates.map((date) => (
+                                                        <span key={date} className="px-2 py-1 rounded-md bg-white border border-gray-200 text-xs">
+                                                            {formatDate(date)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -142,8 +185,36 @@ const BookingDetailPage = () => {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <DollarSign size={16} className="text-gray-400" />
+                                            <span>Rental Fee: {formatPrice(booking.rentalFee || 0)}</span>
+                                        </div>
+                                        {(booking.driverFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Driver Fee: {formatPrice(booking.driverFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {(booking.deliveryFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Delivery Fee: {formatPrice(booking.deliveryFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign size={16} className="text-gray-400" />
                                             <span>Total: <span className="font-semibold text-primary">{formatPrice(booking.totalAmount || 0)}</span></span>
                                         </div>
+                                        {returnDetails?.invoiceNumber && (
+                                            <div className="flex items-center gap-2">
+                                                <FileText size={16} className="text-gray-400" />
+                                                <span>Invoice: <span className="font-mono">{returnDetails.invoiceNumber}</span></span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.paymentStatus && (
+                                            <div className="flex items-center gap-2">
+                                                <ShieldCheck size={16} className="text-gray-400" />
+                                                <span>Payment Status: {returnDetails.paymentStatus}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -164,11 +235,23 @@ const BookingDetailPage = () => {
                                                 <span>Delivery Address: {booking.deliveryAddress}</span>
                                             </div>
                                         )}
+                                        {booking.deliveryDistanceKm && (
+                                            <div className="flex items-center gap-2">
+                                                <Truck size={16} className="text-gray-400" />
+                                                <span>Delivery Distance: {booking.deliveryDistanceKm} km</span>
+                                            </div>
+                                        )}
+                                        {booking.notes && (
+                                            <div className="flex items-center gap-2">
+                                                <ClipboardList size={16} className="text-gray-400" />
+                                                <span>Note: {booking.notes}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="rounded-xl bg-gray-50 p-4">
-                                    <p className="text-xs text-gray-400 mb-2">Customer Info</p>
+                                    <p className="text-xs text-gray-400 mb-2">Customer & Vehicle</p>
                                     <div className="space-y-2 text-sm text-gray-700">
                                         <div className="flex items-center gap-2">
                                             <User size={16} className="text-gray-400" />
@@ -182,6 +265,62 @@ const BookingDetailPage = () => {
                                             <User size={16} className="text-gray-400" />
                                             <span>Phone: {booking.customerPhone || '-'}</span>
                                         </div>
+                                        <div className="flex items-center gap-2">
+                                            <Hash size={16} className="text-gray-400" />
+                                            <span>Plate: {booking.vehicleLicensePlate || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Car size={16} className="text-gray-400" />
+                                            <span>Brand/Model: {booking.vehicleBrand || '-'} {booking.vehicleModel || ''}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">Assignment</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Assigned Staff: {booking.assignedStaffName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Driver: {booking.driverName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Assigned By: {booking.assignedByName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Assigned At: {formatDateTime(booking.assignedAt)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">System Info</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <Hash size={16} className="text-gray-400" />
+                                            <span>Booking ID: {booking.id || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Created At: {formatDateTime(booking.createdAt)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Updated At: {formatDateTime(booking.updatedAt)}</span>
+                                        </div>
+                                        {returnDetails?.actualReturnDate && (
+                                            <div className="flex items-center gap-2">
+                                                <Clock size={16} className="text-gray-400" />
+                                                <span>Actual Return: {formatDateTime(returnDetails.actualReturnDate)}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

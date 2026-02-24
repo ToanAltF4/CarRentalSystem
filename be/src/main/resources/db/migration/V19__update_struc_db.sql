@@ -149,7 +149,7 @@ CREATE TABLE vehicles (
   vehicle_category_id BIGINT NOT NULL,  -- -> vehicle_categories (model/spec)
 
   license_plate VARCHAR(20) NOT NULL UNIQUE,
-  status VARCHAR(30) NOT NULL,          -- AVAILABLE/RENTED/MAINTENANCE/...
+  status VARCHAR(30) NOT NULL,          -- AVAILABLE/MAINTENANCE/INACTIVE/...
 
   -- per-car fields (optional but useful)
   vin VARCHAR(50) NULL UNIQUE,

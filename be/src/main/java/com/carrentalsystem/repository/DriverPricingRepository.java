@@ -20,11 +20,13 @@ public interface DriverPricingRepository extends JpaRepository<DriverPricingEnti
          * 
          * @return Optional containing the active driver pricing if found
          */
-        @Query("SELECT dp FROM DriverPricingEntity dp WHERE dp.isActive = true " +
-                        "AND dp.vehicleCategory IS NULL " +
-                        "AND dp.effectiveFrom <= CURRENT_DATE " +
-                        "AND (dp.effectiveTo IS NULL OR dp.effectiveTo >= CURRENT_DATE) " +
-                        "ORDER BY dp.effectiveFrom DESC")
+        @Query(value = "SELECT * FROM driver_pricing dp " +
+                        "WHERE dp.is_active = true " +
+                        "AND dp.vehicle_category_id IS NULL " +
+                        "AND dp.effective_from <= CURRENT_DATE " +
+                        "AND (dp.effective_to IS NULL OR dp.effective_to >= CURRENT_DATE) " +
+                        "ORDER BY dp.effective_from DESC, dp.id DESC " +
+                        "LIMIT 1", nativeQuery = true)
         Optional<DriverPricingEntity> findCurrentActive();
 
         /**
@@ -33,10 +35,12 @@ public interface DriverPricingRepository extends JpaRepository<DriverPricingEnti
          * @param categoryId the vehicle category ID
          * @return Optional containing the active driver pricing for the category
          */
-        @Query("SELECT dp FROM DriverPricingEntity dp WHERE dp.isActive = true " +
-                        "AND dp.vehicleCategory.id = :categoryId " +
-                        "AND dp.effectiveFrom <= CURRENT_DATE " +
-                        "AND (dp.effectiveTo IS NULL OR dp.effectiveTo >= CURRENT_DATE) " +
-                        "ORDER BY dp.effectiveFrom DESC")
+        @Query(value = "SELECT * FROM driver_pricing dp " +
+                        "WHERE dp.is_active = true " +
+                        "AND dp.vehicle_category_id = :categoryId " +
+                        "AND dp.effective_from <= CURRENT_DATE " +
+                        "AND (dp.effective_to IS NULL OR dp.effective_to >= CURRENT_DATE) " +
+                        "ORDER BY dp.effective_from DESC, dp.id DESC " +
+                        "LIMIT 1", nativeQuery = true)
         Optional<DriverPricingEntity> findCurrentActiveByCategory(@Param("categoryId") Long categoryId);
 }

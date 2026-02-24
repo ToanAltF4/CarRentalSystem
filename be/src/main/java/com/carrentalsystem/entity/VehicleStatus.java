@@ -10,14 +10,14 @@ public enum VehicleStatus {
     AVAILABLE(1),
 
     /**
-     * Vehicle is currently rented
-     */
-    RENTED(2),
-
-    /**
      * Vehicle is under maintenance
      */
-    MAINTENANCE(3);
+    MAINTENANCE(2),
+
+    /**
+     * Vehicle is inactive (temporarily or permanently out of service)
+     */
+    INACTIVE(3);
 
     private final int id;
 

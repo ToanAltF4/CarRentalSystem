@@ -27,8 +27,16 @@ const CarCard = ({ car }) => {
         'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800';
 
 
-    // Generate display name
-    const displayName = name || `${brand} ${model} ${year}`.trim();
+    const fallbackName = `${brand} ${year}`.trim();
+    const baseName = (name || fallbackName || 'Unknown Vehicle').trim();
+    const modelName = (model || '').trim();
+    const hasModelInBaseName =
+        modelName &&
+        baseName.toLowerCase().includes(modelName.toLowerCase());
+    const displayName =
+        modelName && !hasModelInBaseName
+            ? `${baseName} - ${modelName}`
+            : baseName;
 
     return (
         <Link

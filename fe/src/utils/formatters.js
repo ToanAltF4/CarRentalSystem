@@ -25,8 +25,8 @@ export const formatStatus = (status) => {
 
         // Vehicle Statuses
         'AVAILABLE': { label: 'Available', color: 'text-green-600', bg: 'bg-green-100' },
-        'RENTED': { label: 'Rented', color: 'text-orange-600', bg: 'bg-orange-100' },
         'MAINTENANCE': { label: 'Maintenance', color: 'text-gray-600', bg: 'bg-gray-200' },
+        'INACTIVE': { label: 'Inactive', color: 'text-gray-700', bg: 'bg-gray-200' },
     };
 
     return statusMap[status] || { label: status, color: 'text-gray-600', bg: 'bg-gray-100' };

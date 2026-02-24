@@ -124,9 +124,19 @@ const vehicleService = {
     mapToCarCard: (v) => {
         const normalized = vehicleService.normalizeVehicle(v);
         if (!normalized) return null;
+        const baseName = `${normalized.categoryBrand} ${normalized.categoryName}`.trim();
+        const modelName = (normalized.categoryModel || '').trim();
+        const hasModelInBaseName =
+            modelName &&
+            baseName.toLowerCase().includes(modelName.toLowerCase());
+        const displayName =
+            modelName && !hasModelInBaseName
+                ? `${baseName} - ${modelName}`
+                : baseName || modelName || 'Unknown Vehicle';
+
         return {
             id: normalized.id,
-            name: `${normalized.categoryBrand} ${normalized.categoryName}`,
+            name: displayName,
             model: normalized.categoryModel,
             brand: normalized.categoryBrand,
             dailyRate: normalized.dailyPrice,

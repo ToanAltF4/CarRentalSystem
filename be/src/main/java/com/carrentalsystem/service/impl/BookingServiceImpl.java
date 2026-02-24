@@ -311,14 +311,8 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(status);
 
-        // If confirmed, optionally update vehicle status
-        if (status == BookingStatus.IN_PROGRESS) {
-            booking.getVehicle().setStatus(VehicleStatus.RENTED);
-            vehicleRepository.save(booking.getVehicle());
-        } else if (status == BookingStatus.COMPLETED || status == BookingStatus.CANCELLED) {
-            booking.getVehicle().setStatus(VehicleStatus.AVAILABLE);
-            vehicleRepository.save(booking.getVehicle());
-        }
+        // Vehicle operational status is managed separately (AVAILABLE/MAINTENANCE/INACTIVE).
+        // Booking timeline (selected dates + booking status) handles rental occupancy.
 
         BookingEntity updated = bookingRepository.save(booking);
         return toEnrichedDTO(updated);
@@ -339,12 +333,6 @@ public class BookingServiceImpl implements BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-
-        // Release vehicle if it was in progress
-        if (booking.getVehicle().getStatus() == VehicleStatus.RENTED) {
-            booking.getVehicle().setStatus(VehicleStatus.AVAILABLE);
-            vehicleRepository.save(booking.getVehicle());
-        }
 
         BookingEntity cancelled = bookingRepository.save(booking);
         return toEnrichedDTO(cancelled);

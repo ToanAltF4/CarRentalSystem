@@ -60,6 +60,15 @@ const MyBookingsPage = () => {
         fetchBookings(); // Refresh to show updated status
     };
 
+    const getVehicleDisplayName = (booking) => {
+        const brand = (booking?.vehicleBrand || '').trim();
+        const name = (booking?.vehicleName || '').trim();
+        const model = (booking?.vehicleModel || '').trim();
+        const baseName = `${brand} ${name}`.trim() || name || model || 'Vehicle';
+        const hasModelInBase = model && baseName.toLowerCase().includes(model.toLowerCase());
+        return model && !hasModelInBase ? `${baseName} - ${model}` : baseName;
+    };
+
     const getStatusBadge = (status) => {
         const styles = {
             PENDING: 'bg-yellow-100 text-yellow-700',
@@ -128,7 +137,7 @@ const MyBookingsPage = () => {
                                 <div className="md:w-48 h-40 md:h-auto flex-shrink-0">
                                     <img
                                         src={booking.vehicleImage || 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=400'}
-                                        alt={booking.vehicleName}
+                                        alt={getVehicleDisplayName(booking)}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
@@ -138,9 +147,12 @@ const MyBookingsPage = () => {
                                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                                         <div>
                                             <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="text-xl font-bold text-gray-900">{booking.vehicleName}</h3>
+                                                <h3 className="text-xl font-bold text-gray-900">{getVehicleDisplayName(booking)}</h3>
                                                 {getStatusBadge(booking.status)}
                                             </div>
+                                            <p className="text-xs text-gray-500 mb-2">
+                                                Plate: <span className="font-mono font-semibold">{booking.vehicleLicensePlate || '-'}</span>
+                                            </p>
                                             <p className="text-sm text-gray-500 mb-4">Booking Code: <span className="font-mono font-semibold">{booking.bookingCode}</span></p>
 
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

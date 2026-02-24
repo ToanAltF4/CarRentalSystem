@@ -32,7 +32,7 @@ INSERT INTO tmp_v22_vehicle_seed (
 ('Tesla', 'Model 3', 'Standard', 5, 60.00, 438, 6.50, 'Tesla Model 3 Standard EV', 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&q=80&w=800', 2125000, '30A-12345', 'AVAILABLE', 'V22-30A12345', 15420, 95),
 ('Tesla', 'Model 3', 'Long Range', 5, 75.00, 568, 8.00, 'Tesla Model 3 Long Range EV', 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&q=80&w=800', 2375000, '30A-12346', 'AVAILABLE', 'V22-30A12346', 8750, 98),
 ('Tesla', 'Model Y', 'Standard', 5, 75.00, 533, 8.00, 'Tesla Model Y electric SUV', 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&q=80&w=800', 2750000, '30A-12347', 'AVAILABLE', 'V22-30A12347', 22100, 88),
-('Tesla', 'Model S', 'Plaid', 5, 100.00, 637, 12.00, 'Tesla Model S Plaid high-performance EV', 'https://images.unsplash.com/photo-1503376763036-066120622c74?auto=format&fit=crop&q=80&w=800', 5000000, '30A-12348', 'RENTED', 'V22-30A12348', 5600, 65),
+('Tesla', 'Model S', 'Plaid', 5, 100.00, 637, 12.00, 'Tesla Model S Plaid high-performance EV', 'https://images.unsplash.com/photo-1503376763036-066120622c74?auto=format&fit=crop&q=80&w=800', 5000000, '30A-12348', 'INACTIVE', 'V22-30A12348', 5600, 65),
 ('Tesla', 'Model X', 'Long Range', 7, 100.00, 560, 10.00, 'Tesla Model X premium electric SUV', 'https://images.unsplash.com/photo-1503376763036-066120622c74?auto=format&fit=crop&q=80&w=800', 4500000, '30A-12349', 'AVAILABLE', 'V22-30A12349', 9800, 92),
 
 -- VinFast
@@ -40,14 +40,14 @@ INSERT INTO tmp_v22_vehicle_seed (
 ('VinFast', 'VF 8', 'Standard', 5, 87.70, 420, 8.00, 'VinFast VF 8 midsize electric SUV', 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800', 2250000, '29A-11112', 'AVAILABLE', 'V22-29A11112', 8500, 97),
 ('VinFast', 'VF 9', 'Eco', 7, 123.00, 438, 11.00, 'VinFast VF 9 full-size electric SUV', 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800', 3750000, '29A-11113', 'AVAILABLE', 'V22-29A11113', 18900, 78),
 ('VinFast', 'VF 5', 'Standard', 5, 37.23, 300, 5.50, 'VinFast VF 5 city EV', 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800', 1125000, '29A-11114', 'AVAILABLE', 'V22-29A11114', 6500, 99),
-('VinFast', 'VF 6', 'Standard', 5, 59.60, 399, 7.00, 'VinFast VF 6 compact crossover EV', 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800', 1625000, '29A-11115', 'RENTED', 'V22-29A11115', 14200, 61),
+('VinFast', 'VF 6', 'Standard', 5, 59.60, 399, 7.00, 'VinFast VF 6 compact crossover EV', 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800', 1625000, '29A-11115', 'INACTIVE', 'V22-29A11115', 14200, 61),
 
 -- BYD
 ('BYD', 'Dolphin', 'Standard', 5, 44.90, 340, 5.00, 'BYD Dolphin hatchback EV', 'https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&q=80&w=800', 1200000, '51A-22221', 'AVAILABLE', 'V22-51A22221', 14200, 90),
 ('BYD', 'Atto 3', 'Standard', 5, 60.48, 420, 6.00, 'BYD Atto 3 crossover EV', 'https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&q=80&w=800', 1750000, '51A-22222', 'AVAILABLE', 'V22-51A22222', 9800, 87),
 ('BYD', 'Seal', 'Performance', 5, 82.56, 570, 7.50, 'BYD Seal performance electric sedan', 'https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&q=80&w=800', 2500000, '51A-22223', 'AVAILABLE', 'V22-51A22223', 15600, 85),
 ('BYD', 'Tang EV', 'Standard', 7, 108.80, 530, 9.00, 'BYD Tang EV 7-seat SUV', 'https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&q=80&w=800', 3250000, '51A-22224', 'AVAILABLE', 'V22-51A22224', 12100, 84),
-('BYD', 'Han EV', 'Premium', 5, 85.40, 610, 8.50, 'BYD Han EV premium sedan', 'https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&q=80&w=800', 2875000, '51A-22225', 'RENTED', 'V22-51A22225', 17350, 58),
+('BYD', 'Han EV', 'Premium', 5, 85.40, 610, 8.50, 'BYD Han EV premium sedan', 'https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&q=80&w=800', 2875000, '51A-22225', 'INACTIVE', 'V22-51A22225', 17350, 58),
 
 -- Hyundai
 ('Hyundai', 'Ioniq 5', 'Long Range', 5, 77.40, 481, 7.00, 'Hyundai Ioniq 5 electric crossover', 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=800', 2250000, '43A-33331', 'AVAILABLE', 'V22-43A33331', 11200, 95),
@@ -57,7 +57,7 @@ INSERT INTO tmp_v22_vehicle_seed (
 -- Kia
 ('Kia', 'EV6', 'GT-Line', 5, 77.40, 510, 7.00, 'Kia EV6 sporty crossover EV', 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=800', 2375000, '92A-44441', 'AVAILABLE', 'V22-92A44441', 13500, 88),
 ('Kia', 'EV9', 'Standard', 7, 99.80, 541, 9.00, 'Kia EV9 full-size electric SUV', 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=800', 3500000, '92A-44442', 'AVAILABLE', 'V22-92A44442', 9200, 94),
-('Kia', 'Niro EV', 'Standard', 5, 64.80, 460, 7.00, 'Kia Niro EV compact crossover', 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=800', 1625000, '92A-44443', 'RENTED', 'V22-92A44443', 18950, 57),
+('Kia', 'Niro EV', 'Standard', 5, 64.80, 460, 7.00, 'Kia Niro EV compact crossover', 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=800', 1625000, '92A-44443', 'INACTIVE', 'V22-92A44443', 18950, 57),
 
 -- Mercedes
 ('Mercedes', 'EQS 450+', 'Sedan', 5, 107.80, 780, 11.00, 'Mercedes EQS flagship electric sedan', 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=800', 5500000, '30A-55551', 'AVAILABLE', 'V22-30A55551', 7300, 96),

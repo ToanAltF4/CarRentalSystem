@@ -45,7 +45,7 @@ CREATE TABLE vehicles (
     range_km INT,
     charging_time_hours DECIMAL(4,2),
     daily_rate DECIMAL(10,2) NOT NULL,
-    status ENUM('AVAILABLE', 'RENTED', 'MAINTENANCE') DEFAULT 'AVAILABLE',
+    status ENUM('AVAILABLE', 'MAINTENANCE', 'INACTIVE') DEFAULT 'AVAILABLE',
     image_url VARCHAR(500),
     category_id BIGINT,
     seats INT DEFAULT 5,

@@ -104,7 +104,7 @@ INSERT INTO vehicles (vehicle_category_id, license_plate, status, vin, odometer,
 (1, '30A-12345', 'AVAILABLE', 'TSLA001', 15420, 95),
 (2, '30A-12346', 'AVAILABLE', 'TSLA002', 8750, 100),
 (3, '30A-12347', 'AVAILABLE', 'TSLA003', 22100, 88),
-(4, '30A-12348', 'RENTED', 'TSLA004', 5600, 65),
+(4, '30A-12348', 'INACTIVE', 'TSLA004', 5600, 65),
 -- VinFast
 (5, '29A-11111', 'AVAILABLE', 'VFS001', 12000, 92),
 (5, '29A-11112', 'AVAILABLE', 'VFS002', 8500, 100),
@@ -112,7 +112,7 @@ INSERT INTO vehicles (vehicle_category_id, license_plate, status, vin, odometer,
 (7, '29A-11114', 'AVAILABLE', 'VFS004', 6500, 100),
 -- BYD
 (8, '51A-22221', 'AVAILABLE', 'BYD001', 14200, 90),
-(9, '51A-22222', 'RENTED', 'BYD002', 9800, 55),
+(9, '51A-22222', 'INACTIVE', 'BYD002', 9800, 55),
 (10, '51A-22223', 'AVAILABLE', 'BYD003', 15600, 85),
 -- Hyundai, Kia
 (11, '43A-33331', 'AVAILABLE', 'HYN001', 11200, 95),

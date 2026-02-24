@@ -40,6 +40,7 @@ const AdminVehicleList = () => {
             const updated = await vehicleService.updateStatus(id, newStatus);
             setVehicles(vehicles.map(v => v.id === id ? updated : v));
         } catch (err) {
+            console.error(err);
             alert('Failed to update status');
         }
     };
@@ -58,9 +59,8 @@ const AdminVehicleList = () => {
     const getStatusBadge = (status) => {
         const map = {
             AVAILABLE: 'bg-green-100 text-green-800',
-            RENTED: 'bg-blue-100 text-blue-800',
             MAINTENANCE: 'bg-yellow-100 text-yellow-800',
-            RESERVED: 'bg-purple-100 text-purple-800',
+            INACTIVE: 'bg-gray-200 text-gray-800',
         };
         return (
             <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${map[status] || 'bg-gray-100 text-gray-800'}`}>
@@ -161,12 +161,36 @@ const AdminVehicleList = () => {
                                                         Maintenance
                                                     </button>
                                                 )}
+                                                {v.status === 'AVAILABLE' && (
+                                                    <button
+                                                        onClick={() => handleStatusChange(v.id, 'INACTIVE')}
+                                                        className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                                    >
+                                                        Deactivate
+                                                    </button>
+                                                )}
                                                 {v.status === 'MAINTENANCE' && (
                                                     <button
                                                         onClick={() => handleStatusChange(v.id, 'AVAILABLE')}
                                                         className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
                                                     >
                                                         Available
+                                                    </button>
+                                                )}
+                                                {v.status === 'MAINTENANCE' && (
+                                                    <button
+                                                        onClick={() => handleStatusChange(v.id, 'INACTIVE')}
+                                                        className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                                    >
+                                                        Deactivate
+                                                    </button>
+                                                )}
+                                                {v.status === 'INACTIVE' && (
+                                                    <button
+                                                        onClick={() => handleStatusChange(v.id, 'AVAILABLE')}
+                                                        className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                                                    >
+                                                        Activate
                                                     </button>
                                                 )}
                                                 <button

@@ -81,28 +81,51 @@ const enumerateRangeDates = (startDate, endDate) => {
 
 const buildCalendarCells = (monthDate) => {
     const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-    const firstGridDate = new Date(monthStart);
-    firstGridDate.setDate(monthStart.getDate() - monthStart.getDay());
+    const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+    const leadingEmpty = monthStart.getDay();
+    const totalFilled = leadingEmpty + daysInMonth;
+    const trailingEmpty = (7 - (totalFilled % 7)) % 7;
 
-    return Array.from({ length: 42 }, (_, index) => {
-        const date = new Date(firstGridDate);
-        date.setDate(firstGridDate.getDate() + index);
+    const emptyCells = (count) =>
+        Array.from({ length: count }, (_, index) => ({
+            key: `empty-${count}-${index}`,
+            date: null,
+            iso: '',
+            day: '',
+            isPlaceholder: true
+        }));
+
+    const monthCells = Array.from({ length: daysInMonth }, (_, index) => {
+        const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
         return {
+            key: toIsoDate(date),
             date,
             iso: toIsoDate(date),
             day: date.getDate(),
-            isCurrentMonth: date.getMonth() === monthDate.getMonth()
+            isPlaceholder: false
         };
     });
+
+    return [...emptyCells(leadingEmpty), ...monthCells, ...emptyCells(trailingEmpty)];
 };
 
 const buildDisplayCar = (category) => {
     if (!category) return null;
     const images = (category.imageUrls?.length ? category.imageUrls : [category.primaryImageUrl]).filter(Boolean);
+    const baseName = `${category.brand || ''} ${category.name || ''}`.trim();
+    const modelName = (category.model || '').trim();
+    const hasModelInBaseName =
+        modelName &&
+        baseName.toLowerCase().includes(modelName.toLowerCase());
+    const displayName =
+        modelName && !hasModelInBaseName
+            ? `${baseName} - ${modelName}`
+            : baseName || modelName || 'Unknown Vehicle';
+
     return {
         id: category.id,
         categoryId: category.id,
-        name: `${category.brand || ''} ${category.name || ''}`.trim(),
+        name: displayName,
         categoryName: category.name || '',
         brand: category.brand || '',
         model: category.model || '',
@@ -128,8 +151,7 @@ const getInitialVehicleId = (vehicles, preferredVehicleId) => {
     if (preferredVehicleId && vehicles.some((vehicle) => vehicle.id === preferredVehicleId)) {
         return preferredVehicleId;
     }
-    const available = vehicles.find((vehicle) => vehicle.status === 'AVAILABLE');
-    return available?.id || vehicles[0]?.id || null;
+    return vehicles[0]?.id || null;
 };
 
 const CarDetailPage = () => {
@@ -143,7 +165,6 @@ const CarDetailPage = () => {
     const [unavailableRanges, setUnavailableRanges] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [loadingUnavailable, setLoadingUnavailable] = useState(false);
     const [activeImage, setActiveImage] = useState(0);
     const [pageError, setPageError] = useState('');
     const [bookingError, setBookingError] = useState('');
@@ -196,13 +217,23 @@ const CarDetailPage = () => {
     const serviceFee = SERVICE_FEE;
     const totalPrice = rentalFee + insuranceFee + serviceFee;
 
-    const unavailableDateSet = useMemo(() => {
-        const dates = new Set();
+    const unavailableDateStatusMap = useMemo(() => {
+        const dateStatusMap = new Map();
         unavailableRanges.forEach((range) => {
-            enumerateRangeDates(range.startDate, range.endDate).forEach((date) => dates.add(date));
+            const status = range.status || 'BOOKED';
+            enumerateRangeDates(range.startDate, range.endDate).forEach((date) => {
+                if (!dateStatusMap.has(date)) {
+                    dateStatusMap.set(date, status);
+                }
+            });
         });
-        return dates;
+        return dateStatusMap;
     }, [unavailableRanges]);
+
+    const unavailableDateSet = useMemo(
+        () => new Set(Array.from(unavailableDateStatusMap.keys())),
+        [unavailableDateStatusMap]
+    );
 
     const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth]);
     const calendarTitle = useMemo(
@@ -320,11 +351,12 @@ const CarDetailPage = () => {
                 const normalizedVehicles = Array.isArray(resolvedVehicles)
                     ? resolvedVehicles
                     : vehicleService.normalizeVehicleList(resolvedVehicles);
-                const initialVehicleId = getInitialVehicleId(normalizedVehicles, preferredVehicleId);
+                const bookableVehicles = normalizedVehicles.filter((vehicle) => vehicle.status === 'AVAILABLE');
+                const initialVehicleId = getInitialVehicleId(bookableVehicles, preferredVehicleId);
 
                 if (cancelled) return;
                 setCategory(resolvedCategory);
-                setVehiclesInCategory(normalizedVehicles);
+                setVehiclesInCategory(bookableVehicles);
                 setSelectedVehicleId(initialVehicleId);
                 setUnavailableRanges([]);
                 setSelectedDates([]);
@@ -361,27 +393,26 @@ const CarDetailPage = () => {
                 setUnavailableRanges([]);
                 return;
             }
-            setLoadingUnavailable(true);
             try {
                 const ranges = await vehicleService.getUnavailableDates(selectedVehicleId);
                 if (cancelled) return;
                 setUnavailableRanges(ranges);
             } catch (error) {
                 console.error('Failed to load unavailable dates:', error);
-                if (cancelled) return;
-                setUnavailableRanges([]);
-            } finally {
-                if (cancelled) return;
-                setLoadingUnavailable(false);
+                // Keep previous unavailable ranges to avoid allowing invalid date picks.
             }
         };
 
         fetchUnavailableDates();
+        const refreshTimer = setInterval(() => {
+            void fetchUnavailableDates();
+        }, 15000);
 
         return () => {
             cancelled = true;
+            clearInterval(refreshTimer);
         };
-    }, [selectedVehicleId]);
+    }, [selectedVehicleId, calendarMonth]);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -649,38 +680,18 @@ const CarDetailPage = () => {
                                 onChange={(e) => handleVehicleSelect(e.target.value)}
                                 className="w-full border border-gray-200 bg-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-[#5fcf86]"
                             >
+                                {vehiclesInCategory.length === 0 && (
+                                    <option value="" disabled>
+                                        No available vehicle
+                                    </option>
+                                )}
                                 {vehiclesInCategory.map((vehicle) => (
                                     <option key={vehicle.id} value={vehicle.id}>
-                                        {vehicle.licensePlate} ({vehicle.status})
+                                        {vehicle.licensePlate}
                                     </option>
                                 ))}
                             </select>
 
-                            {selectedVehicle && (
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Selected: <span className="font-semibold text-gray-800">{selectedVehicle.licensePlate}</span>
-                                </p>
-                            )}
-
-                            <div className="mt-3 border-t border-gray-200 pt-3">
-                                <p className="text-xs font-semibold text-gray-600 mb-2">Booked date ranges for this plate</p>
-                                {loadingUnavailable ? (
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                        <Loader2 size={12} className="animate-spin" />
-                                        Loading unavailable dates...
-                                    </div>
-                                ) : unavailableRanges.length === 0 ? (
-                                    <p className="text-xs text-green-600">No booked dates yet</p>
-                                ) : (
-                                    <div className="space-y-1 max-h-24 overflow-y-auto">
-                                        {unavailableRanges.map((range, index) => (
-                                            <div key={`${range.startDate}-${range.endDate}-${index}`} className="text-xs text-red-600">
-                                                {formatIsoDate(range.startDate)} - {formatIsoDate(addDays(range.endDate, -1))} ({range.status})
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         <div className="mb-6 space-y-3">
@@ -716,19 +727,20 @@ const CarDetailPage = () => {
                                     </div>
 
                                     <div className="grid grid-cols-7 gap-1">
-                                        {calendarCells.map((cell) => {
+                                        {calendarCells.map((cell, index) => {
+                                            if (cell.isPlaceholder) {
+                                                return <div key={`${cell.key}-${index}`} className="h-9" aria-hidden="true" />;
+                                            }
+
                                             const isPast = cell.iso < today;
                                             const unavailable = isDateUnavailable(cell.iso);
                                             const selected = selectedDates.includes(cell.iso);
                                             const disabled = isPast || unavailable;
 
                                             let dayClass = 'border-gray-100 text-gray-700 hover:border-[#5fcf86]/40 hover:bg-green-50';
-                                            if (!cell.isCurrentMonth) {
-                                                dayClass = 'border-transparent text-gray-300';
-                                            }
                                             if (disabled) {
                                                 dayClass = unavailable
-                                                    ? 'border-red-100 bg-red-50 text-red-300 cursor-not-allowed'
+                                                    ? 'border-gray-200 bg-gray-200 text-gray-400 cursor-not-allowed'
                                                     : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed';
                                             }
                                             if (selected) {
@@ -737,22 +749,38 @@ const CarDetailPage = () => {
 
                                             return (
                                                 <button
-                                                    key={cell.iso}
+                                                    key={cell.key}
                                                     type="button"
                                                     disabled={disabled}
                                                     onClick={() => toggleSelectedDate(cell.iso)}
                                                     className={`h-9 rounded-md border text-sm transition-colors ${dayClass}`}
-                                                    title={cell.iso}
+                                                    title={unavailable ? `${cell.iso} (booked)` : cell.iso}
                                                 >
                                                     {cell.day}
                                                 </button>
                                             );
                                         })}
                                     </div>
+
+                                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 sm:grid-cols-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3.5 w-3.5 rounded-[4px] border border-gray-200 bg-white" />
+                                            <span>Available</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3.5 w-3.5 rounded-[4px] border border-[#5fcf86] bg-[#5fcf86]" />
+                                            <span>Selected</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3.5 w-3.5 rounded-[4px] border border-gray-200 bg-gray-200" />
+                                            <span>Booked</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3.5 w-3.5 rounded-[4px] border border-gray-100 bg-gray-50" />
+                                            <span>Past</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                    Click a day to add/remove. You can choose continuous days (24,25,26) or separate days (24,26,27).
-                                </p>
                             </div>
 
                             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -784,35 +812,35 @@ const CarDetailPage = () => {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <span className="text-gray-800 font-medium">Rental Fee</span>
-                                    <p className="text-xs text-gray-400">{formatPrice(displayCar.price)} x {rentalDays} days</p>
+                                    <p className="text-sm text-gray-500">{formatPrice(displayCar.price)} x {rentalDays} days</p>
                                 </div>
                                 <span className="font-semibold text-gray-900">{formatPrice(rentalFee)}</span>
                             </div>
 
                             <div className="border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50/50">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-gray-800 font-medium text-xs uppercase tracking-wide">Insurance</span>
-                                    <span className="text-xs text-gray-500">{formatPrice(insuranceFee)}</span>
+                                    <span className="text-gray-800 font-medium text-sm uppercase tracking-wide">Insurance</span>
+                                    <span className="text-sm text-gray-500">{formatPrice(insuranceFee)}</span>
                                 </div>
 
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-gray-700 text-xs font-medium">Third Party Liability</span>
-                                            <span className="text-[9px] text-white bg-red-500 px-1 py-0.5 rounded">Required</span>
+                                            <span className="text-gray-700 text-sm font-medium">Third Party Liability</span>
+                                            <span className="text-[10px] text-white bg-red-500 px-1 py-0.5 rounded">Required</span>
                                         </div>
-                                        <p className="text-[10px] text-gray-400">Compensation for third-party damages</p>
+                                        <p className="text-xs text-gray-500">Compensation for third-party damages</p>
                                     </div>
-                                    <span className="text-xs text-gray-600">{formatPrice(INSURANCE_FEES.thirdParty * rentalDays)}</span>
+                                    <span className="text-sm text-gray-600">{formatPrice(INSURANCE_FEES.thirdParty * rentalDays)}</span>
                                 </div>
 
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
-                                        <span className="text-gray-700 text-xs font-medium">Vehicle Body</span>
-                                        <p className="text-[10px] text-gray-400">Scratches, dents, collisions</p>
+                                        <span className="text-gray-700 text-sm font-medium">Vehicle Body</span>
+                                        <p className="text-xs text-gray-500">Scratches, dents, collisions</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-xs ${insuranceOptions.vehicleDamage ? 'text-gray-600' : 'text-gray-300'}`}>
+                                        <span className={`text-sm ${insuranceOptions.vehicleDamage ? 'text-gray-600' : 'text-gray-300'}`}>
                                             {formatPrice(INSURANCE_FEES.vehicleDamage * rentalDays)}
                                         </span>
                                         <button
@@ -829,11 +857,11 @@ const CarDetailPage = () => {
 
                                 <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                                     <div className="flex-1">
-                                        <span className="text-gray-700 text-xs font-medium">Personal Accident</span>
-                                        <p className="text-[10px] text-gray-400">Medical expenses for driver and passengers</p>
+                                        <span className="text-gray-700 text-sm font-medium">Personal Accident</span>
+                                        <p className="text-xs text-gray-500">Medical expenses for driver and passengers</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-xs ${insuranceOptions.personalAccident ? 'text-gray-600' : 'text-gray-300'}`}>
+                                        <span className={`text-sm ${insuranceOptions.personalAccident ? 'text-gray-600' : 'text-gray-300'}`}>
                                             {formatPrice(INSURANCE_FEES.personalAccident * rentalDays)}
                                         </span>
                                         <button
@@ -850,11 +878,11 @@ const CarDetailPage = () => {
 
                                 <div className="flex justify-between items-center py-1.5">
                                     <div className="flex-1">
-                                        <span className="text-gray-700 text-xs font-medium">Vehicle Theft</span>
-                                        <p className="text-[10px] text-gray-400">Compensation for stolen vehicle</p>
+                                        <span className="text-gray-700 text-sm font-medium">Vehicle Theft</span>
+                                        <p className="text-xs text-gray-500">Compensation for stolen vehicle</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-xs ${insuranceOptions.theft ? 'text-gray-600' : 'text-gray-300'}`}>
+                                        <span className={`text-sm ${insuranceOptions.theft ? 'text-gray-600' : 'text-gray-300'}`}>
                                             {formatPrice(INSURANCE_FEES.theft * rentalDays)}
                                         </span>
                                         <button
@@ -873,7 +901,7 @@ const CarDetailPage = () => {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <span className="text-gray-800 font-medium">Service Fee</span>
-                                    <p className="text-xs text-gray-400">24/7 support, car cleaning</p>
+                                    <p className="text-sm text-gray-500">24/7 support, car cleaning</p>
                                 </div>
                                 <span className="font-semibold text-gray-900">{formatPrice(serviceFee)}</span>
                             </div>

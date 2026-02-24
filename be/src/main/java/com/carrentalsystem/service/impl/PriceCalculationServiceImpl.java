@@ -113,12 +113,17 @@ public class PriceCalculationServiceImpl implements PriceCalculationService {
 
     @Override
     public BigDecimal getDriverDailyFee() {
-        return driverPricingRepository.findCurrentActive()
-                .map(DriverPricingEntity::getDailyFee)
-                .orElseGet(() -> {
-                    log.warn("No active driver pricing found, using default: {}", DEFAULT_DRIVER_DAILY_FEE);
-                    return DEFAULT_DRIVER_DAILY_FEE;
-                });
+        try {
+            return driverPricingRepository.findCurrentActive()
+                    .map(DriverPricingEntity::getDailyFee)
+                    .orElseGet(() -> {
+                        log.warn("No active driver pricing found, using default: {}", DEFAULT_DRIVER_DAILY_FEE);
+                        return DEFAULT_DRIVER_DAILY_FEE;
+                    });
+        } catch (Exception ex) {
+            log.error("Failed to load driver pricing from DB, using default: {}", DEFAULT_DRIVER_DAILY_FEE, ex);
+            return DEFAULT_DRIVER_DAILY_FEE;
+        }
     }
 
     @Override
@@ -127,12 +132,17 @@ public class PriceCalculationServiceImpl implements PriceCalculationService {
             return getDriverDailyFee();
         }
 
-        return driverPricingRepository.findCurrentActiveByCategory(vehicleCategoryId)
-                .map(DriverPricingEntity::getDailyFee)
-                .orElseGet(() -> {
-                    log.warn("No driver pricing found for category {}, falling back to default", vehicleCategoryId);
-                    return getDriverDailyFee();
-                });
+        try {
+            return driverPricingRepository.findCurrentActiveByCategory(vehicleCategoryId)
+                    .map(DriverPricingEntity::getDailyFee)
+                    .orElseGet(() -> {
+                        log.warn("No driver pricing found for category {}, falling back to default", vehicleCategoryId);
+                        return getDriverDailyFee();
+                    });
+        } catch (Exception ex) {
+            log.error("Failed to load driver pricing for category {}, falling back to default", vehicleCategoryId, ex);
+            return getDriverDailyFee();
+        }
     }
 
     @Override

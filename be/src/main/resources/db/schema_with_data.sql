@@ -265,7 +265,7 @@ INSERT INTO vehicles (name, model, brand, license_plate, daily_rate, status, cat
 ('Tesla Model 3 Standard', 'Model 3', 'Tesla', '30A-12345', 2125000, 'AVAILABLE', 3),
 ('Tesla Model 3 Long Range', 'Model 3 LR', 'Tesla', '30A-12346', 2375000, 'AVAILABLE', 3),
 ('Tesla Model Y', 'Model Y', 'Tesla', '30A-12347', 2750000, 'AVAILABLE', 5),
-('Tesla Model S Plaid', 'Model S', 'Tesla', '30A-12348', 5000000, 'RENTED', 4),
+('Tesla Model S Plaid', 'Model S', 'Tesla', '30A-12348', 5000000, 'INACTIVE', 4),
 ('Tesla Model X', 'Model X', 'Tesla', '30A-12349', 4500000, 'AVAILABLE', 4),
 
 -- VinFast
@@ -273,14 +273,14 @@ INSERT INTO vehicles (name, model, brand, license_plate, daily_rate, status, cat
 ('VinFast VF 8', 'VF 8', 'VinFast', '29A-11112', 2250000, 'AVAILABLE', 5),
 ('VinFast VF 9', 'VF 9', 'VinFast', '29A-11113', 3750000, 'AVAILABLE', 4),
 ('VinFast VF 5', 'VF 5', 'VinFast', '29A-11114', 1125000, 'AVAILABLE', 6),
-('VinFast VF 6', 'VF 6', 'VinFast', '29A-11115', 1625000, 'RENTED', 2),
+('VinFast VF 6', 'VF 6', 'VinFast', '29A-11115', 1625000, 'INACTIVE', 2),
 
 -- BYD
 ('BYD Dolphin', 'Dolphin', 'BYD', '51A-22221', 1200000, 'AVAILABLE', 1),
 ('BYD Atto 3', 'Atto 3', 'BYD', '51A-22222', 1750000, 'AVAILABLE', 2),
 ('BYD Seal', 'Seal', 'BYD', '51A-22223', 2500000, 'AVAILABLE', 3),
 ('BYD Tang EV', 'Tang EV', 'BYD', '51A-22224', 3250000, 'AVAILABLE', 5),
-('BYD Han EV', 'Han EV', 'BYD', '51A-22225', 2875000, 'RENTED', 4),
+('BYD Han EV', 'Han EV', 'BYD', '51A-22225', 2875000, 'INACTIVE', 4),
 
 -- Hyundai
 ('Hyundai Ioniq 5', 'Ioniq 5', 'Hyundai', '43A-33331', 2250000, 'AVAILABLE', 3),
@@ -290,7 +290,7 @@ INSERT INTO vehicles (name, model, brand, license_plate, daily_rate, status, cat
 -- Kia
 ('Kia EV6', 'EV6', 'Kia', '92A-44441', 2375000, 'AVAILABLE', 3),
 ('Kia EV9', 'EV9', 'Kia', '92A-44442', 3500000, 'AVAILABLE', 5),
-('Kia Niro EV', 'Niro EV', 'Kia', '92A-44443', 1625000, 'RENTED', 2),
+('Kia Niro EV', 'Niro EV', 'Kia', '92A-44443', 1625000, 'INACTIVE', 2),
 
 -- Mercedes
 ('Mercedes EQS 450+', 'EQS', 'Mercedes', '30A-55551', 5500000, 'AVAILABLE', 4),

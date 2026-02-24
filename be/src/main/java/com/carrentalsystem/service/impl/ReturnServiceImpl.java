@@ -85,13 +85,14 @@ public class ReturnServiceImpl implements ReturnService {
         bookingRepository.save(booking);
         log.info("Booking {} marked as COMPLETED", booking.getBookingCode());
 
-        // 7. Update vehicle status to AVAILABLE (maintenance status not modeled in DB)
-        if (Boolean.TRUE.equals(request.getHasDamage()) ||
+        // 7. Update vehicle operational status.
+        boolean hasDamage = Boolean.TRUE.equals(request.getHasDamage()) ||
                 request.getExteriorCondition() == ConditionRating.DAMAGED ||
-                request.getInteriorCondition() == ConditionRating.DAMAGED) {
-            log.info("Vehicle {} reported damage; keeping status AVAILABLE", vehicle.getLicensePlate());
+                request.getInteriorCondition() == ConditionRating.DAMAGED;
+
+        if (vehicle.getStatus() != VehicleStatus.INACTIVE) {
+            vehicle.setStatus(hasDamage ? VehicleStatus.MAINTENANCE : VehicleStatus.AVAILABLE);
         }
-        vehicle.setStatus(VehicleStatus.AVAILABLE);
         vehicleRepository.save(vehicle);
 
         // 8. Build and return response
