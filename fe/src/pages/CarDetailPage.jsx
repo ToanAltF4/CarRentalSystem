@@ -26,6 +26,7 @@ import BookingWizardModal from '../components/BookingWizardModal';
 import { useAuth } from '../context/AuthContext';
 import vehicleCategoryService from '../services/vehicleCategoryService';
 import vehicleService from '../services/vehicleService';
+import bookingService from '../services/bookingService';
 import { formatPrice } from '../utils/formatters';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7';
@@ -169,6 +170,8 @@ const CarDetailPage = () => {
     const [pageError, setPageError] = useState('');
     const [bookingError, setBookingError] = useState('');
     const [showWizard, setShowWizard] = useState(false);
+    const [pricingInfo, setPricingInfo] = useState(null);
+    const [driverDailyFee, setDriverDailyFee] = useState(null);
 
     const [selectedDates, setSelectedDates] = useState([]);
     const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -216,6 +219,10 @@ const CarDetailPage = () => {
     const insuranceFee = calculateInsuranceFee();
     const serviceFee = SERVICE_FEE;
     const totalPrice = rentalFee + insuranceFee + serviceFee;
+    const driverPickupFreeKm = Number(pricingInfo?.deliveryFreeKm);
+    const driverPickupPerKmRate = Number(pricingInfo?.deliveryPerKmRate);
+    const resolvedDriverPickupFreeKm = Number.isFinite(driverPickupFreeKm) ? driverPickupFreeKm : 5;
+    const resolvedDriverPickupPerKmRate = Number.isFinite(driverPickupPerKmRate) ? driverPickupPerKmRate : 5000;
 
     const unavailableDateStatusMap = useMemo(() => {
         const dateStatusMap = new Map();
@@ -420,6 +427,56 @@ const CarDetailPage = () => {
         }
     }, [isAuthenticated, refreshUser]);
 
+    useEffect(() => {
+        const fetchPricing = async () => {
+            try {
+                const data = await bookingService.getPricingInfo();
+                setPricingInfo(data);
+            } catch (err) {
+                console.error('Failed to load pricing info:', err);
+            }
+        };
+        fetchPricing();
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchDriverDailyFee = async () => {
+            const categoryId = Number(displayCar?.categoryId);
+            const fallbackFee = Number(pricingInfo?.driverDailyFee);
+
+            if (!Number.isFinite(categoryId) || categoryId <= 0) {
+                if (!cancelled) {
+                    setDriverDailyFee(Number.isFinite(fallbackFee) ? fallbackFee : null);
+                }
+                return;
+            }
+
+            try {
+                const feeData = await bookingService.getDriverFee(1, categoryId);
+                if (cancelled) return;
+
+                const resolvedDailyFee = Number(feeData?.dailyFee);
+                if (Number.isFinite(resolvedDailyFee) && resolvedDailyFee > 0) {
+                    setDriverDailyFee(resolvedDailyFee);
+                } else {
+                    setDriverDailyFee(Number.isFinite(fallbackFee) ? fallbackFee : null);
+                }
+            } catch (error) {
+                console.error('Failed to load category driver daily fee:', error);
+                if (!cancelled) {
+                    setDriverDailyFee(Number.isFinite(fallbackFee) ? fallbackFee : null);
+                }
+            }
+        };
+
+        fetchDriverDailyFee();
+        return () => {
+            cancelled = true;
+        };
+    }, [displayCar?.categoryId, pricingInfo?.driverDailyFee]);
+
     const handleVehicleSelect = (value) => {
         const nextVehicleId = Number(value);
         setSelectedVehicleId(Number.isFinite(nextVehicleId) ? nextVehicleId : null);
@@ -547,6 +604,89 @@ const CarDetailPage = () => {
                             {displayCar.description || `Experience premium electric driving with ${displayCar.name}.`}
                         </p>
                     </div>
+
+                    <hr className="border-gray-100" />
+
+                    {/* Delivery & Additional Services Pricing */}
+                    {pricingInfo && (
+                        <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-6 md:p-7">
+                            <div className="mb-6 flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#5fcf86]/15 text-[#2f8e59]">
+                                    <Truck size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold tracking-tight text-gray-800">Delivery & Additional Services</h3>
+                                    <p className="text-sm text-gray-600">Optional add-ons available during booking</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {/* Delivery Fee */}
+                                <div className="h-full rounded-2xl border border-gray-200 bg-white p-4">
+                                    <div className="mb-4 flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                                                <MapPin size={16} />
+                                            </div>
+                                            <span className="text-sm font-semibold text-gray-800">Self Delivery</span>
+                                        </div>
+                                    </div>
+                                    <div className="divide-y divide-gray-200 rounded-xl border border-gray-200 bg-white px-3">
+                                        <div className="flex items-center justify-between py-2.5">
+                                            <span className="text-xs font-medium text-gray-500">Base fee</span>
+                                            <span className="text-base font-bold text-gray-800">{formatPrice(pricingInfo.deliveryBaseFee)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-2.5">
+                                            <span className="text-xs font-medium text-gray-500">Within {pricingInfo.deliveryFreeKm} km</span>
+                                            <span className="text-sm font-semibold text-gray-800">No extra charge</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-2.5">
+                                            <span className="text-xs font-medium text-gray-500">Over {pricingInfo.deliveryFreeKm} km</span>
+                                            <span className="text-sm font-semibold text-gray-800">+ {formatPrice(pricingInfo.deliveryPerKmRate)}/km</span>
+                                        </div>
+                                    </div>
+                                    <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                                        We can deliver the vehicle to your address. Store pickup is always free.
+                                    </p>
+                                </div>
+
+                                {/* Driver Fee */}
+                                <div className="h-full rounded-2xl border border-gray-200 bg-white p-4">
+                                    <div className="mb-4 flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                                                <ShieldCheck size={16} />
+                                            </div>
+                                            <span className="text-sm font-semibold text-gray-800">Chauffeur Driver</span>
+                                        </div>
+                                    </div>
+                                    <div className="divide-y divide-gray-200 rounded-xl border border-gray-200 bg-white px-3">
+                                        <div className="flex items-center justify-between py-2.5">
+                                            <span className="text-xs font-medium text-gray-500">Daily fee</span>
+                                            <span className="text-base font-bold text-gray-800">
+                                                {driverDailyFee !== null ? `${formatPrice(driverDailyFee)}/day` : 'Updating...'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-2.5">
+                                            <span className="text-xs font-medium text-gray-500">Within {resolvedDriverPickupFreeKm} km</span>
+                                            <span className="text-sm font-semibold text-[#2f8e59]">Free pickup</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-2.5">
+                                            <span className="text-xs font-medium text-gray-500">Over {resolvedDriverPickupFreeKm} km</span>
+                                            <span className="text-sm font-semibold text-gray-800">+ {formatPrice(resolvedDriverPickupPerKmRate)}/km</span>
+                                        </div>
+                                    </div>
+                                    <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                                        Our experienced driver will take you wherever you need. Includes fuel and tolls.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p className="mt-5 text-center text-xs text-gray-500">
+                                Final fees are calculated during booking based on your selected options.
+                            </p>
+                        </div>
+                    )}
 
                     <hr className="border-gray-100" />
 

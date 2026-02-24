@@ -36,6 +36,22 @@ public interface PriceCalculationService {
     DeliveryFeeResponseDTO calculateDeliveryFee(String deliveryAddress);
 
     /**
+     * Calculate delivery fee by explicit distance from route engine.
+     *
+     * @param deliveryAddress The customer's delivery address
+     * @param distanceKm      Route distance from showroom in kilometers
+     * @return DeliveryFeeResponseDTO with fee breakdown
+     */
+    DeliveryFeeResponseDTO calculateDeliveryFee(String deliveryAddress, BigDecimal distanceKm);
+
+    /**
+     * Calculate delivery fee with driver-aware pricing.
+     * WITH_DRIVER within free km = FREE, beyond = only surcharge.
+     * SELF_DRIVE = base fee + surcharge as usual.
+     */
+    DeliveryFeeResponseDTO calculateDeliveryFee(String deliveryAddress, BigDecimal distanceKm, boolean withDriver);
+
+    /**
      * Get the current active driver daily fee.
      * 
      * @return Daily driver fee amount

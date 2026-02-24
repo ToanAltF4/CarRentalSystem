@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Random;
 
 /**
  * Implementation of PriceCalculationService.
@@ -32,19 +31,15 @@ public class PriceCalculationServiceImpl implements PriceCalculationService {
     private static final BigDecimal DEFAULT_DELIVERY_BASE_FEE = BigDecimal.valueOf(50000); // 50k VND base
 
     // Delivery fee calculation constants
-    private static final BigDecimal FREE_KM = BigDecimal.valueOf(5); // First 5km free
+    private static final BigDecimal FREE_KM = BigDecimal.valueOf(5); // First 5 km free
     private static final BigDecimal PER_KM_RATE = BigDecimal.valueOf(5000); // 5000 VND per km after free distance
-
-    // Store location (for demo purposes - Ho Chi Minh City center)
-    private static final double STORE_LATITUDE = 10.7769;
-    private static final double STORE_LONGITUDE = 106.7009;
 
     @Override
     public DriverFeeResponseDTO calculateDriverFee(int totalDays) {
         BigDecimal dailyFee = getDriverDailyFee();
         BigDecimal totalDriverFee = dailyFee.multiply(BigDecimal.valueOf(totalDays));
 
-        String breakdown = String.format("%s × %d days = %s",
+        String breakdown = String.format("%s x %d days = %s",
                 formatCurrency(dailyFee), totalDays, formatCurrency(totalDriverFee));
 
         log.info("Calculated driver fee: {} for {} days", totalDriverFee, totalDays);
@@ -62,7 +57,7 @@ public class PriceCalculationServiceImpl implements PriceCalculationService {
         BigDecimal dailyFee = getDriverDailyFeeByCategory(vehicleCategoryId);
         BigDecimal totalDriverFee = dailyFee.multiply(BigDecimal.valueOf(totalDays));
 
-        String breakdown = String.format("%s × %d days = %s",
+        String breakdown = String.format("%s x %d days = %s",
                 formatCurrency(dailyFee), totalDays, formatCurrency(totalDriverFee));
 
         log.info("Calculated driver fee by category {}: {} for {} days", vehicleCategoryId, totalDriverFee, totalDays);
@@ -77,32 +72,65 @@ public class PriceCalculationServiceImpl implements PriceCalculationService {
 
     @Override
     public DeliveryFeeResponseDTO calculateDeliveryFee(String deliveryAddress) {
-        BigDecimal baseFee = getDeliveryBaseFee();
-        BigDecimal perKmRate = getDeliveryPerKmFee();
         BigDecimal distanceKm = calculateDistance(deliveryAddress);
+        return calculateDeliveryFee(deliveryAddress, distanceKm);
+    }
 
-        // Calculate distance fee: max(0, distance - free_km) * per_km_rate
-        BigDecimal chargeableDistance = distanceKm.subtract(FREE_KM).max(BigDecimal.ZERO);
-        BigDecimal distanceFee = chargeableDistance.multiply(perKmRate);
-        BigDecimal totalDeliveryFee = baseFee.add(distanceFee);
+    @Override
+    public DeliveryFeeResponseDTO calculateDeliveryFee(String deliveryAddress, BigDecimal distanceKm) {
+        return calculateDeliveryFee(deliveryAddress, distanceKm, false);
+    }
 
-        String breakdown;
-        if (distanceKm.compareTo(FREE_KM) <= 0) {
-            breakdown = String.format("Distance %.1f km (within free radius of %s km). Base fee: %s",
-                    distanceKm, FREE_KM.intValue(), formatCurrency(baseFee));
-        } else {
-            breakdown = String.format("Distance %.1f km. Base fee: %s + (%.1f km × %s) = %s",
-                    distanceKm, formatCurrency(baseFee), chargeableDistance, formatCurrency(perKmRate),
-                    formatCurrency(totalDeliveryFee));
+    @Override
+    public DeliveryFeeResponseDTO calculateDeliveryFee(String deliveryAddress, BigDecimal distanceKm,
+            boolean withDriver) {
+        if (distanceKm == null || distanceKm.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Distance must be greater than 0 km");
         }
 
-        log.info("Calculated delivery fee: {} for address: {}, distance: {} km",
-                totalDeliveryFee, deliveryAddress, distanceKm);
+        BigDecimal normalizedDistance = distanceKm.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal baseFee = getDeliveryBaseFee();
+        BigDecimal perKmRate = getDeliveryPerKmFee();
+
+        BigDecimal chargeableDistance = normalizedDistance.subtract(FREE_KM).max(BigDecimal.ZERO);
+        BigDecimal distanceFee = chargeableDistance.multiply(perKmRate);
+
+        BigDecimal totalDeliveryFee;
+        String breakdown;
+
+        if (withDriver) {
+            // WITH_DRIVER: within free km = FREE, beyond = only per-km surcharge (no base
+            // fee)
+            if (normalizedDistance.compareTo(FREE_KM) <= 0) {
+                totalDeliveryFee = BigDecimal.ZERO;
+                breakdown = String.format("Distance %.2f km (within free pickup radius of %s km). Pickup fee: FREE",
+                        normalizedDistance, FREE_KM.intValue());
+            } else {
+                totalDeliveryFee = distanceFee;
+                breakdown = String.format("Distance %.2f km. Pickup surcharge: (%.2f km x %s) = %s",
+                        normalizedDistance, chargeableDistance, formatCurrency(perKmRate),
+                        formatCurrency(totalDeliveryFee));
+            }
+        } else {
+            // SELF_DRIVE delivery: always base fee + distance surcharge
+            totalDeliveryFee = baseFee.add(distanceFee);
+            if (normalizedDistance.compareTo(FREE_KM) <= 0) {
+                breakdown = String.format("Distance %.2f km (within free radius of %s km). Base fee: %s",
+                        normalizedDistance, FREE_KM.intValue(), formatCurrency(baseFee));
+            } else {
+                breakdown = String.format("Distance %.2f km. Base fee: %s + (%.2f km x %s) = %s",
+                        normalizedDistance, formatCurrency(baseFee), chargeableDistance, formatCurrency(perKmRate),
+                        formatCurrency(totalDeliveryFee));
+            }
+        }
+
+        log.info("Calculated delivery fee (withDriver={}): {} for address: {}, distance: {} km",
+                withDriver, totalDeliveryFee, deliveryAddress, normalizedDistance);
 
         return DeliveryFeeResponseDTO.builder()
                 .deliveryAddress(deliveryAddress)
-                .distanceKm(distanceKm)
-                .baseFee(baseFee)
+                .distanceKm(normalizedDistance)
+                .baseFee(withDriver ? BigDecimal.ZERO : baseFee)
                 .freeKm(FREE_KM)
                 .perKmRate(perKmRate)
                 .distanceFee(distanceFee)
@@ -147,70 +175,55 @@ public class PriceCalculationServiceImpl implements PriceCalculationService {
 
     @Override
     public BigDecimal getDeliveryBaseFee() {
-        return deliveryPricingRepository.findCurrentActive()
-                .map(DeliveryPricingEntity::getBaseFee)
-                .orElseGet(() -> {
-                    log.warn("No active delivery pricing found, using default: {}", DEFAULT_DELIVERY_BASE_FEE);
-                    return DEFAULT_DELIVERY_BASE_FEE;
-                });
+        try {
+            return deliveryPricingRepository.findCurrentActive()
+                    .map(DeliveryPricingEntity::getBaseFee)
+                    .orElseGet(() -> {
+                        log.warn("No active delivery pricing found, using default: {}", DEFAULT_DELIVERY_BASE_FEE);
+                        return DEFAULT_DELIVERY_BASE_FEE;
+                    });
+        } catch (Exception ex) {
+            log.error("Failed to load delivery base fee from DB, using default: {}", DEFAULT_DELIVERY_BASE_FEE, ex);
+            return DEFAULT_DELIVERY_BASE_FEE;
+        }
     }
 
     /**
      * Get per-km delivery fee from database.
      */
     private BigDecimal getDeliveryPerKmFee() {
-        return deliveryPricingRepository.findCurrentActive()
-                .map(DeliveryPricingEntity::getPerKmFee)
-                .orElse(PER_KM_RATE);
+        try {
+            return deliveryPricingRepository.findCurrentActive()
+                    .map(DeliveryPricingEntity::getPerKmFee)
+                    .orElseGet(() -> {
+                        log.warn("No active delivery per-km pricing found, using default: {}", PER_KM_RATE);
+                        return PER_KM_RATE;
+                    });
+        } catch (Exception ex) {
+            log.error("Failed to load delivery per-km fee from DB, using default: {}", PER_KM_RATE, ex);
+            return PER_KM_RATE;
+        }
     }
 
     /**
-     * Calculate distance from store to delivery address.
-     * This is a SIMULATED distance calculation for demo purposes.
-     * In production, integrate with Google Maps Distance Matrix API or similar.
-     * 
-     * @param deliveryAddress The customer's delivery address
-     * @return Calculated distance in kilometers
+     * Deterministic fallback distance when no client-side route distance is
+     * provided.
      */
     private BigDecimal calculateDistance(String deliveryAddress) {
-        // Simulated distance calculation based on address keywords
-        // In production, use actual geocoding + distance matrix API
-
-        String addressLower = deliveryAddress.toLowerCase();
-        double baseDistance;
-
-        // Simulate distances based on district names (Ho Chi Minh City)
-        if (addressLower.contains("quận 1") || addressLower.contains("district 1") || addressLower.contains("q1")) {
-            baseDistance = 2.0; // Very close to center
-        } else if (addressLower.contains("quận 3") || addressLower.contains("q3") ||
-                addressLower.contains("quận 5") || addressLower.contains("q5") ||
-                addressLower.contains("quận 10") || addressLower.contains("q10")) {
-            baseDistance = 4.0; // Close
-        } else if (addressLower.contains("tân bình") || addressLower.contains("bình thạnh") ||
-                addressLower.contains("phú nhuận") || addressLower.contains("gò vấp")) {
-            baseDistance = 6.0; // Medium distance
-        } else if (addressLower.contains("thủ đức") || addressLower.contains("quận 7") ||
-                addressLower.contains("q7") || addressLower.contains("quận 2") || addressLower.contains("q2")) {
-            baseDistance = 10.0; // Further
-        } else if (addressLower.contains("bình chánh") || addressLower.contains("hóc môn") ||
-                addressLower.contains("củ chi") || addressLower.contains("cần giờ")) {
-            baseDistance = 20.0; // Far suburbs
-        } else {
-            // Default: random distance between 3-15 km
-            baseDistance = 3.0 + new Random().nextDouble() * 12.0;
+        if (deliveryAddress == null || deliveryAddress.isBlank()) {
+            return BigDecimal.ONE.setScale(2, RoundingMode.HALF_UP);
         }
 
-        // Add slight randomness for variation
-        double variation = (new Random().nextDouble() - 0.5) * 2.0; // ±1 km
-        double finalDistance = Math.max(1.0, baseDistance + variation);
-
-        return BigDecimal.valueOf(finalDistance).setScale(1, RoundingMode.HALF_UP);
+        String normalized = deliveryAddress.trim().toLowerCase();
+        int bucket = Math.floorMod(normalized.hashCode(), 14); // 0..13
+        double baseDistance = 2.0 + bucket; // 2..15 km
+        return BigDecimal.valueOf(baseDistance).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
      * Format currency for display (VND).
      */
     private String formatCurrency(BigDecimal amount) {
-        return String.format("%,.0f₫", amount);
+        return String.format("%,.0f VND", amount);
     }
 }

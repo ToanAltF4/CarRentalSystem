@@ -187,8 +187,15 @@ public class BookingServiceImpl implements BookingService {
                                     "Delivery address is required for DELIVERY pickup method");
                         }
                         deliveryAddress = request.getDeliveryAddress().trim();
-                        DeliveryFeeResponseDTO deliveryResult = priceCalculationService
-                                .calculateDeliveryFee(deliveryAddress);
+                        DeliveryFeeResponseDTO deliveryResult;
+                        if (request.getDeliveryDistanceKm() != null
+                                && request.getDeliveryDistanceKm().compareTo(BigDecimal.ZERO) > 0) {
+                            deliveryResult = priceCalculationService.calculateDeliveryFee(
+                                    deliveryAddress,
+                                    request.getDeliveryDistanceKm());
+                        } else {
+                            deliveryResult = priceCalculationService.calculateDeliveryFee(deliveryAddress);
+                        }
                         deliveryFee = deliveryResult.getTotalDeliveryFee();
                         deliveryDistanceKm = deliveryResult.getDistanceKm();
                         log.info("DELIVERY selected: distance = {} km, delivery_fee = {}", deliveryDistanceKm,

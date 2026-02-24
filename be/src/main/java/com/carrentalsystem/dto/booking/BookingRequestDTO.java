@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -41,4 +42,7 @@ public class BookingRequestDTO {
 
     // Delivery address (only when pickupMethodId = 2/DELIVERY)
     private String deliveryAddress;
+
+    // Real route distance from showroom to customer location (optional, from OSRM)
+    private BigDecimal deliveryDistanceKm;
 }

@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -64,12 +65,35 @@ public class BookingOptionsController {
     @PostMapping("/calculate-delivery-fee")
     @Operation(summary = "Calculate delivery fee", description = "Calculate delivery fee based on address distance")
     public ResponseEntity<DeliveryFeeResponseDTO> calculateDeliveryFee(
-            @RequestBody Map<String, String> request) {
-        String deliveryAddress = request.get("deliveryAddress");
+            @RequestBody Map<String, Object> request) {
+        String deliveryAddress = request.get("deliveryAddress") == null
+                ? null
+                : String.valueOf(request.get("deliveryAddress"));
         if (deliveryAddress == null || deliveryAddress.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        DeliveryFeeResponseDTO response = priceCalculationService.calculateDeliveryFee(deliveryAddress);
+
+        BigDecimal distanceKm = null;
+        Object rawDistance = request.get("distanceKm");
+        if (rawDistance != null) {
+            try {
+                distanceKm = new BigDecimal(String.valueOf(rawDistance));
+                if (distanceKm.compareTo(BigDecimal.ZERO) <= 0) {
+                    return ResponseEntity.badRequest().build();
+                }
+            } catch (NumberFormatException ex) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        DeliveryFeeResponseDTO response;
+        boolean withDriver = Boolean.TRUE.equals(request.get("withDriver"));
+
+        if (distanceKm == null) {
+            response = priceCalculationService.calculateDeliveryFee(deliveryAddress);
+        } else {
+            response = priceCalculationService.calculateDeliveryFee(deliveryAddress, distanceKm, withDriver);
+        }
         return ResponseEntity.ok(response);
     }
 

@@ -48,11 +48,17 @@ const bookingService = {
     },
 
     /**
-     * Calculate delivery fee based on address
+     * Calculate delivery fee based on address and optional real route distance.
      * @param {string} deliveryAddress - Delivery address
+     * @param {number|null} [distanceKm] - Route distance in km from OSRM
+     * @param {boolean} [withDriver] - If true, apply driver-aware pricing (free within 5km)
      */
-    calculateDeliveryFee: async (deliveryAddress) => {
-        const response = await api.post('/v1/booking-options/calculate-delivery-fee', { deliveryAddress });
+    calculateDeliveryFee: async (deliveryAddress, distanceKm = null, withDriver = false) => {
+        const payload = { deliveryAddress, withDriver };
+        if (typeof distanceKm === 'number' && Number.isFinite(distanceKm) && distanceKm > 0) {
+            payload.distanceKm = distanceKm;
+        }
+        const response = await api.post('/v1/booking-options/calculate-delivery-fee', payload);
         return response.data;
     },
 

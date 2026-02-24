@@ -3,8 +3,48 @@ import {
     X, Car, User, MapPin, Store, Truck, CheckCircle2, AlertCircle,
     Loader2, ChevronRight, ChevronLeft, Calculator
 } from 'lucide-react';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import bookingService from '../services/bookingService';
 import { formatPrice } from '../utils/formatters';
+
+const SHOWROOM_LOCATION = {
+    lat: 10.8751371,
+    lon: 106.8014554,
+    address: 'No. 1 Luu Huu Phuoc, Dong Hoa, Di An, Ho Chi Minh City'
+};
+
+const SHOWROOM_COORDINATES = [SHOWROOM_LOCATION.lat, SHOWROOM_LOCATION.lon];
+
+const DeliveryMapEvents = ({ onPickLocation }) => {
+    useMapEvents({
+        click: (event) => {
+            onPickLocation(event.latlng.lat, event.latlng.lng);
+        }
+    });
+    return null;
+};
+
+const DeliveryMapViewport = ({ selectedDeliveryPoint }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (selectedDeliveryPoint) {
+            map.fitBounds(
+                [
+                    SHOWROOM_COORDINATES,
+                    [selectedDeliveryPoint.lat, selectedDeliveryPoint.lon]
+                ],
+                { padding: [40, 40] }
+            );
+            return;
+        }
+
+        map.setView(SHOWROOM_COORDINATES, 13);
+    }, [map, selectedDeliveryPoint]);
+
+    return null;
+};
 
 /**
  * Booking Wizard Modal Component
@@ -38,6 +78,12 @@ const BookingWizardModal = ({
     const [driverFeeData, setDriverFeeData] = useState(null);
     const [deliveryFeeData, setDeliveryFeeData] = useState(null);
     const [calculatingFee, setCalculatingFee] = useState(false);
+    const [searchingAddress, setSearchingAddress] = useState(false);
+
+    // Delivery location state
+    const [addressSuggestions, setAddressSuggestions] = useState([]);
+    const [selectedDeliveryPoint, setSelectedDeliveryPoint] = useState(null); // { lat, lon }
+    const [routeData, setRouteData] = useState(null); // { distanceKm, durationMinutes, polyline }
 
     // Calculate rental days
     const calculateRentalDays = () => {
@@ -79,6 +125,14 @@ const BookingWizardModal = ({
         return text.includes('STORE');
     };
 
+    const resetDeliveryState = () => {
+        setDeliveryAddress('');
+        setDeliveryFeeData(null);
+        setAddressSuggestions([]);
+        setSelectedDeliveryPoint(null);
+        setRouteData(null);
+    };
+
     // Calculate total
     const calculateTotal = () => {
         let total = rentalFee;
@@ -99,9 +153,8 @@ const BookingWizardModal = ({
             setStep(1);
             setSelectedRentalType(null);
             setSelectedPickupMethod(null);
-            setDeliveryAddress('');
             setDriverFeeData(null);
-            setDeliveryFeeData(null);
+            resetDeliveryState();
             setError('');
         }
     }, [isOpen]);
@@ -125,7 +178,7 @@ const BookingWizardModal = ({
         setError('');
         setSelectedRentalType(type);
         setSelectedPickupMethod(null);
-        setDeliveryFeeData(null);
+        resetDeliveryState();
 
         if (isWithDriver(type)) {
             setCalculatingFee(true);
@@ -153,25 +206,200 @@ const BookingWizardModal = ({
     const handlePickupMethodSelect = (method) => {
         setSelectedPickupMethod(method);
         if (!isDelivery(method)) {
-            setDeliveryAddress('');
-            setDeliveryFeeData(null);
+            resetDeliveryState();
         }
     };
 
-    // Calculate delivery fee
-    const handleCalculateDeliveryFee = async () => {
+    const handleDeliveryAddressInputChange = (value) => {
+        setDeliveryAddress(value);
+        setDeliveryFeeData(null);
+        setRouteData(null);
+        setAddressSuggestions([]);
+        setSelectedDeliveryPoint(null);
+    };
+
+    const fetchNominatimSearch = async (query, limit = 5) => {
+        const params = new URLSearchParams({
+            q: query.trim(),
+            format: 'jsonv2',
+            addressdetails: '1',
+            limit: String(limit),
+            countrycodes: 'vn'
+        });
+
+        const response = await fetch(`/nominatim/search?${params.toString()}`, {
+            headers: {
+                Accept: 'application/json',
+                'Accept-Language': 'en'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Nominatim lookup failed');
+        }
+
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+    };
+
+    const searchDeliveryAddress = async () => {
         if (!deliveryAddress.trim()) {
             setError('Please enter a delivery address');
+            return;
+        }
+
+        setSearchingAddress(true);
+        setError('');
+        try {
+            const data = await fetchNominatimSearch(deliveryAddress, 5);
+            if (data.length === 0) {
+                setAddressSuggestions([]);
+                setError('No matching address found. Please try again.');
+                return;
+            }
+
+            setAddressSuggestions(data);
+        } catch (err) {
+            console.error('Failed to search address with Nominatim:', err);
+            setError('Unable to search addresses right now. Please try again.');
+        } finally {
+            setSearchingAddress(false);
+        }
+    };
+
+    const handleDeliveryAddressKeyDown = (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        if (searchingAddress || !deliveryAddress.trim()) return;
+        searchDeliveryAddress();
+    };
+
+    const handleSelectAddressSuggestion = (item) => {
+        const lat = Number(item.lat);
+        const lon = Number(item.lon);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            setError('Could not read coordinates from the selected address.');
+            return;
+        }
+
+        setDeliveryAddress(item.display_name || deliveryAddress);
+        setAddressSuggestions([]);
+        setSelectedDeliveryPoint({ lat, lon });
+        setRouteData(null);
+        setDeliveryFeeData(null);
+        setError('');
+    };
+
+    const handlePickLocationOnMap = async (lat, lon) => {
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+        setSelectedDeliveryPoint({ lat, lon });
+        setRouteData(null);
+        setDeliveryFeeData(null);
+        setAddressSuggestions([]);
+        setError('');
+
+        try {
+            const params = new URLSearchParams({
+                lat: String(lat),
+                lon: String(lon),
+                format: 'jsonv2'
+            });
+            const response = await fetch(`/nominatim/reverse?${params.toString()}`, {
+                headers: {
+                    Accept: 'application/json',
+                    'Accept-Language': 'en'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Nominatim reverse lookup failed');
+            }
+
+            const data = await response.json();
+            if (data?.display_name) {
+                setDeliveryAddress(data.display_name);
+            }
+        } catch (err) {
+            console.error('Failed to reverse geocode location:', err);
+        }
+    };
+
+    // Calculate OSRM route (km/min) and delivery fee
+    const handleCalculateDeliveryFee = async () => {
+        if (!deliveryAddress.trim()) {
+            setError('Please enter a delivery address.');
             return;
         }
         setCalculatingFee(true);
         setError('');
         try {
-            const feeData = await bookingService.calculateDeliveryFee(deliveryAddress);
+            let targetPoint = selectedDeliveryPoint;
+
+            // If user typed an address but did not pick from suggestions/map, auto-geocode first.
+            if (!targetPoint) {
+                const fallbackSearch = await fetchNominatimSearch(deliveryAddress, 1);
+                const first = fallbackSearch[0];
+                const lat = Number(first?.lat);
+                const lon = Number(first?.lon);
+                if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                    targetPoint = { lat, lon };
+                    setSelectedDeliveryPoint(targetPoint);
+                    if (first?.display_name) {
+                        setDeliveryAddress(first.display_name);
+                    }
+                } else {
+                    throw new Error('Could not geocode delivery address');
+                }
+            }
+
+            const routeParams = new URLSearchParams({
+                overview: 'full',
+                geometries: 'geojson',
+                steps: 'false'
+            });
+            const osrmUrl =
+                `/osrm/route/v1/driving/${SHOWROOM_LOCATION.lon},${SHOWROOM_LOCATION.lat};${targetPoint.lon},${targetPoint.lat}?${routeParams.toString()}`;
+
+            const routeResponse = await fetch(osrmUrl, {
+                headers: { Accept: 'application/json' }
+            });
+            if (!routeResponse.ok) {
+                throw new Error('OSRM route lookup failed');
+            }
+
+            const routePayload = await routeResponse.json();
+            const route = routePayload?.routes?.[0];
+            if (!route || !route.distance || !route.duration) {
+                throw new Error('No route found');
+            }
+
+            const distanceKm = Number((route.distance / 1000).toFixed(2));
+            const durationMinutes = Math.max(1, Math.round(route.duration / 60));
+            const polyline = Array.isArray(route.geometry?.coordinates)
+                ? route.geometry.coordinates.map(([lon, lat]) => [lat, lon])
+                : [];
+
+            setRouteData({ distanceKm, durationMinutes, polyline });
+
+            const feeData = await bookingService.calculateDeliveryFee(deliveryAddress, distanceKm, isWithDriver(selectedRentalType));
             setDeliveryFeeData(feeData);
         } catch (err) {
-            console.error('Failed to calculate delivery fee:', err);
-            setError('Failed to calculate delivery fee. Please try again.');
+            console.error('Failed to calculate OSRM route/delivery fee:', err);
+
+            // Fallback: still calculate a fee from address so user can continue.
+            try {
+                const fallbackFee = await bookingService.calculateDeliveryFee(deliveryAddress, null, isWithDriver(selectedRentalType));
+                setRouteData(null);
+                setDeliveryFeeData(fallbackFee);
+                setError('Route lookup is unavailable. Delivery fee is calculated using fallback distance.');
+            } catch (fallbackErr) {
+                console.error('Fallback delivery fee failed:', fallbackErr);
+                setRouteData(null);
+                setDeliveryFeeData(null);
+                setError('Unable to calculate delivery fee right now. Please try again.');
+            }
         } finally {
             setCalculatingFee(false);
         }
@@ -197,7 +425,8 @@ const BookingWizardModal = ({
                 notes: `Booking via website - ${car.name}`,
                 rentalTypeId: selectedRentalType?.id,
                 pickupMethodId: selectedPickupMethod?.id || null,
-                deliveryAddress: deliveryAddress.trim() || null
+                deliveryAddress: deliveryAddress.trim() || null,
+                deliveryDistanceKm: routeData?.distanceKm || null
             };
 
             const result = await bookingService.createBooking(bookingData);
@@ -217,7 +446,6 @@ const BookingWizardModal = ({
         return !calculatingFee && driverFeeData !== null;
     };
     const canProceedStep2 = () => {
-        if (isWithDriver(selectedRentalType)) return true;
         if (!selectedPickupMethod) return false;
         if (isDelivery(selectedPickupMethod)) {
             return deliveryFeeData !== null;
@@ -227,11 +455,7 @@ const BookingWizardModal = ({
 
     const goNext = () => {
         if (step === 1 && canProceedStep1()) {
-            if (isWithDriver(selectedRentalType)) {
-                setStep(3); // Skip step 2 for WITH_DRIVER
-            } else {
-                setStep(2);
-            }
+            setStep(2);
         } else if (step === 2 && canProceedStep2()) {
             setStep(3);
         }
@@ -239,13 +463,7 @@ const BookingWizardModal = ({
 
     const goBack = () => {
         if (step === 2) setStep(1);
-        if (step === 3) {
-            if (isWithDriver(selectedRentalType)) {
-                setStep(1);
-            } else {
-                setStep(2);
-            }
-        }
+        if (step === 3) setStep(2);
     };
 
     if (!isOpen) return null;
@@ -260,8 +478,8 @@ const BookingWizardModal = ({
                         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Book Vehicle</h2>
                         <div className="flex items-center gap-2 mt-1 text-gray-500">
                             <span className="font-medium text-gray-900">{car?.name}</span>
-                            <span>â€¢</span>
-                            <span className="text-sm">{selectedDates.length > 0 ? `${selectedDates.length} day(s) selected` : `${pickupDate} â†’ ${dropoffDate}`}</span>
+                            <span>-</span>
+                            <span className="text-sm">{selectedDates.length > 0 ? `${selectedDates.length} day(s) selected` : `${pickupDate} to ${dropoffDate}`}</span>
                         </div>
                     </div>
                     <button
@@ -400,14 +618,30 @@ const BookingWizardModal = ({
                     {step === 2 && (
                         <div className="space-y-6 animate-fadeIn">
                             <div className="text-center mb-8">
-                                <h3 className="text-xl font-bold text-gray-900">Where to get the car?</h3>
-                                <p className="text-gray-500">Select convenience or cost-saving</p>
+                                <h3 className="text-xl font-bold text-gray-900">
+                                    {isWithDriver(selectedRentalType)
+                                        ? 'Where should the driver pick you up?'
+                                        : 'How would you like to receive the car?'}
+                                </h3>
+                                <p className="text-gray-500">
+                                    {isWithDriver(selectedRentalType)
+                                        ? 'Our driver will bring the car to your location'
+                                        : 'Choose the option that works best for you'}
+                                </p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 {pickupMethods.map((method) => {
                                     const selected = selectedPickupMethod?.id === method.id;
                                     const isStore = isStorePickup(method);
+                                    const driverMode = isWithDriver(selectedRentalType);
+
+                                    const title = isStore
+                                        ? (driverMode ? 'Meet at Showroom' : 'Pick up at Store')
+                                        : (driverMode ? 'Driver Pickup' : 'Delivery Service');
+                                    const subtitle = isStore
+                                        ? 'Free of charge'
+                                        : (driverMode ? 'Driver picks you up at your address' : 'Delivered to your door');
 
                                     return (
                                         <button
@@ -423,12 +657,8 @@ const BookingWizardModal = ({
                                                 {isStore ? <Store size={26} /> : <Truck size={26} />}
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-gray-900 mb-1">
-                                                    {isStore ? 'Pick up at Store' : 'Delivery Service'}
-                                                </h4>
-                                                <p className="text-xs text-gray-500">
-                                                    {isStore ? 'Free of charge' : 'Delivered to your door'}
-                                                </p>
+                                                <h4 className="font-bold text-gray-900 mb-1">{title}</h4>
+                                                <p className="text-xs text-gray-500">{subtitle}</p>
                                             </div>
                                         </button>
                                     );
@@ -440,31 +670,121 @@ const BookingWizardModal = ({
                                 <div className="mt-8 space-y-4 animate-fadeIn">
                                     <h4 className="font-bold text-gray-900 flex items-center gap-2">
                                         <MapPin size={18} className="text-[#5fcf86]" />
-                                        Delivery Details
+                                        {isWithDriver(selectedRentalType) ? 'Pickup Location' : 'Delivery Details'}
                                     </h4>
 
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={deliveryAddress}
-                                            onChange={(e) => {
-                                                setDeliveryAddress(e.target.value);
-                                                setDeliveryFeeData(null);
-                                            }}
-                                            placeholder="Enter full delivery address..."
-                                            className="w-full pl-4 pr-12 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-[#5fcf86] focus:ring-4 focus:ring-green-50 transition-all text-gray-700 font-medium"
-                                        />
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    {isWithDriver(selectedRentalType) && (
+                                        <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-700 flex items-start gap-2">
+                                            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                            <span>
+                                                Pickup is <strong>free</strong> within <strong>5 km</strong> of our showroom.
+                                                Beyond 5 km, a distance-based surcharge applies.
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="p-4 rounded-2xl bg-green-50 border border-green-100 text-sm text-green-800">
+                                        <p className="font-semibold">Showroom location</p>
+                                        <p>{SHOWROOM_LOCATION.address}</p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={deliveryAddress}
+                                                onChange={(e) => handleDeliveryAddressInputChange(e.target.value)}
+                                                onKeyDown={handleDeliveryAddressKeyDown}
+                                                placeholder={isWithDriver(selectedRentalType)
+                                                    ? 'Enter your pickup address...'
+                                                    : 'Enter delivery address...'}
+                                                className="w-full pl-4 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#5fcf86] focus:ring-4 focus:ring-green-50 transition-all text-gray-700 font-medium"
+                                            />
                                             <button
-                                                onClick={handleCalculateDeliveryFee}
-                                                disabled={calculatingFee || !deliveryAddress.trim()}
-                                                className="p-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                                                title="Calculate Fee"
+                                                type="button"
+                                                onClick={searchDeliveryAddress}
+                                                disabled={searchingAddress || !deliveryAddress.trim()}
+                                                className="px-4 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors whitespace-nowrap"
                                             >
-                                                {calculatingFee ? <Loader2 size={18} className="animate-spin" /> : <Calculator size={18} />}
+                                                {searchingAddress ? <Loader2 size={18} className="animate-spin" /> : 'Find Address'}
                                             </button>
                                         </div>
+
+                                        {addressSuggestions.length > 0 && (
+                                            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl bg-white divide-y divide-gray-100">
+                                                {addressSuggestions.map((item) => (
+                                                    <button
+                                                        key={item.place_id}
+                                                        type="button"
+                                                        onClick={() => handleSelectAddressSuggestion(item)}
+                                                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        <p className="text-sm text-gray-700">{item.display_name}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
+
+                                    <div className="rounded-2xl overflow-hidden border border-gray-200">
+                                        <MapContainer
+                                            center={SHOWROOM_COORDINATES}
+                                            zoom={13}
+                                            className="h-72 w-full"
+                                            scrollWheelZoom
+                                        >
+                                            <TileLayer
+                                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                            />
+                                            <CircleMarker center={SHOWROOM_COORDINATES} radius={8} pathOptions={{ color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.9 }}>
+                                                <Popup>{SHOWROOM_LOCATION.address}</Popup>
+                                            </CircleMarker>
+                                            {selectedDeliveryPoint && (
+                                                <CircleMarker
+                                                    center={[selectedDeliveryPoint.lat, selectedDeliveryPoint.lon]}
+                                                    radius={8}
+                                                    pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9 }}
+                                                >
+                                                    <Popup>{deliveryAddress || 'Customer delivery point'}</Popup>
+                                                </CircleMarker>
+                                            )}
+                                            {routeData?.polyline?.length > 1 && (
+                                                <Polyline positions={routeData.polyline} pathOptions={{ color: '#f97316', weight: 4 }} />
+                                            )}
+                                            <DeliveryMapEvents onPickLocation={handlePickLocationOnMap} />
+                                            <DeliveryMapViewport selectedDeliveryPoint={selectedDeliveryPoint} />
+                                        </MapContainer>
+                                    </div>
+
+                                    <p className="text-xs text-gray-500">
+                                        Tip: Click directly on the map to select the exact {isWithDriver(selectedRentalType) ? 'pickup' : 'delivery'} point.
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleCalculateDeliveryFee}
+                                        disabled={calculatingFee || !deliveryAddress.trim()}
+                                        className="w-full py-3 rounded-xl bg-gray-900 text-white font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        {calculatingFee ? (
+                                            <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                <Calculator size={18} />
+                                                Calculate Distance and Fee
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {routeData && (
+                                        <div className="p-4 bg-blue-50/70 rounded-2xl border border-blue-100">
+                                            <p className="text-sm font-semibold text-blue-900">Route Details</p>
+                                            <p className="text-sm text-blue-700">
+                                                {routeData.distanceKm} km, estimated {routeData.durationMinutes} minutes of travel time.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {/* Delivery Fee Result */}
                                     {deliveryFeeData && (
@@ -474,12 +794,21 @@ const BookingWizardModal = ({
                                                     <Truck size={20} />
                                                 </div>
                                                 <div>
-                                                    <p className="font-semibold text-gray-900">Delivery Fee Calculated</p>
-                                                    <p className="text-sm text-gray-500">{deliveryFeeData.distanceKm} km distance</p>
+                                                    <p className="font-semibold text-gray-900">
+                                                        {isWithDriver(selectedRentalType) ? 'Pickup Fee' : 'Delivery Fee'}
+                                                    </p>
+                                                    <p className="text-sm text-gray-500">
+                                                        {deliveryFeeData.distanceKm} km
+                                                        {routeData?.durationMinutes ? ` | ${routeData.durationMinutes} min` : ''}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-bold text-xl text-orange-600">{formatPrice(deliveryFeeData.totalDeliveryFee)}</p>
+                                                {Number(deliveryFeeData.totalDeliveryFee) === 0 ? (
+                                                    <p className="font-bold text-xl text-green-600">FREE</p>
+                                                ) : (
+                                                    <p className="font-bold text-xl text-orange-600">{formatPrice(deliveryFeeData.totalDeliveryFee)}</p>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -518,7 +847,7 @@ const BookingWizardModal = ({
                                 <div className="grid grid-cols-2 gap-y-4 gap-x-8">
                                     <div className="space-y-1">
                                         <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Duration</p>
-                                        <p className="font-semibold text-gray-900">{selectedDates.length > 0 ? selectedDates.join(", ") : `${pickupDate} â†’ ${dropoffDate}`}</p>
+                                        <p className="font-semibold text-gray-900">{selectedDates.length > 0 ? selectedDates.join(", ") : `${pickupDate} to ${dropoffDate}`}</p>
                                         <p className="text-xs text-[#5fcf86] font-medium">{rentalDays} Days</p>
                                     </div>
                                     <div className="space-y-1 text-right">
@@ -532,6 +861,18 @@ const BookingWizardModal = ({
                                         <div className="col-span-2 space-y-1">
                                             <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Delivery To</p>
                                             <p className="font-semibold text-gray-900 truncate">{deliveryAddress}</p>
+                                        </div>
+                                    )}
+                                    {routeData && (
+                                        <div className="col-span-2 grid grid-cols-2 gap-3 mt-2">
+                                            <div className="p-3 rounded-xl bg-blue-50 text-blue-800">
+                                                <p className="text-xs uppercase font-bold tracking-wider">Distance</p>
+                                                <p className="font-semibold">{routeData.distanceKm} km</p>
+                                            </div>
+                                            <div className="p-3 rounded-xl bg-blue-50 text-blue-800 text-right">
+                                                <p className="text-xs uppercase font-bold tracking-wider">Travel Time</p>
+                                                <p className="font-semibold">{routeData.durationMinutes} min</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -554,7 +895,7 @@ const BookingWizardModal = ({
 
                                     {isDelivery(selectedPickupMethod) && deliveryFeeData && (
                                         <div className="flex justify-between items-center text-orange-600 bg-orange-50/50 p-2 rounded-lg -mx-2">
-                                            <span className="flex items-center gap-2 text-sm"><Truck size={14} /> Delivery Fee</span>
+                                            <span className="flex items-center gap-2 text-sm"><Truck size={14} /> {isWithDriver(selectedRentalType) ? 'Pickup Fee' : 'Delivery Fee'}</span>
                                             <span className="font-bold">{formatPrice(deliveryFeeData.totalDeliveryFee)}</span>
                                         </div>
                                     )}
