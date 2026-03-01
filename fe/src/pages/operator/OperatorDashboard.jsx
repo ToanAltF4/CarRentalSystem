@@ -5,10 +5,8 @@ import {
     ChevronRight, Loader2, ArrowUpRight
 } from 'lucide-react';
 import operatorService from '../../services/operatorService';
-import { useAuth } from '../../context/AuthContext';
 
 const OperatorDashboard = () => {
-    const { user, logout } = useAuth();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 

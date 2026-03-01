@@ -79,12 +79,14 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = { ResourceNotFoundException.class, VehicleNotAvailableException.class,
+            IllegalArgumentException.class, IllegalStateException.class })
     public BookingResponseDTO createBooking(BookingRequestDTO request) {
         log.info("Creating booking for vehicle ID: {} on selected dates: {}",
                 request.getVehicleId(), request.getSelectedDates());
 
-        // 1. Normalize requested rental days (supports both date-range and specific days)
+        // 1. Normalize requested rental days (supports both date-range and specific
+        // days)
         List<LocalDate> requestedDates = normalizeRequestedDates(request);
         LocalDate normalizedStartDate = requestedDates.get(0);
         LocalDate normalizedEndDate = requestedDates.get(requestedDates.size() - 1);
@@ -153,15 +155,15 @@ public class BookingServiceImpl implements BookingService {
         BigDecimal deliveryFee = BigDecimal.ZERO;
         String deliveryAddress = null;
         BigDecimal deliveryDistanceKm = null;
+        boolean withDriverMode = false;
 
         if (request.getRentalTypeId() != null) {
             rentalType = rentalTypeRepository.findById(request.getRentalTypeId())
                     .orElseThrow(() -> new ResourceNotFoundException("RentalType", "id", request.getRentalTypeId()));
 
             if (isWithDriver(rentalType.getName())) {
-                // WITH_DRIVER: Calculate driver fee, keep a default pickup method for DB
-                // compatibility (some schemas enforce NOT NULL pickup_method_id).
-                pickupMethod = resolveDefaultPickupMethod();
+                withDriverMode = true;
+                // WITH_DRIVER: Calculate driver fee
                 DriverFeeResponseDTO driverFeeResult;
                 if (vehicle.getVehicleCategory() != null) {
                     driverFeeResult = priceCalculationService.calculateDriverFeeByCategory(totalDays,
@@ -169,46 +171,8 @@ public class BookingServiceImpl implements BookingService {
                 } else {
                     driverFeeResult = priceCalculationService.calculateDriverFee(totalDays);
                 }
-
                 driverFee = driverFeeResult.getTotalDriverFee();
                 log.info("WITH_DRIVER selected: driver_fee = {}", driverFee);
-
-            } else if (isSelfDrive(rentalType.getName())) {
-                // SELF_DRIVE: Handle pickup method
-                if (request.getPickupMethodId() != null) {
-                    pickupMethod = pickupMethodRepository.findById(request.getPickupMethodId())
-                            .orElseThrow(() -> new ResourceNotFoundException("PickupMethod", "id",
-                                    request.getPickupMethodId()));
-
-                    if (isDelivery(pickupMethod.getName())) {
-                        // DELIVERY: Calculate delivery fee
-                        if (request.getDeliveryAddress() == null || request.getDeliveryAddress().trim().isEmpty()) {
-                            throw new IllegalArgumentException(
-                                    "Delivery address is required for DELIVERY pickup method");
-                        }
-                        deliveryAddress = request.getDeliveryAddress().trim();
-                        DeliveryFeeResponseDTO deliveryResult;
-                        if (request.getDeliveryDistanceKm() != null
-                                && request.getDeliveryDistanceKm().compareTo(BigDecimal.ZERO) > 0) {
-                            deliveryResult = priceCalculationService.calculateDeliveryFee(
-                                    deliveryAddress,
-                                    request.getDeliveryDistanceKm());
-                        } else {
-                            deliveryResult = priceCalculationService.calculateDeliveryFee(deliveryAddress);
-                        }
-                        deliveryFee = deliveryResult.getTotalDeliveryFee();
-                        deliveryDistanceKm = deliveryResult.getDistanceKm();
-                        log.info("DELIVERY selected: distance = {} km, delivery_fee = {}", deliveryDistanceKm,
-                                deliveryFee);
-
-                    } else {
-                        // STORE: No delivery fee
-                        log.info("STORE pickup selected: delivery_fee = 0");
-                    }
-                } else {
-                    // Backward compatibility for requests that don't send pickupMethodId.
-                    pickupMethod = resolveDefaultPickupMethod();
-                }
             }
         } else {
             // Default to SELF_DRIVE if not specified (backward compatibility)
@@ -217,6 +181,51 @@ public class BookingServiceImpl implements BookingService {
                             .filter(type -> isSelfDrive(type.getName()))
                             .findFirst())
                     .orElse(null);
+        }
+
+        // 7b. Handle pickup method (common for ALL rental types)
+        if (request.getPickupMethodId() != null) {
+            pickupMethod = pickupMethodRepository.findById(request.getPickupMethodId())
+                    .orElseThrow(() -> new ResourceNotFoundException("PickupMethod", "id",
+                            request.getPickupMethodId()));
+
+            if (isDelivery(pickupMethod.getName())) {
+                // DELIVERY: Calculate delivery fee
+                if (request.getDeliveryAddress() == null || request.getDeliveryAddress().trim().isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Delivery address is required for DELIVERY pickup method");
+                }
+                deliveryAddress = request.getDeliveryAddress().trim();
+                DeliveryFeeResponseDTO deliveryResult;
+                if (request.getDeliveryDistanceKm() != null
+                        && request.getDeliveryDistanceKm().compareTo(BigDecimal.ZERO) > 0) {
+                    deliveryResult = priceCalculationService.calculateDeliveryFee(
+                            deliveryAddress,
+                            request.getDeliveryDistanceKm(),
+                            withDriverMode);
+                } else {
+                    // No OSRM distance provided, use address-based fallback
+                    if (withDriverMode) {
+                        // Calculate fallback distance then re-calc with withDriver=true
+                        deliveryResult = priceCalculationService.calculateDeliveryFee(deliveryAddress);
+                        if (deliveryResult.getDistanceKm() != null) {
+                            deliveryResult = priceCalculationService.calculateDeliveryFee(
+                                    deliveryAddress, deliveryResult.getDistanceKm(), true);
+                        }
+                    } else {
+                        deliveryResult = priceCalculationService.calculateDeliveryFee(deliveryAddress);
+                    }
+                }
+                deliveryFee = deliveryResult.getTotalDeliveryFee();
+                deliveryDistanceKm = deliveryResult.getDistanceKm();
+                log.info("DELIVERY selected (withDriver={}): distance = {} km, delivery_fee = {}",
+                        withDriverMode, deliveryDistanceKm, deliveryFee);
+            } else {
+                // STORE: No delivery fee
+                log.info("STORE pickup selected: delivery_fee = 0");
+            }
+        } else {
+            // No pickupMethodId provided, use default
             pickupMethod = resolveDefaultPickupMethod();
         }
 
@@ -224,10 +233,20 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalArgumentException("No pickup method configured in system");
         }
 
-        // 8. Calculate total amount
-        BigDecimal totalAmount = rentalFee.add(driverFee).add(deliveryFee);
-        log.info("Price breakdown: rental_fee={}, driver_fee={}, delivery_fee={}, total={}",
-                rentalFee, driverFee, deliveryFee, totalAmount);
+        // 7c. Handle insurance fee and service fee from frontend
+        BigDecimal insuranceFee = request.getInsuranceFee() != null
+                ? request.getInsuranceFee()
+                : BigDecimal.ZERO;
+        BigDecimal serviceFee = request.getServiceFee() != null
+                ? request.getServiceFee()
+                : BigDecimal.ZERO;
+
+        // 8. Calculate total amount (rental + driver + delivery + insurance + service)
+        BigDecimal totalAmount = rentalFee.add(driverFee).add(deliveryFee)
+                .add(insuranceFee).add(serviceFee);
+        log.info(
+                "Price breakdown: rental_fee={}, driver_fee={}, delivery_fee={}, insurance_fee={}, service_fee={}, total={}",
+                rentalFee, driverFee, deliveryFee, insuranceFee, serviceFee, totalAmount);
 
         // 9. Create booking entity - Auto CONFIRMED since license is verified
         BookingEntity booking = bookingMapper.toEntity(request);
@@ -253,6 +272,8 @@ public class BookingServiceImpl implements BookingService {
         booking.setDeliveryFee(deliveryFee);
         booking.setDeliveryAddress(deliveryAddress);
         booking.setDeliveryDistanceKm(deliveryDistanceKm);
+        booking.setInsuranceFee(insuranceFee);
+        booking.setServiceFee(serviceFee);
         booking.setTotalAmount(totalAmount);
         booking.setRentalType(rentalType);
         booking.setPickupMethod(pickupMethod);
@@ -318,7 +339,8 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(status);
 
-        // Vehicle operational status is managed separately (AVAILABLE/MAINTENANCE/INACTIVE).
+        // Vehicle operational status is managed separately
+        // (AVAILABLE/MAINTENANCE/INACTIVE).
         // Booking timeline (selected dates + booking status) handles rental occupancy.
 
         BookingEntity updated = bookingRepository.save(booking);
@@ -413,6 +435,8 @@ public class BookingServiceImpl implements BookingService {
         dto.setRentalFee(entity.getRentalFee());
         dto.setDriverFee(entity.getDriverFee());
         dto.setDeliveryFee(entity.getDeliveryFee());
+        dto.setInsuranceFee(entity.getInsuranceFee());
+        dto.setServiceFee(entity.getServiceFee());
         dto.setDeliveryAddress(entity.getDeliveryAddress());
         dto.setDeliveryDistanceKm(entity.getDeliveryDistanceKm());
         dto.setSelectedDates(resolveSelectedDatesFromBooking(entity));

@@ -177,10 +177,17 @@ public class GlobalExceptionHandler {
 
                 log.error("Unexpected error occurred: ", ex);
 
+                // Include actual error details for debugging
+                String debugMessage = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                if (ex.getCause() != null) {
+                        debugMessage += " | Caused by: " + ex.getCause().getClass().getSimpleName() + ": "
+                                        + ex.getCause().getMessage();
+                }
+
                 ErrorResponse error = ErrorResponse.builder()
                                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                                 .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
-                                .message("An unexpected error occurred. Please try again later.")
+                                .message(debugMessage)
                                 .path(request.getRequestURI())
                                 .timestamp(LocalDateTime.now())
                                 .build();

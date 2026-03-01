@@ -43,7 +43,16 @@ public class OperatorServiceImpl implements OperatorService {
     private static final List<String> STAFF_ROLE_NAMES = List.of("ROLE_STAFF", "STAFF", "ROLE_OPERATOR", "OPERATOR");
     private static final List<String> DRIVER_ROLE_NAMES = List.of("ROLE_DRIVER", "DRIVER");
     private static final List<BookingStatus> ACTIVE_ASSIGNMENT_STATUSES = List.of(
-            BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS);
+            BookingStatus.ASSIGNED,
+            BookingStatus.CONFIRMED,
+            BookingStatus.IN_PROGRESS,
+            BookingStatus.ONGOING);
+    private static final List<BookingStatus> TODAY_OPERATION_STATUSES = List.of(
+            BookingStatus.PENDING,
+            BookingStatus.CONFIRMED,
+            BookingStatus.ASSIGNED,
+            BookingStatus.IN_PROGRESS,
+            BookingStatus.ONGOING);
 
     // ==================== Booking Management ====================
 
@@ -54,9 +63,9 @@ public class OperatorServiceImpl implements OperatorService {
     public List<BookingResponseDTO> getTodayBookings() {
         log.debug("Fetching today's bookings (active)");
         LocalDate today = LocalDate.now();
-        List<BookingStatus> statuses = List.of(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.PENDING);
-        List<BookingEntity> bookings = bookingRepository.findAllWithVehicle().stream()
-                .filter(booking -> statuses.contains(booking.getStatus()))
+        List<BookingEntity> bookings = bookingRepository.findByStatusesAndDateOverlapWithDetails(
+                TODAY_OPERATION_STATUSES,
+                today).stream()
                 .filter(booking -> isBookedOnDate(booking, today))
                 .toList();
         return toResponseDTOList(bookings);
@@ -251,7 +260,9 @@ public class OperatorServiceImpl implements OperatorService {
 
         long pendingBookings = bookingRepository.countByStatus(BookingStatus.PENDING);
         LocalDate today = LocalDate.now();
-        long todayBookings = bookingRepository.findAll().stream()
+        long todayBookings = bookingRepository.findByStatusesAndDateOverlapWithDetails(
+                TODAY_OPERATION_STATUSES,
+                today).stream()
                 .filter(booking -> isBookedOnDate(booking, today))
                 .count();
         long pendingLicenses = userRepository.countByLicenseStatus(LicenseStatus.PENDING);
@@ -378,12 +389,12 @@ public class OperatorServiceImpl implements OperatorService {
 
         Map<Long, Integer> countMap = new HashMap<>();
 
-        bookingRepository.countAssignmentsGroupedByAssignedStaff(userIds, ACTIVE_ASSIGNMENT_STATUSES)
+        bookingRepository.countActiveAssignmentsGroupedByAssignedStaff(userIds)
                 .forEach(row -> countMap.put(
                         row.getUserId(),
                         (int) (row.getCount() != null ? row.getCount() : 0L)));
 
-        bookingRepository.countAssignmentsGroupedByDriver(userIds, ACTIVE_ASSIGNMENT_STATUSES)
+        bookingRepository.countActiveAssignmentsGroupedByDriver(userIds)
                 .forEach(row -> countMap.merge(
                         row.getUserId(),
                         (int) (row.getCount() != null ? row.getCount() : 0L),

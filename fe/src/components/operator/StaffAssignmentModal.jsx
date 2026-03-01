@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
     X, User, Car, Check, Loader2,
     AlertCircle, ChevronDown, ChevronUp, Calendar
@@ -68,7 +68,7 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
-        return date.toLocaleDateString('vi-VN', {
+        return date.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
@@ -79,6 +79,14 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
         e.preventDefault();
         setSubmitting(true);
         setError('');
+
+        const withDriverBooking = booking?.rentalTypeName
+            && booking.rentalTypeName.toLowerCase().includes('driver');
+        if (withDriverBooking && !selectedDriver) {
+            setError('Driver is required for bookings with driver service');
+            setSubmitting(false);
+            return;
+        }
 
         try {
             await operatorService.assignStaff(
@@ -198,9 +206,7 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
                                                         </div>
                                                     ) : staffBookings[staff.id]?.length > 0 ? (
                                                         <div className="space-y-2">
-                                                            <p className="text-xs font-medium text-gray-600 mb-2">
-                                                                📅 Assigned Bookings ({staffBookings[staff.id].length})
-                                                            </p>
+                                                            <p className="text-xs font-medium text-gray-600 mb-2">Assigned Bookings ({staffBookings[staff.id].length})</p>
                                                             {staffBookings[staff.id].map((b) => (
                                                                 <div
                                                                     key={b.id}
@@ -218,8 +224,8 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-center gap-3 text-gray-600">
-                                                                        <span className="text-green-600">📥 {formatDate(b.startDate)}</span>
-                                                                        <span className="text-red-600">📤 {formatDate(b.endDate)}</span>
+                                                                        <span className="text-green-600">Start: {formatDate(b.startDate)}</span>
+                                                                        <span className="text-red-600">End: {formatDate(b.endDate)}</span>
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -246,26 +252,6 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
                                         Driver (Required for Chauffeur Service)
                                     </label>
                                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                                        <label
-                                            className={`
-                                                flex items-center p-3 rounded-xl border cursor-pointer transition-all
-                                                ${selectedDriver === ''
-                                                    ? 'border-gray-300 bg-gray-50'
-                                                    : 'border-gray-200 hover:border-gray-300'
-                                                }
-                                            `}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="driver"
-                                                value=""
-                                                checked={selectedDriver === ''}
-                                                onChange={() => setSelectedDriver('')}
-                                                className="hidden"
-                                            />
-                                            <span className="text-sm text-gray-600">No driver assigned</span>
-                                        </label>
-
                                         {driverList.map(driver => (
                                             <label
                                                 key={driver.id}
@@ -337,3 +323,4 @@ const StaffAssignmentModal = ({ booking, onClose, onSuccess }) => {
 };
 
 export default StaffAssignmentModal;
+

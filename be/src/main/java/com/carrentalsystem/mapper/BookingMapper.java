@@ -31,6 +31,8 @@ public interface BookingMapper {
     @Mapping(target = "deliveryFee", ignore = true)
     @Mapping(target = "deliveryDistanceKm", ignore = true)
     @Mapping(target = "totalAmount", ignore = true)
+    @Mapping(target = "insuranceFee", ignore = true)
+    @Mapping(target = "serviceFee", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "assignedStaffId", ignore = true)
     @Mapping(target = "assignedAt", ignore = true)

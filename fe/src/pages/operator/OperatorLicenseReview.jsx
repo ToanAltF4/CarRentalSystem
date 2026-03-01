@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-    RefreshCcw, Search, CheckCircle, XCircle,
+    RefreshCcw, CheckCircle, XCircle,
     CreditCard, ExternalLink
 } from 'lucide-react';
 import operatorService from '../../services/operatorService';
@@ -9,6 +9,7 @@ const OperatorLicenseReview = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         fetchPendingLicenses();
@@ -16,11 +17,13 @@ const OperatorLicenseReview = () => {
 
     const fetchPendingLicenses = async () => {
         setLoading(true);
+        setError('');
         try {
             const data = await operatorService.getPendingLicenses();
             setUsers(data);
         } catch (error) {
             console.error('Error fetching licenses:', error);
+            setError(error?.response?.data?.message || 'Failed to load pending licenses');
         } finally {
             setLoading(false);
         }
@@ -66,6 +69,12 @@ const OperatorLicenseReview = () => {
                         <RefreshCcw size={20} />
                     </button>
                 </div>
+
+                {error && (
+                    <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {loading ? (

@@ -26,6 +26,11 @@ const operatorService = {
         return response.data;
     },
 
+    getBookingsByStatus: async (status) => {
+        const response = await api.get(`/v1/bookings/status/${status}`);
+        return response.data;
+    },
+
     approveBooking: async (bookingId) => {
         const response = await api.post(`/v1/operator/bookings/${bookingId}/approve`);
         return response.data;

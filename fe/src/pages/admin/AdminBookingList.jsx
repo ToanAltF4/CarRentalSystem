@@ -7,18 +7,21 @@ import {
 } from 'lucide-react';
 import bookingService from '../../services/bookingService';
 import { formatPrice } from '../../utils/formatters';
+import Pagination from '../../components/common/Pagination';
 
 /**
  * Admin Booking List Page
  * Full booking management with status filters and actions
  */
 const AdminBookingList = () => {
+    const PAGE_SIZE = 10;
     const [bookings, setBookings] = useState([]);
     const [filteredBookings, setFilteredBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
     const [actionLoading, setActionLoading] = useState(null);
 
     // Return Modal State
@@ -43,6 +46,10 @@ const AdminBookingList = () => {
     useEffect(() => {
         filterBookings();
     }, [bookings, activeTab, searchTerm]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchTerm, bookings]);
 
     const fetchBookings = async () => {
         setLoading(true);
@@ -230,6 +237,10 @@ const AdminBookingList = () => {
         }
     };
 
+    const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const paginatedBookings = filteredBookings.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
     if (loading) {
         return (
             <div className="flex h-[60vh] items-center justify-center">
@@ -326,7 +337,7 @@ const AdminBookingList = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredBookings.length > 0 ? (
-                                filteredBookings.map((booking) => (
+                                paginatedBookings.map((booking) => (
                                     <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <span className="font-mono text-sm font-bold text-[#5fcf86]">
@@ -387,6 +398,19 @@ const AdminBookingList = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {filteredBookings.length > 0 && (
+                    <div className="px-6 pb-4">
+                        <Pagination
+                            currentPage={safePage}
+                            totalPages={totalPages}
+                            totalItems={filteredBookings.length}
+                            pageSize={PAGE_SIZE}
+                            onPageChange={setCurrentPage}
+                            className="mt-4 pt-3"
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Return Modal */}

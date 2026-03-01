@@ -1094,6 +1094,9 @@ const CarDetailPage = () => {
                 selectedDates={selectedDates}
                 user={user}
                 onBookingComplete={handleBookingComplete}
+                insuranceOptions={insuranceOptions}
+                insuranceFee={insuranceFee}
+                serviceFee={serviceFee}
             />
         </div>
     );

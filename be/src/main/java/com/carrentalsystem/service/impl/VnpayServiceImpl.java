@@ -63,8 +63,11 @@ public class VnpayServiceImpl implements VnpayService {
     @Value("${app.vnpay.locale:vn}")
     private String locale;
 
+    @Value("${app.booking.payment-timeout-minutes:15}")
+    private long paymentTimeoutMinutes;
+
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public VnpayCreatePaymentResponse createPaymentUrl(VnpayCreatePaymentRequest request,
             HttpServletRequest servletRequest) {
         if (request.getInvoiceId() == null && request.getBookingId() == null
@@ -83,12 +86,14 @@ public class VnpayServiceImpl implements VnpayService {
         } else if (request.getBookingId() != null) {
             BookingEntity booking = bookingRepository.findById(request.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", request.getBookingId()));
+            ensureBookingPayableForPayment(booking, true);
             amount = booking.getTotalAmount();
             txnRef = booking.getBookingCode();
         } else {
             BookingEntity booking = bookingRepository.findByBookingCode(request.getBookingCode())
                     .orElseThrow(
                             () -> new ResourceNotFoundException("Booking", "bookingCode", request.getBookingCode()));
+            ensureBookingPayableForPayment(booking, true);
             amount = booking.getTotalAmount();
             txnRef = booking.getBookingCode();
         }
@@ -179,6 +184,33 @@ public class VnpayServiceImpl implements VnpayService {
                 invoice.setPaymentMethod("VNPAY");
                 invoiceRepository.save(invoice);
             } else if (booking != null) {
+                if (booking.getStatus() == BookingStatus.CANCELLED) {
+                    return VnpayReturnResponse.builder()
+                            .code("24")
+                            .message("Đơn đặt xe đã bị hủy trước khi thanh toán hoàn tất")
+                            .invoiceNumber(txnRef)
+                            .paymentStatus(booking.getStatus().name())
+                            .build();
+                }
+                if (booking.getStatus() != BookingStatus.PENDING) {
+                    return VnpayReturnResponse.builder()
+                            .code("24")
+                            .message("Đơn đặt xe không còn ở trạng thái chờ thanh toán")
+                            .invoiceNumber(txnRef)
+                            .paymentStatus(booking.getStatus().name())
+                            .build();
+                }
+                if (isBookingPaymentExpired(booking)) {
+                    booking.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(booking);
+                    return VnpayReturnResponse.builder()
+                            .code("24")
+                            .message("Đơn đặt xe đã hết hạn thanh toán")
+                            .invoiceNumber(txnRef)
+                            .paymentStatus(booking.getStatus().name())
+                            .build();
+                }
+
                 // Determine fees - default to 0 if null
                 BigDecimal rentalFee = booking.getRentalFee() != null ? booking.getRentalFee() : BigDecimal.ZERO;
                 BigDecimal driverFee = booking.getDriverFee() != null ? booking.getDriverFee() : BigDecimal.ZERO;
@@ -223,6 +255,30 @@ public class VnpayServiceImpl implements VnpayService {
                 .invoiceNumber(txnRef)
                 .paymentStatus(invoice != null ? invoice.getPaymentStatus().name() : booking.getStatus().name())
                 .build();
+    }
+
+    private void ensureBookingPayableForPayment(BookingEntity booking, boolean autoCancelIfExpired) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalArgumentException("Đơn đặt xe đã bị hủy");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new IllegalArgumentException("Đơn đặt xe không ở trạng thái chờ thanh toán");
+        }
+        if (isBookingPaymentExpired(booking)) {
+            if (autoCancelIfExpired) {
+                booking.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(booking);
+            }
+            throw new IllegalArgumentException("Đơn đặt xe đã hết hạn thanh toán");
+        }
+    }
+
+    private boolean isBookingPaymentExpired(BookingEntity booking) {
+        if (booking.getCreatedAt() == null) {
+            return false;
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(paymentTimeoutMinutes);
+        return booking.getCreatedAt().isBefore(cutoff);
     }
 
     private String buildQuery(Map<String, String> params) {

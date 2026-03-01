@@ -1,12 +1,29 @@
-import { useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { X, CreditCard, CheckCircle, Loader2, Smartphone } from 'lucide-react';
 import paymentService from '../../services/paymentService';
 import { formatPrice } from '../../utils/formatters';
+import {
+    formatRemainingPaymentTime,
+    getPaymentTimeoutMinutes,
+    getRemainingPaymentMs
+} from '../../utils/bookingPaymentTimeout';
 
 const PaymentModal = ({ booking, onClose, onSuccess }) => {
     const [processing, setProcessing] = useState(false);
     const [success, setSuccess] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('vnpay');
+    const [remainingMs, setRemainingMs] = useState(() => getRemainingPaymentMs(booking));
+    const timeoutMinutes = useMemo(() => getPaymentTimeoutMinutes(), []);
+
+    useEffect(() => {
+        setRemainingMs(getRemainingPaymentMs(booking));
+        const timer = setInterval(() => {
+            setRemainingMs(getRemainingPaymentMs(booking));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [booking]);
+
+    const isExpired = remainingMs != null && remainingMs <= 0;
 
     const paymentMethods = [
         { id: 'vnpay', name: 'VNPay', icon: <CreditCard size={20} />, color: 'bg-blue-500' },
@@ -15,6 +32,10 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
     ];
 
     const handlePayment = async () => {
+        if (isExpired) {
+            alert('This booking payment window has expired. Please create a new booking.');
+            return;
+        }
         setProcessing(true);
 
         try {
@@ -107,13 +128,20 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                                 <span className="text-gray-600">Total Amount</span>
                                 <span className="text-2xl font-bold text-primary">{formatPrice(booking.totalAmount)}</span>
                             </div>
+                            <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${isExpired ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                                {remainingMs == null
+                                    ? `Booking will be auto-cancelled if unpaid after ${timeoutMinutes} minutes.`
+                                    : isExpired
+                                        ? 'Booking payment window has expired and will be auto-cancelled.'
+                                        : `System will auto-cancel this booking if unpaid after ${timeoutMinutes} minutes. Time left: ${formatRemainingPaymentTime(remainingMs)}.`}
+                            </div>
                         </div>
 
                         {/* Pay Button */}
                         <div className="px-6 py-4">
                             <button
                                 onClick={handlePayment}
-                                disabled={processing}
+                                disabled={processing || isExpired}
                                 className="w-full flex items-center justify-center gap-2 bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary-hover transition-colors disabled:opacity-70"
                             >
                                 {processing ? (
@@ -140,3 +168,4 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 };
 
 export default PaymentModal;
+

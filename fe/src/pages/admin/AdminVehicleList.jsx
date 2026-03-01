@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import vehicleService from '../../services/vehicleService';
+import Pagination from '../../components/common/Pagination';
 
 const AdminVehicleList = () => {
+    const PAGE_SIZE = 10;
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         fetchVehicles();
@@ -55,6 +58,14 @@ const AdminVehicleList = () => {
             v.categoryName.toLowerCase().includes(q)
         );
     });
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, vehicles]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const paginatedVehicles = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
     const getStatusBadge = (status) => {
         const map = {
@@ -132,7 +143,7 @@ const AdminVehicleList = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filtered.map((v) => (
+                                paginatedVehicles.map((v) => (
                                     <tr key={v.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-4 py-3 font-mono font-semibold text-gray-800">{v.licensePlate}</td>
                                         <td className="px-4 py-3">
@@ -208,6 +219,16 @@ const AdminVehicleList = () => {
                     </table>
                 </div>
             </div>
+
+            {filtered.length > 0 && (
+                <Pagination
+                    currentPage={safePage}
+                    totalPages={totalPages}
+                    totalItems={filtered.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setCurrentPage}
+                />
+            )}
 
             <div className="mt-4 text-sm text-gray-500">
                 Showing {filtered.length} of {vehicles.length} vehicles

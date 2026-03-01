@@ -58,7 +58,10 @@ const BookingWizardModal = ({
     dropoffDate,
     selectedDates = [],
     user,
-    onBookingComplete
+    onBookingComplete,
+    insuranceOptions = {},
+    insuranceFee = 0,
+    serviceFee = 0
 }) => {
     // Wizard state
     const [step, setStep] = useState(1);
@@ -142,6 +145,8 @@ const BookingWizardModal = ({
         if (isDelivery(selectedPickupMethod) && deliveryFeeData) {
             total += Number(deliveryFeeData.totalDeliveryFee) || 0;
         }
+        total += Number(insuranceFee) || 0;
+        total += Number(serviceFee) || 0;
         return total;
     };
 
@@ -426,13 +431,17 @@ const BookingWizardModal = ({
                 rentalTypeId: selectedRentalType?.id,
                 pickupMethodId: selectedPickupMethod?.id || null,
                 deliveryAddress: deliveryAddress.trim() || null,
-                deliveryDistanceKm: routeData?.distanceKm || null
+                deliveryDistanceKm: routeData?.distanceKm || null,
+                insuranceFee: insuranceFee || 0,
+                serviceFee: serviceFee || 0
             };
 
             const result = await bookingService.createBooking(bookingData);
             onBookingComplete(result);
         } catch (err) {
             console.error('Booking failed:', err);
+            console.error('Response data:', err.response?.data);
+            console.error('Response status:', err.response?.status);
             setError(err.response?.data?.message || 'Booking failed. Please try again.');
         } finally {
             setLoading(false);
@@ -897,6 +906,20 @@ const BookingWizardModal = ({
                                         <div className="flex justify-between items-center text-orange-600 bg-orange-50/50 p-2 rounded-lg -mx-2">
                                             <span className="flex items-center gap-2 text-sm"><Truck size={14} /> {isWithDriver(selectedRentalType) ? 'Pickup Fee' : 'Delivery Fee'}</span>
                                             <span className="font-bold">{formatPrice(deliveryFeeData.totalDeliveryFee)}</span>
+                                        </div>
+                                    )}
+
+                                    {Number(insuranceFee) > 0 && (
+                                        <div className="flex justify-between items-center text-purple-600 bg-purple-50/50 p-2 rounded-lg -mx-2">
+                                            <span className="flex items-center gap-2 text-sm">🛡️ Insurance</span>
+                                            <span className="font-bold">{formatPrice(insuranceFee)}</span>
+                                        </div>
+                                    )}
+
+                                    {Number(serviceFee) > 0 && (
+                                        <div className="flex justify-between items-center text-gray-600 bg-gray-50/50 p-2 rounded-lg -mx-2">
+                                            <span className="flex items-center gap-2 text-sm">🔧 Service Fee</span>
+                                            <span className="font-bold">{formatPrice(serviceFee)}</span>
                                         </div>
                                     )}
                                 </div>

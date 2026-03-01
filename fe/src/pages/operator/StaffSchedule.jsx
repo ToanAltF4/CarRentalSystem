@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ArrowLeft, Users, Calendar, User, Loader2,
@@ -56,7 +56,7 @@ const StaffSchedule = () => {
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
-        return date.toLocaleDateString('vi-VN', {
+        return date.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
@@ -246,13 +246,13 @@ const StaffSchedule = () => {
                                                                     </p>
                                                                 </div>
                                                                 <div className="bg-green-50 rounded p-2">
-                                                                    <p className="text-green-600 text-xs">📥 Check-in</p>
+                                                                    <p className="text-green-600 text-xs">Check-in</p>
                                                                     <p className="font-semibold text-green-700">
                                                                         {formatDate(booking.startDate)}
                                                                     </p>
                                                                 </div>
                                                                 <div className="bg-red-50 rounded p-2">
-                                                                    <p className="text-red-600 text-xs">📤 Check-out</p>
+                                                                    <p className="text-red-600 text-xs">Check-out</p>
                                                                     <p className="font-semibold text-red-700">
                                                                         {formatDate(booking.endDate)}
                                                                     </p>
@@ -279,3 +279,4 @@ const StaffSchedule = () => {
 };
 
 export default StaffSchedule;
+

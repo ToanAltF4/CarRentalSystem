@@ -88,6 +88,12 @@ public class BookingEntity {
     @Column(name = "delivery_distance_km", precision = 8, scale = 2)
     private BigDecimal deliveryDistanceKm;
 
+    @Column(name = "insurance_fee", precision = 12, scale = 2)
+    private BigDecimal insuranceFee;
+
+    @Column(name = "service_fee", precision = 12, scale = 2)
+    private BigDecimal serviceFee;
+
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 

@@ -21,7 +21,8 @@ public class BookingRequestDTO {
     private String customerName;
     private String customerEmail;
     private String customerPhone;
-    // Legacy fields kept for backward compatibility; business logic uses selectedDates.
+    // Legacy fields kept for backward compatibility; business logic uses
+    // selectedDates.
     private LocalDate startDate;
     private LocalDate endDate;
     private List<LocalDate> selectedDates;
@@ -45,4 +46,10 @@ public class BookingRequestDTO {
 
     // Real route distance from showroom to customer location (optional, from OSRM)
     private BigDecimal deliveryDistanceKm;
+
+    // Insurance fee (calculated by frontend based on selected insurance options)
+    private BigDecimal insuranceFee;
+
+    // Service fee (fixed 45,000 VND)
+    private BigDecimal serviceFee;
 }

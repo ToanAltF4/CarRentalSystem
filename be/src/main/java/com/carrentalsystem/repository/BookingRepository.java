@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -94,6 +96,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
      */
     long countByStatus(BookingStatus status);
 
+    List<BookingEntity> findByStatusAndCreatedAtBefore(BookingStatus status, LocalDateTime createdAt);
+
     List<BookingEntity> findByAssignedStaffId(Long staffId);
 
     @Query("SELECT b FROM BookingEntity b " +
@@ -159,6 +163,19 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
             "ORDER BY b.createdAt DESC")
     List<BookingEntity> findAllWithVehicle();
 
+    @Query("SELECT b FROM BookingEntity b " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
+            "LEFT JOIN FETCH b.rentalType " +
+            "LEFT JOIN FETCH b.pickupMethod " +
+            "WHERE b.status IN :statuses " +
+            "AND b.startDate <= :targetDate " +
+            "AND b.endDate >= :targetDate " +
+            "ORDER BY b.createdAt DESC")
+    List<BookingEntity> findByStatusesAndDateOverlapWithDetails(
+            @Param("statuses") List<BookingStatus> statuses,
+            @Param("targetDate") LocalDate targetDate);
+
     @Query("SELECT b.assignedStaffId AS userId, COUNT(b) AS count " +
             "FROM BookingEntity b " +
             "WHERE b.assignedStaffId IN :userIds AND b.status IN :statuses " +
@@ -174,4 +191,22 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     List<UserAssignmentCountProjection> countAssignmentsGroupedByDriver(
             @Param("userIds") List<Long> userIds,
             @Param("statuses") List<BookingStatus> statuses);
+
+    @Query(value = """
+            SELECT b.assigned_staff_id AS userId, COUNT(*) AS count
+            FROM bookings b
+            WHERE b.assigned_staff_id IN (:userIds)
+              AND b.status IN ('ASSIGNED', 'CONFIRMED', 'IN_PROGRESS', 'ONGOING')
+            GROUP BY b.assigned_staff_id
+            """, nativeQuery = true)
+    List<UserAssignmentCountProjection> countActiveAssignmentsGroupedByAssignedStaff(@Param("userIds") List<Long> userIds);
+
+    @Query(value = """
+            SELECT b.driver_id AS userId, COUNT(*) AS count
+            FROM bookings b
+            WHERE b.driver_id IN (:userIds)
+              AND b.status IN ('ASSIGNED', 'CONFIRMED', 'IN_PROGRESS', 'ONGOING')
+            GROUP BY b.driver_id
+            """, nativeQuery = true)
+    List<UserAssignmentCountProjection> countActiveAssignmentsGroupedByDriver(@Param("userIds") List<Long> userIds);
 }

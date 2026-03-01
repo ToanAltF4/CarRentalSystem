@@ -6,16 +6,19 @@ import {
     Plus, Edit2, Trash2, ToggleLeft, ToggleRight, X
 } from 'lucide-react';
 import userService from '../../services/userService';
+import Pagination from '../../components/common/Pagination';
 
 /**
  * Admin User Management Page with Full CRUD
  */
 const AdminUserList = () => {
+    const PAGE_SIZE = 10;
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterLicense, setFilterLicense] = useState('ALL');
     const [filterRole, setFilterRole] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
     const [actionLoading, setActionLoading] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
 
@@ -178,6 +181,14 @@ const AdminUserList = () => {
         const matchesRole = filterRole === 'ALL' || user.roleName === filterRole;
         return matchesSearch && matchesLicense && matchesRole;
     });
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterLicense, filterRole, users]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const paginatedUsers = filteredUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
     // Stats
     const stats = {
@@ -372,7 +383,7 @@ const AdminUserList = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {filteredUsers.map(user => (
+                                {paginatedUsers.map(user => (
                                     <tr key={user.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4">
                                             <div>
@@ -463,6 +474,16 @@ const AdminUserList = () => {
                         </table>
                     </div>
                 </div>
+
+                {filteredUsers.length > 0 && (
+                    <Pagination
+                        currentPage={safePage}
+                        totalPages={totalPages}
+                        totalItems={filteredUsers.length}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
             </div>
 
             {/* Create User Modal */}

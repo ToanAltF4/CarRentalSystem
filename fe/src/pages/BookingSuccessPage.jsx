@@ -1,17 +1,32 @@
-import { useLocation, Link, Navigate } from 'react-router-dom';
+﻿import { useLocation, Link, Navigate } from 'react-router-dom';
 import { CheckCircle, Calendar, Car, Mail, Phone, User, Copy, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatPrice } from '../utils/formatters';
+import {
+    formatRemainingPaymentTime,
+    getPaymentTimeoutMinutes,
+    getRemainingPaymentMs
+} from '../utils/bookingPaymentTimeout';
 
 const BookingSuccessPage = () => {
     const location = useLocation();
     const { booking, vehicle } = location.state || {};
     const [copied, setCopied] = useState(false);
+    const [remainingMs, setRemainingMs] = useState(() => getRemainingPaymentMs(booking));
+    const timeoutMinutes = useMemo(() => getPaymentTimeoutMinutes(), []);
 
     // Redirect if no booking data
     if (!booking) {
         return <Navigate to="/" replace />;
     }
+
+    useEffect(() => {
+        setRemainingMs(getRemainingPaymentMs(booking));
+        const timer = setInterval(() => {
+            setRemainingMs(getRemainingPaymentMs(booking));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [booking]);
 
     const handleCopyCode = () => {
         navigator.clipboard.writeText(booking.bookingCode);
@@ -83,7 +98,7 @@ const BookingSuccessPage = () => {
                         )}
                         <div className="flex items-center gap-3 text-gray-600">
                             <Calendar size={18} className="text-gray-400" />
-                            <span>{booking.startDate} → {booking.endDate}</span>
+                            <span>{booking.startDate} {'->'} {booking.endDate}</span>
                         </div>
                     </div>
 
@@ -136,6 +151,13 @@ const BookingSuccessPage = () => {
                 <div className="mt-6 text-center text-sm text-gray-500">
                     <p>A confirmation email has been sent to <strong>{booking.customerEmail}</strong></p>
                     <p className="mt-1">Please keep your booking code safe for reference.</p>
+                    <p className={`mt-2 font-medium ${remainingMs != null && remainingMs <= 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                        {remainingMs == null
+                            ? `Booking will be auto-cancelled if unpaid after ${timeoutMinutes} minutes.`
+                            : remainingMs <= 0
+                                ? 'Booking payment window has expired and will be auto-cancelled.'
+                                : `Please complete payment within ${timeoutMinutes} minutes. Time left: ${formatRemainingPaymentTime(remainingMs)} before auto-cancel.`}
+                    </p>
                 </div>
             </div>
         </div>
@@ -143,3 +165,4 @@ const BookingSuccessPage = () => {
 };
 
 export default BookingSuccessPage;
+

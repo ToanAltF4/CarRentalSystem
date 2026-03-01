@@ -57,6 +57,8 @@ public class BookingResponseDTO {
     private BigDecimal rentalFee;
     private BigDecimal driverFee;
     private BigDecimal deliveryFee;
+    private BigDecimal insuranceFee;
+    private BigDecimal serviceFee;
 
     // Delivery info
     private String deliveryAddress;

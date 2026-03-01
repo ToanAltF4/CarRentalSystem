@@ -2,7 +2,7 @@ package com.carrentalsystem.controller;
 
 import com.carrentalsystem.dto.booking.BookingResponseDTO;
 import com.carrentalsystem.dto.staff.InspectionRequestDTO;
-import com.carrentalsystem.entity.InspectionEntity;
+import com.carrentalsystem.dto.staff.InspectionResponseDTO;
 import com.carrentalsystem.entity.UserEntity;
 import com.carrentalsystem.repository.UserRepository;
 import com.carrentalsystem.service.StaffService;
@@ -32,9 +32,16 @@ public class StaffController {
         return ResponseEntity.ok(staffService.getAssignedTasks(currentUser.getId()));
     }
 
+    @GetMapping("/tasks/{bookingId}")
+    @PreAuthorize("hasAnyRole('STAFF', 'OPERATOR', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<BookingResponseDTO> getTaskDetail(@PathVariable Long bookingId) {
+        UserEntity currentUser = getCurrentUser();
+        return ResponseEntity.ok(staffService.getAssignedTaskDetail(bookingId, currentUser.getId()));
+    }
+
     @PostMapping("/inspection")
     @PreAuthorize("hasAnyRole('STAFF', 'OPERATOR', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<InspectionEntity> submitInspection(@RequestBody InspectionRequestDTO request) {
+    public ResponseEntity<InspectionResponseDTO> submitInspection(@RequestBody InspectionRequestDTO request) {
         UserEntity currentUser = getCurrentUser();
         return ResponseEntity.ok(staffService.submitInspection(request, currentUser.getId()));
     }
