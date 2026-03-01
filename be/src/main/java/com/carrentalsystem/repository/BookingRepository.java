@@ -29,6 +29,15 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
      */
     Optional<BookingEntity> findByBookingCode(String bookingCode);
 
+    @Query("SELECT DISTINCT b FROM BookingEntity b " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory vc " +
+            "LEFT JOIN FETCH vc.images " +
+            "LEFT JOIN FETCH b.rentalType " +
+            "LEFT JOIN FETCH b.pickupMethod " +
+            "WHERE b.id = :id")
+    Optional<BookingEntity> findByIdWithDetails(@Param("id") Long id);
+
     /**
      * Find bookings by vehicle ID.
      */
@@ -110,9 +119,10 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
     List<BookingEntity> findByDriverId(Long driverId);
 
-    @Query("SELECT b FROM BookingEntity b " +
+    @Query("SELECT DISTINCT b FROM BookingEntity b " +
             "LEFT JOIN FETCH b.vehicle v " +
             "LEFT JOIN FETCH v.vehicleCategory " +
+            "LEFT JOIN FETCH v.vehicleCategory.images " +
             "LEFT JOIN FETCH b.rentalType " +
             "LEFT JOIN FETCH b.pickupMethod " +
             "WHERE b.driverId = :driverId")
@@ -120,9 +130,10 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
     List<BookingEntity> findByDriverIdAndStatus(Long driverId, BookingStatus status);
 
-    @Query("SELECT b FROM BookingEntity b " +
+    @Query("SELECT DISTINCT b FROM BookingEntity b " +
             "LEFT JOIN FETCH b.vehicle v " +
             "LEFT JOIN FETCH v.vehicleCategory " +
+            "LEFT JOIN FETCH v.vehicleCategory.images " +
             "LEFT JOIN FETCH b.rentalType " +
             "LEFT JOIN FETCH b.pickupMethod " +
             "WHERE b.driverId = :driverId AND b.status = :status")

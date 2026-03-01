@@ -1,114 +1,120 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import {
-    Car, MapPin, Phone, Mail, Calendar, Clock, DollarSign,
-    ChevronRight, Loader2, CheckCircle, XCircle, Play,
-    User, Wallet, TrendingUp, Navigation
+    Car,
+    CheckCircle,
+    Clock,
+    Loader2,
+    MapPin,
+    Phone,
+    Play,
+    RefreshCw,
+    Search,
+    User,
+    Wallet,
+    XCircle
 } from 'lucide-react';
 import driverService from '../../services/driverService';
+import Pagination from '../../components/common/Pagination';
 
-/**
- * Driver Dashboard Page
- */
+const PAGE_SIZE = 6;
+
+const STATUS_LABELS = {
+    ASSIGNED: 'Assigned',
+    CONFIRMED: 'Confirmed',
+    IN_PROGRESS: 'In Progress',
+    ONGOING: 'Ongoing',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled'
+};
+
+const STATUS_CLASSES = {
+    ASSIGNED: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    CONFIRMED: 'bg-blue-100 text-blue-700 border-blue-200',
+    IN_PROGRESS: 'bg-green-100 text-green-700 border-green-200',
+    ONGOING: 'bg-green-100 text-green-700 border-green-200',
+    COMPLETED: 'bg-gray-100 text-gray-600 border-gray-200',
+    CANCELLED: 'bg-red-100 text-red-700 border-red-200'
+};
+
+const formatPrice = (amount) => new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+}).format(amount || 0);
+
 const DriverDashboard = () => {
     const [stats, setStats] = useState(null);
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
+    const [error, setError] = useState('');
     const [filter, setFilter] = useState('ALL');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchData = async (showLoader = true) => {
+        if (showLoader) setLoading(true);
+        if (!showLoader) setRefreshing(true);
+        setError('');
         try {
             const [statsData, tripsData] = await Promise.all([
                 driverService.getDriverStats(),
                 driverService.getMyTrips()
             ]);
-            setStats(statsData);
-            setTrips(tripsData);
-        } catch (err) {
-            console.error('Error fetching driver data:', err);
+            setStats(statsData || {});
+            setTrips(Array.isArray(tripsData) ? tripsData : []);
+        } catch (fetchError) {
+            console.error('Error fetching driver data:', fetchError);
+            setError(fetchError?.response?.data?.message || 'Failed to load driver data');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    const handleAccept = async (tripId) => {
+    useEffect(() => {
+        fetchData(true);
+    }, []);
+
+    const executeAction = async (tripId, action, confirmText) => {
+        if (confirmText && !window.confirm(confirmText)) return;
         setActionLoading(tripId);
         try {
-            await driverService.acceptTrip(tripId);
-            fetchData();
-        } catch (err) {
-            alert('Failed to accept trip: ' + (err.response?.data?.message || err.message));
+            await action(tripId);
+            await fetchData(false);
+        } catch (actionError) {
+            console.error('Trip action failed:', actionError);
+            alert(actionError?.response?.data?.message || 'Action failed');
         } finally {
             setActionLoading(null);
         }
     };
 
-    const handleStart = async (tripId) => {
-        setActionLoading(tripId);
-        try {
-            await driverService.startTrip(tripId);
-            fetchData();
-        } catch (err) {
-            alert('Failed to start trip: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setActionLoading(null);
-        }
-    };
+    const filteredTrips = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+        const base = filter === 'ALL'
+            ? trips
+            : trips.filter((trip) => trip.status === filter);
+        return base
+            .filter((trip) => {
+                if (!term) return true;
+                return trip.bookingCode?.toLowerCase().includes(term)
+                    || trip.customerName?.toLowerCase().includes(term)
+                    || trip.vehicleName?.toLowerCase().includes(term)
+                    || trip.vehiclePlate?.toLowerCase().includes(term);
+            })
+            .sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
+    }, [filter, searchTerm, trips]);
 
-    const handleComplete = async (tripId) => {
-        setActionLoading(tripId);
-        try {
-            await driverService.completeTrip(tripId);
-            fetchData();
-        } catch (err) {
-            alert('Failed to complete trip: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setActionLoading(null);
-        }
-    };
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter, searchTerm, trips]);
 
-    const handleDecline = async (tripId) => {
-        if (!confirm('Are you sure you want to decline this trip?')) return;
-        setActionLoading(tripId);
-        try {
-            await driverService.declineTrip(tripId);
-            fetchData();
-        } catch (err) {
-            alert('Failed to decline trip: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setActionLoading(null);
-        }
-    };
+    const totalPages = Math.max(1, Math.ceil(filteredTrips.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const paginatedTrips = filteredTrips.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-    const getStatusBadge = (status) => {
-        const styles = {
-            ASSIGNED: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-            CONFIRMED: 'bg-blue-100 text-blue-700 border-blue-200',
-            IN_PROGRESS: 'bg-green-100 text-green-700 border-green-200',
-            ONGOING: 'bg-green-100 text-green-700 border-green-200',
-            COMPLETED: 'bg-gray-100 text-gray-600 border-gray-200',
-            CANCELLED: 'bg-red-100 text-red-700 border-red-200'
-        };
-        return (
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${styles[status] || 'bg-gray-100'}`}>
-                {status?.replace('_', ' ')}
-            </span>
-        );
-    };
-
-    const filteredTrips = filter === 'ALL'
-        ? trips
-        : trips.filter(t => t.status === filter);
-
-    const formatPrice = (amount) => {
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
-    };
+    const statusTabs = ['ALL', 'ASSIGNED', 'CONFIRMED', 'IN_PROGRESS', 'ONGOING', 'COMPLETED'];
 
     if (loading) {
         return (
@@ -120,17 +126,15 @@ const DriverDashboard = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-6 py-8">
+            <div className="bg-gradient-to-r from-orange-600 to-amber-500 text-white px-6 py-8">
                 <div className="container mx-auto">
-                    <h1 className="text-2xl font-bold mb-2">🚗 Driver Dashboard</h1>
-                    <p className="text-white/80">Manage your trips and earnings</p>
+                    <h1 className="text-2xl font-bold mb-1">Driver Dashboard</h1>
+                    <p className="text-white/90">Manage your assigned trips and earnings</p>
                 </div>
             </div>
 
             <div className="container mx-auto px-4 -mt-6">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -170,130 +174,149 @@ const DriverDashboard = () => {
                                 <Wallet className="text-purple-600" size={20} />
                             </div>
                             <div>
-                                <p className="text-lg font-bold text-gray-900">{formatPrice(stats?.totalEarnings)}</p>
-                                <p className="text-xs text-gray-500">Earnings</p>
+                                <p className="text-sm md:text-base font-bold text-gray-900">{formatPrice(stats?.totalEarnings)}</p>
+                                <p className="text-xs text-gray-500">Total Earnings</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 mb-6 flex gap-2 overflow-x-auto">
-                    {['ALL', 'ASSIGNED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].map(status => (
-                        <button
-                            key={status}
-                            onClick={() => setFilter(status)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${filter === status
-                                    ? 'bg-primary text-white'
-                                    : 'text-gray-600 hover:bg-gray-100'
-                                }`}
-                        >
-                            {status.replace('_', ' ')}
-                        </button>
-                    ))}
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex gap-2 overflow-x-auto">
+                            {statusTabs.map((status) => (
+                                <button
+                                    key={status}
+                                    onClick={() => setFilter(status)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${filter === status
+                                        ? 'bg-primary text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    {status === 'ALL' ? 'All' : STATUS_LABELS[status] || status}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-2">
+                            <div className="relative w-full lg:w-80">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Search code, customer, vehicle..."
+                                    className="w-full rounded-lg border border-gray-200 py-2.5 pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
+                                />
+                            </div>
+                            <button
+                                onClick={() => fetchData(false)}
+                                disabled={refreshing}
+                                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 hover:border-primary/40 hover:text-primary disabled:opacity-60"
+                            >
+                                {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Trips List */}
+                {error && (
+                    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                )}
+
                 <div className="space-y-4">
-                    {filteredTrips.length > 0 ? (
-                        filteredTrips.map(trip => (
+                    {paginatedTrips.length > 0 ? (
+                        paginatedTrips.map((trip) => (
                             <div key={trip.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                                {/* Trip Header */}
-                                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                                <div className="p-4 border-b border-gray-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <p className="font-mono text-sm text-primary font-semibold">{trip.bookingCode}</p>
-                                        <p className="text-xs text-gray-500">{trip.startDate} → {trip.endDate}</p>
+                                        <p className="text-xs text-gray-500">{trip.startDate} {'->'} {trip.endDate}</p>
                                     </div>
-                                    {getStatusBadge(trip.status)}
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_CLASSES[trip.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                        {STATUS_LABELS[trip.status] || trip.status}
+                                    </span>
                                 </div>
 
-                                {/* Trip Body */}
                                 <div className="p-4 space-y-3">
-                                    {/* Customer Info */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                                            <User size={20} className="text-gray-500" />
-                                        </div>
+                                    <div className="flex gap-4">
+                                        <img
+                                            src={trip.vehicleImage || 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=400'}
+                                            alt={trip.vehicleName || 'Vehicle'}
+                                            className="h-14 w-14 rounded-lg object-cover bg-gray-100"
+                                        />
                                         <div className="flex-1">
-                                            <p className="font-medium text-gray-900">{trip.customerName}</p>
-                                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                                                <span className="flex items-center gap-1">
-                                                    <Phone size={12} />
-                                                    {trip.customerPhone}
-                                                </span>
+                                            <p className="font-semibold text-gray-900">{trip.vehicleName || 'Vehicle'} ({trip.vehiclePlate || '-'})</p>
+                                            <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                                                <span className="inline-flex items-center gap-1"><User size={12} /> {trip.customerName || '-'}</span>
+                                                <span className="inline-flex items-center gap-1"><Phone size={12} /> {trip.customerPhone || '-'}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Vehicle */}
-                                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                        <Car size={18} className="text-gray-500" />
-                                        <div>
-                                            <p className="text-sm font-medium">{trip.vehicleName}</p>
-                                            <p className="text-xs text-gray-500">{trip.vehiclePlate}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Delivery Address */}
                                     {trip.deliveryAddress && (
-                                        <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                                            <MapPin size={18} className="text-blue-500 mt-0.5" />
+                                        <div className="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2">
+                                            <MapPin size={15} className="text-blue-600 mt-0.5" />
                                             <p className="text-sm text-gray-700">{trip.deliveryAddress}</p>
                                         </div>
                                     )}
 
-                                    {/* Driver Fee */}
-                                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                                        <span className="text-sm text-gray-600">Your Earnings</span>
-                                        <span className="font-bold text-green-600">{formatPrice(trip.driverFee)}</span>
+                                    <div className="flex items-center justify-between rounded-lg bg-green-50 px-3 py-2">
+                                        <span className="text-sm text-gray-600">Driver Fee</span>
+                                        <span className="text-sm font-bold text-green-700">{formatPrice(trip.driverFee)}</span>
                                     </div>
                                 </div>
 
-                                {/* Actions */}
                                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
                                     {trip.status === 'ASSIGNED' && (
                                         <>
                                             <button
-                                                onClick={() => handleAccept(trip.id)}
+                                                onClick={() => executeAction(trip.id, driverService.acceptTrip)}
                                                 disabled={actionLoading === trip.id}
-                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
+                                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                                             >
-                                                {actionLoading === trip.id ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                                                {actionLoading === trip.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                                                 Accept
                                             </button>
                                             <button
-                                                onClick={() => handleDecline(trip.id)}
+                                                onClick={() => executeAction(trip.id, driverService.declineTrip, 'Decline this trip?')}
                                                 disabled={actionLoading === trip.id}
-                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-100 text-red-600 rounded-lg font-medium hover:bg-red-200 disabled:opacity-50"
+                                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-100 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-200 disabled:opacity-60"
                                             >
-                                                <XCircle size={18} />
+                                                <XCircle size={16} />
                                                 Decline
                                             </button>
                                         </>
                                     )}
+
                                     {trip.status === 'CONFIRMED' && (
                                         <button
-                                            onClick={() => handleStart(trip.id)}
+                                            onClick={() => executeAction(trip.id, driverService.startTrip)}
                                             disabled={actionLoading === trip.id}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50"
+                                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                                         >
-                                            {actionLoading === trip.id ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
+                                            {actionLoading === trip.id ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
                                             Start Trip
                                         </button>
                                     )}
+
                                     {(trip.status === 'IN_PROGRESS' || trip.status === 'ONGOING') && (
                                         <button
-                                            onClick={() => handleComplete(trip.id)}
+                                            onClick={() => executeAction(trip.id, driverService.completeTrip, 'Complete this trip now?')}
                                             disabled={actionLoading === trip.id}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
+                                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                                         >
-                                            {actionLoading === trip.id ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                                            {actionLoading === trip.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                                             Complete Trip
                                         </button>
                                     )}
+
                                     {trip.status === 'COMPLETED' && (
-                                        <div className="flex-1 text-center py-2.5 text-green-600 font-medium">
-                                            ✓ Trip Completed
+                                        <div className="flex-1 text-center py-2.5 text-green-700 text-sm font-semibold">
+                                            Completed
                                         </div>
                                     )}
                                 </div>
@@ -307,6 +330,16 @@ const DriverDashboard = () => {
                         </div>
                     )}
                 </div>
+
+                {filteredTrips.length > 0 && (
+                    <Pagination
+                        currentPage={safePage}
+                        totalPages={totalPages}
+                        totalItems={filteredTrips.length}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
             </div>
         </div>
     );
