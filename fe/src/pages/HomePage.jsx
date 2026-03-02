@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Zap, TrendingUp, MapPin } from 'lucide-react';
+import { ChevronRight, Zap, MapPin } from 'lucide-react';
 import HeroSection from '../components/HeroSection';
 import PromoSection from '../components/PromoSection';
 import CarCard from '../components/ui/CarCard';
-import vehicleService from '../services/vehicleService';
+import vehicleCategoryService from '../services/vehicleCategoryService';
 
 // Mock data removed
 
@@ -15,6 +15,37 @@ const locations = [
     { name: 'Nha Trang', count: '500+ vehicles', image: 'https://images.unsplash.com/photo-1559628233-100c798642d4?auto=format&fit=crop&q=80&w=400' }
 ];
 
+const normalizeFeaturedCars = (categories) => {
+    if (!Array.isArray(categories)) return [];
+
+    const uniqueTypeKeys = new Set();
+
+    return categories
+        .map(vehicleCategoryService.normalizeCategory)
+        .filter(Boolean)
+        .filter((cat) => (cat.availableCount || 0) > 0)
+        .filter((cat) => {
+            const key = `${(cat.brand || '').trim().toLowerCase()}|${(cat.name || '').trim().toLowerCase()}|${(cat.model || '').trim().toLowerCase()}`;
+            if (uniqueTypeKeys.has(key)) return false;
+            uniqueTypeKeys.add(key);
+            return true;
+        })
+        .slice(0, 8)
+        .map((cat) => ({
+            id: cat.id,
+            name: `${cat.brand || ''} ${cat.name || ''}`.trim(),
+            brand: cat.brand || '',
+            model: cat.model || '',
+            imageUrl: cat.primaryImageUrl || (Array.isArray(cat.imageUrls) ? cat.imageUrls[0] : ''),
+            dailyRate: cat.dailyPrice || 0,
+            trips: 0,
+            location: 'Ho Chi Minh City',
+            discount: null,
+            delivery: false,
+            isElectric: true
+        }));
+};
+
 const HomePage = () => {
     const [featuredCars, setFeaturedCars] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,19 +53,8 @@ const HomePage = () => {
     useEffect(() => {
         const fetchCars = async () => {
             try {
-                const data = await vehicleService.getAll();
-                if (data && data.length > 0) {
-                    // Map API data to match our card format
-                    const mappedCars = data.slice(0, 8).map(car => ({
-                        ...car,
-                        trips: 0,
-                        location: 'Ho Chi Minh City',
-                        discount: null,
-                        delivery: false,
-                        isElectric: true
-                    }));
-                    setFeaturedCars(mappedCars);
-                }
+                const categories = await vehicleCategoryService.getAll();
+                setFeaturedCars(normalizeFeaturedCars(categories));
             } catch (error) {
                 console.error('Failed to fetch vehicles:', error);
                 setFeaturedCars([]);
