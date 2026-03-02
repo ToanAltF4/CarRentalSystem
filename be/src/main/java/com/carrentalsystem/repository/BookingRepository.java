@@ -24,6 +24,14 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
         Long getCount();
     }
 
+    interface MonthlyRevenueProjection {
+        Integer getMonth();
+
+        java.math.BigDecimal getRevenue();
+
+        Long getBookingCount();
+    }
+
     /**
      * Find booking by booking code.
      */
@@ -220,4 +228,17 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
             GROUP BY b.driver_id
             """, nativeQuery = true)
     List<UserAssignmentCountProjection> countActiveAssignmentsGroupedByDriver(@Param("userIds") List<Long> userIds);
+
+    @Query(value = """
+            SELECT
+                MONTH(b.start_date) AS month,
+                COALESCE(SUM(b.total_amount), 0) AS revenue,
+                COUNT(*) AS bookingCount
+            FROM bookings b
+            WHERE b.status <> 'CANCELLED'
+              AND YEAR(b.start_date) = :year
+            GROUP BY MONTH(b.start_date)
+            ORDER BY MONTH(b.start_date)
+            """, nativeQuery = true)
+    List<MonthlyRevenueProjection> aggregateMonthlyRevenue(@Param("year") Integer year);
 }

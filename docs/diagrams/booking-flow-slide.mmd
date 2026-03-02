@@ -1,0 +1,134 @@
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
+    participant VNP as Payment Gateway
+    participant SCH as Scheduler
+    actor OP as Operator
+    actor ST as Staff
+    actor DR as Driver
+
+    C->>FE: Submit booking request
+    FE->>BE: Create booking
+    activate BE
+    BE->>DB: Validate and save as PENDING
+    activate DB
+    DB-->>BE: Booking created
+    deactivate DB
+    BE-->>FE: Booking summary
+    deactivate BE
+
+    C->>FE: Start payment
+    FE->>BE: Request payment link
+    activate BE
+    BE-->>FE: Payment link
+    deactivate BE
+    FE->>VNP: Open payment page
+    activate VNP
+    VNP-->>FE: Return payment result
+    VNP-->>BE: Send payment callback
+    deactivate VNP
+
+    alt [Paid]
+        activate BE
+        BE->>DB: Mark booking CONFIRMED
+        activate DB
+        DB-->>BE: Updated
+        deactivate DB
+        BE-->>FE: Payment success
+        deactivate BE
+    else [Failed/Cancelled]
+        activate BE
+        BE->>DB: Keep pending or mark failed
+        activate DB
+        DB-->>BE: Updated
+        deactivate DB
+        BE-->>FE: Payment failed
+        deactivate BE
+    end
+
+    par Auto-cancel overdue bookings
+        activate SCH
+        SCH->>DB: Cancel expired PENDING bookings
+        activate DB
+        DB-->>SCH: Cancelled list
+        deactivate DB
+        deactivate SCH
+    and Manual assignment
+        OP->>BE: Assign staff/driver
+        activate BE
+        BE->>DB: Update assignment and status
+        activate DB
+        DB-->>BE: Assignment updated
+        deactivate DB
+        BE-->>OP: Assignment result
+        deactivate BE
+    end
+
+    ST->>BE: View assigned tasks
+    activate BE
+    BE->>DB: Load tasks
+    activate DB
+    DB-->>BE: Task list data
+    deactivate DB
+    BE-->>ST: Task list
+    deactivate BE
+
+    ST->>BE: Record pickup inspection
+    activate BE
+    BE->>DB: Save inspection and set IN_PROGRESS
+    activate DB
+    DB-->>BE: Inspection saved
+    deactivate DB
+    BE-->>ST: Inspection result
+    deactivate BE
+
+    alt [With driver]
+        DR->>BE: Accept trip
+        activate BE
+        BE->>DB: Set status CONFIRMED
+        activate DB
+        DB-->>BE: Updated
+        deactivate DB
+        BE-->>DR: Accepted
+        deactivate BE
+
+        DR->>BE: Start trip
+        activate BE
+        BE->>DB: Set status IN_PROGRESS
+        activate DB
+        DB-->>BE: Updated
+        deactivate DB
+        BE-->>DR: Started
+        deactivate BE
+
+        DR->>BE: Complete trip
+        activate BE
+        BE->>DB: Set status COMPLETED
+        activate DB
+        DB-->>BE: Updated
+        deactivate DB
+        BE-->>DR: Completed
+        deactivate BE
+    else [Self-drive]
+        ST->>BE: Record return inspection
+        activate BE
+        BE->>DB: Set booking COMPLETED
+        activate DB
+        DB-->>BE: Updated
+        deactivate DB
+        BE-->>ST: Return completed
+        deactivate BE
+    end
+
+    C->>FE: Open my bookings
+    FE->>BE: Get booking history
+    activate BE
+    BE->>DB: Query bookings
+    activate DB
+    DB-->>BE: Booking history
+    deactivate DB
+    BE-->>FE: Final status list
+    deactivate BE

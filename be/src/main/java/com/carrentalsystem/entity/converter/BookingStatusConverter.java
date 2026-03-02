@@ -14,6 +14,20 @@ public class BookingStatusConverter implements AttributeConverter<BookingStatus,
 
     @Override
     public BookingStatus convertToEntityAttribute(String dbData) {
-        return dbData != null ? BookingStatus.valueOf(dbData) : null;
+        if (dbData == null) {
+            return null;
+        }
+        String normalized = dbData.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            if (normalized.chars().allMatch(Character::isDigit)) {
+                return BookingStatus.fromId(Integer.parseInt(normalized));
+            }
+            return BookingStatus.valueOf(normalized.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

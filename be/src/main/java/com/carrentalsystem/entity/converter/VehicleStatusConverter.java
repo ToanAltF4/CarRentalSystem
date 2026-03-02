@@ -14,6 +14,20 @@ public class VehicleStatusConverter implements AttributeConverter<VehicleStatus,
 
     @Override
     public VehicleStatus convertToEntityAttribute(String dbData) {
-        return dbData != null ? VehicleStatus.valueOf(dbData) : null;
+        if (dbData == null) {
+            return null;
+        }
+        String normalized = dbData.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            if (normalized.chars().allMatch(Character::isDigit)) {
+                return VehicleStatus.fromId(Integer.parseInt(normalized));
+            }
+            return VehicleStatus.valueOf(normalized.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

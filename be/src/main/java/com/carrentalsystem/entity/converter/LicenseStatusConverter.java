@@ -14,6 +14,20 @@ public class LicenseStatusConverter implements AttributeConverter<LicenseStatus,
 
     @Override
     public LicenseStatus convertToEntityAttribute(String dbData) {
-        return dbData != null ? LicenseStatus.valueOf(dbData) : null;
+        if (dbData == null) {
+            return null;
+        }
+        String normalized = dbData.trim();
+        if (normalized.isEmpty() || "NONE".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        try {
+            if (normalized.chars().allMatch(Character::isDigit)) {
+                return LicenseStatus.fromId(Integer.parseInt(normalized));
+            }
+            return LicenseStatus.valueOf(normalized.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

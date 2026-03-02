@@ -1,0 +1,37 @@
+﻿sequenceDiagram
+    autonumber
+    actor Customer
+    participant System as Car Rental System
+    participant Payment as VNPAY
+    actor Operator
+    actor Staff
+    actor Driver
+
+    Customer->>System: Select vehicle, rental dates, submit booking request
+    System-->>Customer: Create booking (PENDING) and request payment
+
+    Customer->>Payment: Complete payment
+    Payment-->>System: Return payment result
+
+    alt Payment successful
+        System-->>Customer: Booking confirmed (CONFIRMED)
+        Operator->>System: Assign staff/driver
+        System-->>Operator: Booking moves to ASSIGNED
+
+        Staff->>System: Perform vehicle handover (pickup inspection)
+        System-->>Staff: Booking moves to IN_PROGRESS
+
+        alt With driver
+            Driver->>System: Accept trip
+            Driver->>System: Start trip
+            Driver->>System: Complete trip
+            System-->>Driver: Booking COMPLETED
+        else Self-drive
+            Staff->>System: Perform vehicle return inspection
+            System-->>Staff: Booking COMPLETED
+        end
+
+        System-->>Customer: Notify booking completion
+    else Payment failed or expired
+        System-->>Customer: Booking cancelled (CANCELLED)
+    end

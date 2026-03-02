@@ -14,6 +14,20 @@ public class ConditionRatingConverter implements AttributeConverter<ConditionRat
 
     @Override
     public ConditionRating convertToEntityAttribute(String dbData) {
-        return dbData != null ? ConditionRating.valueOf(dbData) : null;
+        if (dbData == null) {
+            return null;
+        }
+        String normalized = dbData.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            if (normalized.chars().allMatch(Character::isDigit)) {
+                return ConditionRating.fromId(Integer.parseInt(normalized));
+            }
+            return ConditionRating.valueOf(normalized.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

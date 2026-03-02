@@ -3,12 +3,11 @@ package com.carrentalsystem.service.impl;
 import com.carrentalsystem.dto.dashboard.DashboardOverviewDTO;
 import com.carrentalsystem.dto.dashboard.DashboardStatsDTO;
 import com.carrentalsystem.dto.dashboard.MonthlyRevenueDTO;
-import com.carrentalsystem.entity.BookingEntity;
-import com.carrentalsystem.entity.BookingStatus;
 import com.carrentalsystem.repository.BookingRepository;
 import com.carrentalsystem.repository.DashboardRepository;
 import com.carrentalsystem.service.DashboardService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,17 +15,18 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Implementation of Dashboard Service.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
@@ -74,7 +74,7 @@ public class DashboardServiceImpl implements DashboardService {
                                 return snapshot;
                         }
 
-                        DashboardStatsDTO freshValue = loadDashboardStatsFromDb();
+                        DashboardStatsDTO freshValue = withRetry("dashboard stats", this::loadDashboardStatsFromDb);
                         cachedStats = freshValue;
                         cachedStatsAtMs = now;
                         return freshValue;
@@ -130,7 +130,9 @@ public class DashboardServiceImpl implements DashboardService {
                         return copyMonthlyRevenueList(cachedValue.value());
                 }
 
-                List<MonthlyRevenueDTO> freshValue = loadMonthlyRevenueFromDb(targetYear);
+                List<MonthlyRevenueDTO> freshValue = withRetry(
+                                "monthly revenue year=" + targetYear,
+                                () -> loadMonthlyRevenueFromDb(targetYear));
                 monthlyRevenueCache.put(targetYear, new TimedValue<>(freshValue, now));
                 return copyMonthlyRevenueList(freshValue);
         }
@@ -192,51 +194,18 @@ public class DashboardServiceImpl implements DashboardService {
                                         .build());
                 }
 
-                bookingRepository.findAll().stream()
-                                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED)
-                                .forEach(booking -> accumulateMonthlyRevenue(result, booking, year));
+                List<BookingRepository.MonthlyRevenueProjection> rows = bookingRepository.aggregateMonthlyRevenue(year);
+                for (BookingRepository.MonthlyRevenueProjection row : rows) {
+                        if (row.getMonth() == null || row.getMonth() < 1 || row.getMonth() > 12) {
+                                continue;
+                        }
+                        int monthIndex = row.getMonth() - 1;
+                        MonthlyRevenueDTO dto = result.get(monthIndex);
+                        dto.setRevenue(row.getRevenue() != null ? row.getRevenue() : BigDecimal.ZERO);
+                        dto.setBookingCount(row.getBookingCount() != null ? row.getBookingCount() : 0L);
+                }
 
                 return result;
-        }
-
-        private void accumulateMonthlyRevenue(List<MonthlyRevenueDTO> result, BookingEntity booking, int year) {
-                LocalDate monthDate = resolveMonthDate(booking);
-                if (monthDate == null || monthDate.getYear() != year) {
-                        return;
-                }
-
-                int monthIndex = monthDate.getMonthValue() - 1;
-                MonthlyRevenueDTO dto = result.get(monthIndex);
-                dto.setRevenue(dto.getRevenue().add(booking.getTotalAmount() != null ? booking.getTotalAmount() : BigDecimal.ZERO));
-                dto.setBookingCount(dto.getBookingCount() + 1);
-        }
-
-        private LocalDate resolveMonthDate(BookingEntity booking) {
-                List<LocalDate> selectedDates = parseSelectedDates(booking.getSelectedDates());
-                if (!selectedDates.isEmpty()) {
-                        return selectedDates.get(0);
-                }
-                return booking.getStartDate();
-        }
-
-        private List<LocalDate> parseSelectedDates(String rawDates) {
-                if (rawDates == null || rawDates.isBlank()) {
-                        return List.of();
-                }
-                return java.util.Arrays.stream(rawDates.split(","))
-                                .map(String::trim)
-                                .filter(value -> !value.isBlank())
-                                .map(value -> {
-                                        try {
-                                                return LocalDate.parse(value);
-                                        } catch (DateTimeParseException ex) {
-                                                return null;
-                                        }
-                                })
-                                .filter(java.util.Objects::nonNull)
-                                .distinct()
-                                .sorted()
-                                .toList();
         }
 
         private List<MonthlyRevenueDTO> copyMonthlyRevenueList(List<MonthlyRevenueDTO> source) {
@@ -253,5 +222,20 @@ public class DashboardServiceImpl implements DashboardService {
 
         private boolean isFresh(long cachedAtMs, long nowMs) {
                 return nowMs - cachedAtMs < DASHBOARD_CACHE_TTL_MS;
+        }
+
+        private <T> T withRetry(String operationName, Supplier<T> supplier) {
+                RuntimeException firstFailure = null;
+                for (int attempt = 1; attempt <= 2; attempt++) {
+                        try {
+                                return supplier.get();
+                        } catch (RuntimeException ex) {
+                                if (firstFailure == null) {
+                                        firstFailure = ex;
+                                }
+                                log.warn("Dashboard {} failed at attempt {}/2: {}", operationName, attempt, ex.getMessage());
+                        }
+                }
+                throw firstFailure;
         }
 }
