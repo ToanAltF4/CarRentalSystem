@@ -1,4 +1,10 @@
 import api from './api';
+import { cachedGet, invalidateCachedGet } from './requestCache';
+
+const VEHICLE_CACHE_PREFIX = 'vehicles:';
+const CATEGORY_CACHE_PREFIX = 'vehicle-categories:';
+const BOOKING_CACHE_PREFIX = 'bookings:';
+const DASHBOARD_CACHE_PREFIX = 'dashboard:';
 
 const vehicleService = {
     normalizeVehicle: (v) => {
@@ -59,33 +65,71 @@ const vehicleService = {
     },
 
     getAll: async () => {
-        const res = await api.get('/v1/vehicles');
-        return vehicleService.normalizeVehicleList(res.data);
+        return cachedGet(
+            `${VEHICLE_CACHE_PREFIX}all`,
+            async () => {
+                const res = await api.get('/v1/vehicles');
+                return vehicleService.normalizeVehicleList(res.data);
+            },
+            30_000
+        );
     },
 
     getById: async (id) => {
-        const res = await api.get(`/v1/vehicles/${id}`);
-        return vehicleService.normalizeVehicle(res.data);
+        return cachedGet(
+            `${VEHICLE_CACHE_PREFIX}by-id:${id}`,
+            async () => {
+                const res = await api.get(`/v1/vehicles/${id}`);
+                return vehicleService.normalizeVehicle(res.data);
+            },
+            30_000
+        );
     },
 
     search: async (keyword) => {
-        const res = await api.get('/v1/vehicles/search', { params: { keyword } });
-        return vehicleService.normalizeVehicleList(res.data);
+        const normalizedKeyword = (keyword || '').trim().toLowerCase();
+        return cachedGet(
+            `${VEHICLE_CACHE_PREFIX}search:${normalizedKeyword}`,
+            async () => {
+                const res = await api.get('/v1/vehicles/search', { params: { keyword } });
+                return vehicleService.normalizeVehicleList(res.data);
+            },
+            15_000
+        );
     },
 
     getAvailable: async (startDate, endDate) => {
-        const res = await api.get('/v1/vehicles/available', { params: { startDate, endDate } });
-        return vehicleService.normalizeVehicleList(res.data);
+        const key = `${VEHICLE_CACHE_PREFIX}available:${startDate || ''}:${endDate || ''}`;
+        return cachedGet(
+            key,
+            async () => {
+                const res = await api.get('/v1/vehicles/available', { params: { startDate, endDate } });
+                return vehicleService.normalizeVehicleList(res.data);
+            },
+            15_000
+        );
     },
 
     getByCategory: async (categoryId) => {
-        const res = await api.get(`/v1/vehicles/category/${categoryId}`);
-        return vehicleService.normalizeVehicleList(res.data);
+        return cachedGet(
+            `${VEHICLE_CACHE_PREFIX}by-category:${categoryId}`,
+            async () => {
+                const res = await api.get(`/v1/vehicles/category/${categoryId}`);
+                return vehicleService.normalizeVehicleList(res.data);
+            },
+            30_000
+        );
     },
 
     getUnavailableDates: async (vehicleId) => {
-        const res = await api.get(`/v1/vehicles/${vehicleId}/unavailable-dates`);
-        return vehicleService.normalizeUnavailableDateRangeList(res.data);
+        return cachedGet(
+            `${VEHICLE_CACHE_PREFIX}unavailable-dates:${vehicleId}`,
+            async () => {
+                const res = await api.get(`/v1/vehicles/${vehicleId}/unavailable-dates`);
+                return vehicleService.normalizeUnavailableDateRangeList(res.data);
+            },
+            10_000
+        );
     },
 
     create: async (data) => {
@@ -97,6 +141,10 @@ const vehicleService = {
             currentBatteryPercent: data.currentBatteryPercent ? parseInt(data.currentBatteryPercent) : null,
         };
         const res = await api.post('/v1/vehicles', payload);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
         return vehicleService.normalizeVehicle(res.data);
     },
 
@@ -109,16 +157,29 @@ const vehicleService = {
             currentBatteryPercent: data.currentBatteryPercent ? parseInt(data.currentBatteryPercent) : null,
         };
         const res = await api.put(`/v1/vehicles/${id}`, payload);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
         return vehicleService.normalizeVehicle(res.data);
     },
 
     updateStatus: async (id, status) => {
         const res = await api.patch(`/v1/vehicles/${id}/status`, null, { params: { status } });
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
         return vehicleService.normalizeVehicle(res.data);
     },
 
     delete: async (id) => {
-        return api.delete(`/v1/vehicles/${id}`);
+        const res = await api.delete(`/v1/vehicles/${id}`);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
+        return res;
     },
 
     mapToCarCard: (v) => {

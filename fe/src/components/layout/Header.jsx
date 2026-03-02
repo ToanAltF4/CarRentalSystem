@@ -13,10 +13,6 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-    console.log('Current User:', user);
-    console.log('User Role:', user?.role);
-    console.log('Is Authenticated:', isAuthenticated);
-
     const isAdmin = ['ADMIN', 'MANAGER', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(user?.role);
     const isOperator = ['OPERATOR', 'ROLE_OPERATOR'].includes(user?.role);
     const isStaff = ['STAFF', 'ROLE_STAFF'].includes(user?.role);

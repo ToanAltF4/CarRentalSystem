@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ChevronRight, Loader2, AlertCircle, Search, Filter,
@@ -16,7 +16,6 @@ import Pagination from '../../components/common/Pagination';
 const AdminBookingList = () => {
     const PAGE_SIZE = 10;
     const [bookings, setBookings] = useState([]);
-    const [filteredBookings, setFilteredBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -30,7 +29,7 @@ const AdminBookingList = () => {
     const [returnCondition, setReturnCondition] = useState('GOOD');
     const [returnNotes, setReturnNotes] = useState('');
 
-    const tabs = [
+    const tabs = useMemo(() => ([
         { id: 'ALL', label: 'All', count: bookings.length },
         { id: 'PENDING', label: 'Pending', count: bookings.filter(b => b.status === 'PENDING').length },
         { id: 'CONFIRMED', label: 'Confirmed', count: bookings.filter(b => b.status === 'CONFIRMED').length },
@@ -38,21 +37,9 @@ const AdminBookingList = () => {
         { id: 'RETURN_PENDING_PAYMENT', label: 'Final Payment', count: bookings.filter(b => b.status === 'RETURN_PENDING_PAYMENT').length },
         { id: 'COMPLETED', label: 'Completed', count: bookings.filter(b => b.status === 'COMPLETED').length },
         { id: 'CANCELLED', label: 'Cancelled', count: bookings.filter(b => b.status === 'CANCELLED').length }
-    ];
+    ]), [bookings]);
 
-    useEffect(() => {
-        fetchBookings();
-    }, []);
-
-    useEffect(() => {
-        filterBookings();
-    }, [bookings, activeTab, searchTerm]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [activeTab, searchTerm, bookings]);
-
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         setLoading(true);
         try {
             const data = await bookingService.getAll();
@@ -63,9 +50,17 @@ const AdminBookingList = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const filterBookings = () => {
+    useEffect(() => {
+        fetchBookings();
+    }, [fetchBookings]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchTerm, bookings]);
+
+    const filteredBookings = useMemo(() => {
         let filtered = [...bookings];
 
         // Filter by tab
@@ -87,9 +82,8 @@ const AdminBookingList = () => {
                 b.vehicleName?.toLowerCase().includes(term)
             );
         }
-
-        setFilteredBookings(filtered);
-    };
+        return filtered;
+    }, [bookings, activeTab, searchTerm]);
 
     // Action Handlers
     const handleApprove = async (booking) => {

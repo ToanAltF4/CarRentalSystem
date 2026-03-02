@@ -93,7 +93,8 @@ public class JwtServiceImpl implements JwtService {
         }
     }
 
-    private Claims getClaims(String token) {
+    @Override
+    public Claims getClaims(String token) {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
 
         return Jwts.parser()

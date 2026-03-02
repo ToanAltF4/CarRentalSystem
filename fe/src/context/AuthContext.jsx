@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import profileService from '../services/profileService';
+import { clearCachedGetStore } from '../services/requestCache';
 
 // Create Auth Context
 const AuthContext = createContext(null);
@@ -58,6 +58,7 @@ export function AuthProvider({ children }) {
         };
 
         // Save to localStorage
+        clearCachedGetStore();
         localStorage.setItem('token', authToken);
         localStorage.setItem('user', JSON.stringify(userInfo));
 
@@ -89,6 +90,7 @@ export function AuthProvider({ children }) {
             console.error('Logout API error:', error);
         } finally {
             // Clear localStorage
+            clearCachedGetStore();
             localStorage.removeItem('token');
             localStorage.removeItem('user');
 

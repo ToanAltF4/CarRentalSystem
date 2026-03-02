@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, SlidersHorizontal, Loader2, ChevronRight, Car } from 'lucide-react';
 import CarCard from '../components/ui/CarCard';
@@ -24,9 +24,7 @@ const VehicleListPage = () => {
     const [vehiclePool, setVehiclePool] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [searching, setSearching] = useState(false);
     const [error, setError] = useState(null);
-    const [isReady, setIsReady] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBrand, setSelectedBrand] = useState('ALL');
@@ -34,8 +32,6 @@ const VehicleListPage = () => {
     const [priceRange, setPriceRange] = useState('ALL');
     const [sortBy, setSortBy] = useState('popular');
     const [showFilters, setShowFilters] = useState(false);
-
-    const didMountSearchRef = useRef(false);
 
     const loadInitialData = useCallback(async () => {
         setLoading(true);
@@ -54,7 +50,6 @@ const VehicleListPage = () => {
             setCategoryCatalog(normalizedCategories);
             setBrandCatalog(Array.isArray(brandRaw) ? brandRaw.filter(Boolean) : []);
             setVehiclePool(Array.isArray(vehicles) ? vehicles : []);
-            setIsReady(true);
         } catch (err) {
             console.error('Error loading vehicles page:', err);
             setError('Failed to load vehicles.');
@@ -69,34 +64,6 @@ const VehicleListPage = () => {
     useEffect(() => {
         loadInitialData();
     }, [loadInitialData]);
-
-    useEffect(() => {
-        if (!isReady) return;
-        if (!didMountSearchRef.current) {
-            didMountSearchRef.current = true;
-            return;
-        }
-
-        const timer = setTimeout(async () => {
-            const keyword = searchTerm.trim();
-            setSearching(true);
-            try {
-                const data = keyword
-                    ? await vehicleService.search(keyword)
-                    : await vehicleService.getAll();
-                setVehiclePool(Array.isArray(data) ? data : []);
-                setError(null);
-            } catch (err) {
-                console.error('Error filtering vehicles from API:', err);
-                setError('Failed to filter vehicles from server.');
-                setVehiclePool([]);
-            } finally {
-                setSearching(false);
-            }
-        }, 350);
-
-        return () => clearTimeout(timer);
-    }, [isReady, searchTerm]);
 
     const statsByCategory = useMemo(() => {
         const map = new Map();
@@ -252,7 +219,6 @@ const VehicleListPage = () => {
                     <h1 className="text-2xl md:text-3xl font-bold text-[#141414]">Choose Vehicle Type</h1>
                     <p className="text-gray-500 mt-1">
                         {filteredVehicleTypes.length} types available
-                        {searching && <span className="ml-2 text-[#5fcf86]">Updating...</span>}
                     </p>
                 </div>
             </div>
@@ -284,9 +250,6 @@ const VehicleListPage = () => {
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#5fcf86] focus:ring-2 focus:ring-[#5fcf86]/20 outline-none transition-all"
                                     />
-                                    {searching && (
-                                        <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[#5fcf86]" />
-                                    )}
                                 </div>
                             </div>
 
@@ -426,7 +389,6 @@ const VehicleListPage = () => {
                                 <span className="font-bold text-[#141414]">{filteredVehicleTypes.length}</span> types found
                             </p>
                             <div className="flex items-center gap-2">
-                                {searching && <Loader2 size={16} className="animate-spin text-[#5fcf86]" />}
                                 <span className="text-sm text-gray-500 hidden sm:inline">Sort by:</span>
                                 <select
                                     value={sortBy}

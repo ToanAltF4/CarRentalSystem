@@ -413,13 +413,13 @@ const CarDetailPage = () => {
         fetchUnavailableDates();
         const refreshTimer = setInterval(() => {
             void fetchUnavailableDates();
-        }, 15000);
+        }, 30000);
 
         return () => {
             cancelled = true;
             clearInterval(refreshTimer);
         };
-    }, [selectedVehicleId, calendarMonth]);
+    }, [selectedVehicleId]);
 
     useEffect(() => {
         if (isAuthenticated) {

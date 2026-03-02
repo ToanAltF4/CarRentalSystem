@@ -1,33 +1,61 @@
 import api from './api';
+import { cachedGet, invalidateCachedGet } from './requestCache';
+
+const CATEGORY_CACHE_PREFIX = 'vehicle-categories:';
+const VEHICLE_CACHE_PREFIX = 'vehicles:';
 
 const vehicleCategoryService = {
     getAll: async () => {
-        const res = await api.get('/v1/vehicle-categories');
-        return res.data;
+        return cachedGet(
+            `${CATEGORY_CACHE_PREFIX}all`,
+            async () => {
+                const res = await api.get('/v1/vehicle-categories');
+                return res.data;
+            },
+            60_000
+        );
     },
 
     getById: async (id) => {
-        const res = await api.get(`/v1/vehicle-categories/${id}`);
-        return res.data;
+        return cachedGet(
+            `${CATEGORY_CACHE_PREFIX}by-id:${id}`,
+            async () => {
+                const res = await api.get(`/v1/vehicle-categories/${id}`);
+                return res.data;
+            },
+            60_000
+        );
     },
 
     getBrands: async () => {
-        const res = await api.get('/v1/vehicle-categories/brands');
-        return res.data;
+        return cachedGet(
+            `${CATEGORY_CACHE_PREFIX}brands`,
+            async () => {
+                const res = await api.get('/v1/vehicle-categories/brands');
+                return res.data;
+            },
+            60_000
+        );
     },
 
     create: async (data) => {
         const res = await api.post('/v1/vehicle-categories', data);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return res.data;
     },
 
     update: async (id, data) => {
         const res = await api.put(`/v1/vehicle-categories/${id}`, data);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return res.data;
     },
 
     delete: async (id) => {
         const res = await api.delete(`/v1/vehicle-categories/${id}`);
+        invalidateCachedGet(CATEGORY_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return res.data;
     },
 

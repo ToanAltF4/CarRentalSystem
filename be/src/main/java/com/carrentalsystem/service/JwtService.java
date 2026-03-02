@@ -1,6 +1,7 @@
 package com.carrentalsystem.service;
 
 import com.carrentalsystem.entity.UserEntity;
+import io.jsonwebtoken.Claims;
 
 /**
  * Service for JWT token generation and validation.
@@ -47,6 +48,14 @@ public interface JwtService {
      * @return User role
      */
     String getRole(String token);
+
+    /**
+     * Parse JWT token claims in a single pass.
+     *
+     * @param token JWT token
+     * @return Parsed claims
+     */
+    Claims getClaims(String token);
 
     /**
      * Validate if JWT token is valid and not expired.

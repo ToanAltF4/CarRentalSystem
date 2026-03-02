@@ -288,13 +288,14 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public BookingResponseDTO getBookingById(Long id) {
-        BookingEntity booking = findBookingOrThrow(id);
+        BookingEntity booking = bookingRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
         return toEnrichedDTO(booking);
     }
 
     @Override
     public BookingResponseDTO getBookingByCode(String bookingCode) {
-        BookingEntity booking = bookingRepository.findByBookingCode(bookingCode)
+        BookingEntity booking = bookingRepository.findByBookingCodeWithDetails(bookingCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "code", bookingCode));
         return toEnrichedDTO(booking);
     }

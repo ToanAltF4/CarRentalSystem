@@ -39,6 +39,14 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
     @Query("SELECT DISTINCT b FROM BookingEntity b " +
             "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
+            "LEFT JOIN FETCH b.rentalType " +
+            "LEFT JOIN FETCH b.pickupMethod " +
+            "WHERE b.bookingCode = :bookingCode")
+    Optional<BookingEntity> findByBookingCodeWithDetails(@Param("bookingCode") String bookingCode);
+
+    @Query("SELECT DISTINCT b FROM BookingEntity b " +
+            "LEFT JOIN FETCH b.vehicle v " +
             "LEFT JOIN FETCH v.vehicleCategory vc " +
             "LEFT JOIN FETCH vc.images " +
             "LEFT JOIN FETCH b.rentalType " +
@@ -152,7 +160,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     int countActiveBookingsByStaff(@Param("staffId") Long staffId, @Param("statuses") List<BookingStatus> statuses);
 
     @Query("SELECT b FROM BookingEntity b " +
-            "LEFT JOIN FETCH b.vehicle " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
             "LEFT JOIN FETCH b.rentalType " +
             "LEFT JOIN FETCH b.pickupMethod " +
             "ORDER BY b.createdAt DESC")
@@ -176,7 +185,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     List<Object[]> findRecentBookingSummaries();
 
     @Query("SELECT b FROM BookingEntity b " +
-            "LEFT JOIN FETCH b.vehicle " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
             "LEFT JOIN FETCH b.rentalType " +
             "LEFT JOIN FETCH b.pickupMethod " +
             "ORDER BY b.createdAt DESC")

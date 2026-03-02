@@ -1,4 +1,9 @@
 import api from './api';
+import { cachedGet, invalidateCachedGet } from './requestCache';
+
+const BOOKING_CACHE_PREFIX = 'bookings:';
+const DASHBOARD_CACHE_PREFIX = 'dashboard:';
+const VEHICLE_CACHE_PREFIX = 'vehicles:';
 
 /**
  * Booking Service
@@ -12,6 +17,9 @@ const bookingService = {
      */
     createBooking: async (bookingData) => {
         const response = await api.post('/v1/bookings', bookingData);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return response.data;
     },
 
@@ -21,16 +29,28 @@ const bookingService = {
      * Get all rental types (SELF_DRIVE, WITH_DRIVER)
      */
     getRentalTypes: async () => {
-        const response = await api.get('/v1/booking-options/rental-types');
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}rental-types`,
+            async () => {
+                const response = await api.get('/v1/booking-options/rental-types');
+                return response.data;
+            },
+            300_000
+        );
     },
 
     /**
      * Get all pickup methods (STORE, DELIVERY)
      */
     getPickupMethods: async () => {
-        const response = await api.get('/v1/booking-options/pickup-methods');
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}pickup-methods`,
+            async () => {
+                const response = await api.get('/v1/booking-options/pickup-methods');
+                return response.data;
+            },
+            300_000
+        );
     },
 
     /**
@@ -66,32 +86,56 @@ const bookingService = {
      * Get current pricing info (driver daily fee, delivery base fee, etc.)
      */
     getPricingInfo: async () => {
-        const response = await api.get('/v1/booking-options/pricing-info');
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}pricing-info`,
+            async () => {
+                const response = await api.get('/v1/booking-options/pricing-info');
+                return response.data;
+            },
+            60_000
+        );
     },
 
     /**
      * Get booking by ID
      */
     getById: async (id) => {
-        const response = await api.get(`/v1/bookings/${id}`);
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}by-id:${id}`,
+            async () => {
+                const response = await api.get(`/v1/bookings/${id}`);
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
      * Get booking by booking code
      */
     getByCode: async (code) => {
-        const response = await api.get(`/v1/bookings/code/${code}`);
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}by-code:${code}`,
+            async () => {
+                const response = await api.get(`/v1/bookings/code/${code}`);
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
      * Get bookings by customer email
      */
     getByEmail: async (email) => {
-        const response = await api.get('/v1/bookings/customer', { params: { email } });
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}by-email:${email}`,
+            async () => {
+                const response = await api.get('/v1/bookings/customer', { params: { email } });
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
@@ -99,6 +143,9 @@ const bookingService = {
      */
     cancel: async (id) => {
         const response = await api.post(`/v1/bookings/${id}/cancel`);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return response.data;
     },
 
@@ -108,32 +155,56 @@ const bookingService = {
      * Get all bookings (Admin only)
      */
     getAll: async () => {
-        const response = await api.get('/v1/bookings');
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}all`,
+            async () => {
+                const response = await api.get('/v1/bookings');
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
      * Get bookings by status
      */
     getByStatus: async (status) => {
-        const response = await api.get(`/v1/bookings/status/${status}`);
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}by-status:${status}`,
+            async () => {
+                const response = await api.get(`/v1/bookings/status/${status}`);
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
      * Get bookings by vehicle ID
      */
     getByVehicle: async (vehicleId) => {
-        const response = await api.get(`/v1/bookings/vehicle/${vehicleId}`);
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}by-vehicle:${vehicleId}`,
+            async () => {
+                const response = await api.get(`/v1/bookings/vehicle/${vehicleId}`);
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
      * Get upcoming bookings
      */
     getUpcoming: async () => {
-        const response = await api.get('/v1/bookings/upcoming');
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}upcoming`,
+            async () => {
+                const response = await api.get('/v1/bookings/upcoming');
+                return response.data;
+            },
+            15_000
+        );
     },
 
     /**
@@ -145,6 +216,9 @@ const bookingService = {
         const response = await api.patch(`/v1/bookings/${id}/status`, null, {
             params: { status }
         });
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return response.data;
     },
 
@@ -157,6 +231,9 @@ const bookingService = {
      */
     processReturn: async (bookingId, returnData) => {
         const response = await api.post(`/v1/bookings/${bookingId}/return`, returnData);
+        invalidateCachedGet(BOOKING_CACHE_PREFIX);
+        invalidateCachedGet(DASHBOARD_CACHE_PREFIX);
+        invalidateCachedGet(VEHICLE_CACHE_PREFIX);
         return response.data;
     },
 
