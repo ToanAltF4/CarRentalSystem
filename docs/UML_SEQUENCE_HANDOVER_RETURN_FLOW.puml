@@ -1,0 +1,231 @@
+@startuml Vehicle Handover Return Sequence Flow
+
+hide footbox
+autonumber 
+
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontSize 13
+
+skinparam sequence {
+  ArrowThickness 1
+  ParticipantBorderThickness 1
+  LifeLineBorderThickness 1
+}
+
+scale 0.9
+
+actor Operator
+actor Staff
+actor Driver
+actor Customer
+participant "operatorController : OperatorController" as operatorController
+participant "staffController : StaffController" as staffController
+participant "driverController : DriverController" as driverController
+participant "operatorService : OperatorService" as operatorService
+participant "staffService : StaffService" as staffService
+participant "driverService : DriverService" as driverService
+participant "returnService : ReturnService" as returnService
+participant "vnpayService : VnpayService" as vnpayService
+database "bookingRepository : BookingRepository" as bookingRepository
+database "inspectionRepository : InspectionRepository" as inspectionRepository
+database "invoiceRepository : InvoiceRepository" as invoiceRepository
+database "pricingRepository : PricingRepository" as pricingRepository
+participant "vnpayController : VnpayController" as vnpayController
+participant "paymentGateway : VNPAY" as paymentGateway
+database "vehicleRepository : VehicleRepository" as vehicleRepository
+
+== Assignment ==
+
+Operator -> operatorController: assign staff/driver to booking
+activate operatorController
+operatorController -> operatorService: assignStaff(...)
+activate operatorService
+operatorService -> bookingRepository: save assignment and status
+activate bookingRepository
+bookingRepository --> operatorService: assignment saved
+deactivate bookingRepository
+operatorService --> operatorController: BookingResponseDTO
+deactivate operatorService
+operatorController --> Operator: Assignment success
+deactivate operatorController
+
+alt Rental type = WITH_DRIVER and driver assigned
+  Driver -> driverController: accept assigned trip
+  activate driverController
+  driverController -> driverService: acceptTrip(tripId)
+  activate driverService
+  driverService -> bookingRepository: save(status=CONFIRMED)
+  activate bookingRepository
+  bookingRepository --> driverService: status updated
+  deactivate bookingRepository
+  driverService --> driverController: trip accepted
+  deactivate driverService
+  driverController --> Driver: Trip accepted
+  deactivate driverController
+end
+
+== Pickup Handover ==
+
+Staff -> staffController: submit pickup inspection
+activate staffController
+staffController -> staffService: submitInspection(PICKUP)
+activate staffService
+staffService -> inspectionRepository: save(PICKUP inspection)
+activate inspectionRepository
+inspectionRepository --> staffService: inspection saved
+deactivate inspectionRepository
+staffService -> bookingRepository: save(status=IN_PROGRESS)
+activate bookingRepository
+bookingRepository --> staffService: status updated
+deactivate bookingRepository
+staffService --> staffController: InspectionResponseDTO
+deactivate staffService
+staffController --> Staff: Pickup inspection completed
+deactivate staffController
+
+alt Handover type = STORE
+  Staff -> Customer: Handover vehicle at store
+else Handover type = DELIVERY
+  Staff -> Customer: Deliver vehicle to customer location
+end
+
+== Rental Period ==
+
+alt Rental type = WITH_DRIVER
+  Driver -> driverController: start trip
+  activate driverController
+  driverController -> driverService: startTrip(tripId)
+  activate driverService
+  driverService -> bookingRepository: save(status=ONGOING)
+  activate bookingRepository
+  bookingRepository --> driverService: status updated
+  deactivate bookingRepository
+  driverService --> driverController: trip started
+  deactivate driverService
+  driverController --> Driver: Trip started
+  deactivate driverController
+else Rental type = SELF_DRIVE
+end
+note over Driver, Customer
+  Rental period in progress
+end note
+
+== Return Inspection and Invoice ==
+
+Customer -> Staff: Coordinate return
+
+alt Return type = STORE
+  Staff -> Customer: Receive vehicle at store
+else Return type = PICKUP
+  Staff -> Customer: Pick up vehicle at customer location
+end
+
+Staff -> staffController: submit return inspection
+activate staffController
+staffController -> staffService: submitInspection(RETURN)
+activate staffService
+staffService -> returnService: processReturn(bookingId, returnRequest)
+activate returnService
+returnService -> inspectionRepository: save(RETURN inspection)
+activate inspectionRepository
+inspectionRepository --> returnService: inspection saved
+deactivate inspectionRepository
+returnService -> pricingRepository: fetch pricing rules
+activate pricingRepository
+pricingRepository --> returnService: pricing data
+deactivate pricingRepository
+returnService -> returnService: calculate overtime and total fees
+activate returnService
+returnService --> returnService: fees calculated
+deactivate returnService
+returnService -> invoiceRepository: create or update final invoice
+activate invoiceRepository
+invoiceRepository --> returnService: invoice saved
+deactivate invoiceRepository
+
+returnService -> bookingRepository: save(status=RETURN_PENDING_PAYMENT)
+activate bookingRepository
+bookingRepository --> returnService: status updated
+deactivate bookingRepository
+returnService --> staffService: ReturnResponseDTO(inspection + final invoice)
+deactivate returnService
+staffService --> staffController: ReturnResponseDTO
+deactivate staffService
+staffController --> Staff: Return processed
+deactivate staffController
+Staff -> Customer: Share final invoice for payment
+
+alt Customer raises dispute
+  Customer -> Operator: Submit dispute request
+  note right of Operator
+    Manual dispute handling flow is outside
+    this sequence and may adjust invoice.
+  end note
+else Customer proceeds payment
+  Customer -> vnpayController: request payment URL
+  activate vnpayController
+  vnpayController -> vnpayService: createPaymentUrl(...)
+  activate vnpayService
+  vnpayService --> vnpayController: paymentUrl
+  deactivate vnpayService
+  vnpayController --> Customer: paymentUrl
+  deactivate vnpayController
+
+  Customer -> paymentGateway: Open paymentUrl and pay
+  activate paymentGateway
+  paymentGateway -> vnpayController: return payment result
+  activate vnpayController
+  vnpayController -> vnpayService: handleReturn(params)
+  activate vnpayService
+  vnpayService -> invoiceRepository: update payment status
+  activate invoiceRepository
+  invoiceRepository --> vnpayService: payment status updated
+  deactivate invoiceRepository
+
+  alt Payment success (vnp_ResponseCode = 00)
+    vnpayService -> returnService: confirmFinalPayment(...)
+    activate returnService
+    returnService -> bookingRepository: save(status=COMPLETED)
+    activate bookingRepository
+    bookingRepository --> returnService: status updated
+    deactivate bookingRepository
+    returnService -> inspectionRepository: read return inspection result
+    activate inspectionRepository
+    inspectionRepository --> returnService: inspection result
+    deactivate inspectionRepository
+
+    alt Return inspection has damage
+      returnService -> vehicleRepository: save(status=MAINTENANCE)
+      activate vehicleRepository
+      vehicleRepository --> returnService: vehicle updated
+      deactivate vehicleRepository
+    else No damage
+      returnService -> vehicleRepository: save(status=AVAILABLE)
+      activate vehicleRepository
+      vehicleRepository --> returnService: vehicle updated
+      deactivate vehicleRepository
+    end
+
+    returnService --> vnpayService: final payment confirmed
+    deactivate returnService
+    vnpayService --> vnpayController: success result
+    deactivate vnpayService
+    vnpayController --> paymentGateway: Return success response
+    deactivate vnpayController
+  else Payment failed
+    vnpayService --> vnpayController: failed result
+    deactivate vnpayService
+    vnpayController --> paymentGateway: Return failure response
+    deactivate vnpayController
+    note over vnpayService
+      Invoice remains PENDING,
+      booking stays RETURN_PENDING_PAYMENT.
+    end note
+  end
+
+  paymentGateway --> Customer: Payment result
+  deactivate paymentGateway
+end
+
+@enduml

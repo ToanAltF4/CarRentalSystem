@@ -25,7 +25,8 @@ public class ReturnRequestDTO {
     private ConditionRating interiorCondition;
     private Boolean hasDamage;
     private String damageDescription;
-    private String inspectedBy;
+    private String damagePhotos;
+    private Long inspectedById;
     private String inspectionNotes;
 
     // Fee details

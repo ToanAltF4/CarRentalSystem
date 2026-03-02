@@ -9,6 +9,7 @@ import {
     Loader2,
     Save
 } from 'lucide-react';
+import api from '../../services/api';
 import staffService from '../../services/staffService';
 
 const STATUS_LABELS = {
@@ -16,11 +17,13 @@ const STATUS_LABELS = {
     CONFIRMED: 'Confirmed',
     IN_PROGRESS: 'In Progress',
     ONGOING: 'Ongoing',
+    RETURN_PENDING_PAYMENT: 'Return Pending Payment',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled'
 };
 
 const StaffInspection = () => {
+    const MAX_PHOTOS = 8;
     const { bookingId } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -33,6 +36,9 @@ const StaffInspection = () => {
     const [loadingDetail, setLoadingDetail] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [uploadingPhotos, setUploadingPhotos] = useState(false);
+    const [uploadError, setUploadError] = useState('');
+    const [photoUrls, setPhotoUrls] = useState([]);
 
     const [formData, setFormData] = useState({
         batteryLevel: 100,
@@ -68,6 +74,71 @@ const StaffInspection = () => {
         return 'Inspection';
     }, [isPickup, isReturn]);
 
+    const photoSectionTitle = useMemo(() => {
+        if (isPickup) return 'Handover Photos';
+        if (isReturn && formData.hasDamage) return 'Damage Photos';
+        return 'Return Photos';
+    }, [formData.hasDamage, isPickup, isReturn]);
+
+    const photoSectionHint = useMemo(() => {
+        if (isPickup) return 'Upload at least one handover photo.';
+        if (isReturn && formData.hasDamage) return 'Damage found, photo upload is required.';
+        return 'Upload photos if needed.';
+    }, [formData.hasDamage, isPickup, isReturn]);
+
+    const handleUploadPhotos = async (event) => {
+        const files = Array.from(event.target.files || []);
+        event.target.value = '';
+        if (files.length === 0) return;
+
+        setUploadError('');
+
+        if (photoUrls.length + files.length > MAX_PHOTOS) {
+            setUploadError(`You can upload up to ${MAX_PHOTOS} photos.`);
+            return;
+        }
+
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) {
+                setUploadError('Only image files are allowed.');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                setUploadError('Each file must be 10MB or smaller.');
+                return;
+            }
+        }
+
+        setUploadingPhotos(true);
+        try {
+            const newUrls = [];
+            for (const file of files) {
+                const payload = new FormData();
+                payload.append('file', file);
+                const response = await api.post('/v1/upload/inspections', payload, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                if (response?.data?.url) {
+                    newUrls.push(response.data.url);
+                }
+            }
+            setPhotoUrls((prev) => [...prev, ...newUrls]);
+        } catch (uploadErr) {
+            console.error('Photo upload failed:', uploadErr);
+            const payload = uploadErr?.response?.data;
+            const message = typeof payload === 'string'
+                ? payload
+                : payload?.message || payload?.error || uploadErr?.message || 'Failed to upload photos.';
+            setUploadError(message);
+        } finally {
+            setUploadingPhotos(false);
+        }
+    };
+
+    const removePhoto = (indexToRemove) => {
+        setPhotoUrls((prev) => prev.filter((_, index) => index !== indexToRemove));
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         setError('');
@@ -91,6 +162,14 @@ const StaffInspection = () => {
             setError('Please provide damage description.');
             return;
         }
+        if (isPickup && photoUrls.length === 0) {
+            setError('Please upload at least one handover photo.');
+            return;
+        }
+        if (isReturn && formData.hasDamage && photoUrls.length === 0) {
+            setError('Please upload damage photos.');
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -104,12 +183,17 @@ const StaffInspection = () => {
                 interiorCondition: formData.interiorCondition,
                 hasDamage: formData.hasDamage,
                 damageDescription: formData.hasDamage ? formData.damageDescription.trim() : '',
+                damagePhotos: photoUrls.join(','),
                 inspectionNotes: formData.inspectionNotes.trim()
             });
             navigate('/staff');
         } catch (submitError) {
             console.error('Inspection submit failed:', submitError);
-            setError(submitError?.response?.data?.message || 'Failed to submit inspection');
+            const payload = submitError?.response?.data;
+            const message = typeof payload === 'string'
+                ? payload
+                : payload?.message || payload?.error || submitError?.message || 'Failed to submit inspection';
+            setError(message);
         } finally {
             setSubmitting(false);
         }
@@ -278,6 +362,53 @@ const StaffInspection = () => {
                         </div>
                     </div>
 
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                        <div className="border-b border-gray-100 px-5 py-3 font-semibold text-gray-800">
+                            {photoSectionTitle}
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-gray-600">{photoSectionHint}</p>
+
+                            <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+                                {uploadingPhotos ? <Loader2 size={16} className="animate-spin" /> : null}
+                                {uploadingPhotos ? 'Uploading...' : 'Upload Photos'}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleUploadPhotos}
+                                    disabled={uploadingPhotos || submitting}
+                                    className="hidden"
+                                />
+                            </label>
+
+                            <p className="text-xs text-gray-500">
+                                {photoUrls.length}/{MAX_PHOTOS} uploaded
+                            </p>
+
+                            {uploadError && (
+                                <p className="text-sm text-red-600">{uploadError}</p>
+                            )}
+
+                            {photoUrls.length > 0 && (
+                                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                    {photoUrls.map((url, index) => (
+                                        <div key={`${url}-${index}`} className="relative rounded-lg border border-gray-200 overflow-hidden">
+                                            <img src={url} alt={`inspection-${index + 1}`} className="h-24 w-full object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removePhoto(index)}
+                                                className="absolute top-1 right-1 rounded bg-black/60 px-2 py-1 text-xs text-white hover:bg-black/80"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="flex items-center justify-end gap-3">
                         <button
                             type="button"
@@ -288,7 +419,7 @@ const StaffInspection = () => {
                         </button>
                         <button
                             type="submit"
-                            disabled={submitting}
+                            disabled={submitting || uploadingPhotos}
                             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -299,7 +430,7 @@ const StaffInspection = () => {
 
                 <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
                     <CheckCircle size={14} className="mt-0.5" />
-                    Pickup inspection moves booking to IN_PROGRESS. Return inspection completes the booking.
+                    Pickup inspection moves booking to IN_PROGRESS. Return inspection creates final invoice and moves booking to RETURN_PENDING_PAYMENT.
                 </div>
             </div>
         </div>

@@ -403,12 +403,16 @@ public class BookingServiceImpl implements BookingService {
         UserEntity staff = resolveUser.apply(entity.getAssignedStaffId());
         if (staff != null) {
             dto.setAssignedStaffName(staff.getFullName());
+            dto.setAssignedStaffEmail(staff.getEmail());
+            dto.setAssignedStaffPhone(staff.getPhoneNumber());
         }
 
         // Enrich Driver Name
         UserEntity driver = resolveUser.apply(entity.getDriverId());
         if (driver != null) {
             dto.setDriverName(driver.getFullName());
+            dto.setDriverEmail(driver.getEmail());
+            dto.setDriverPhone(driver.getPhoneNumber());
         }
 
         // Enrich Assigned By
@@ -632,8 +636,12 @@ public class BookingServiceImpl implements BookingService {
             case ASSIGNED ->
                 next == BookingStatus.CONFIRMED || next == BookingStatus.IN_PROGRESS || next == BookingStatus.CANCELLED;
             case IN_PROGRESS ->
-                next == BookingStatus.ONGOING || next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
-            case ONGOING -> next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
+                next == BookingStatus.ONGOING || next == BookingStatus.RETURN_PENDING_PAYMENT
+                        || next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
+            case ONGOING ->
+                next == BookingStatus.RETURN_PENDING_PAYMENT || next == BookingStatus.COMPLETED
+                        || next == BookingStatus.CANCELLED;
+            case RETURN_PENDING_PAYMENT -> next == BookingStatus.COMPLETED || next == BookingStatus.CANCELLED;
             case COMPLETED, CANCELLED -> false; // Terminal states
         };
 

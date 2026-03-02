@@ -18,6 +18,7 @@ const STATUS_CLASS = {
     CONFIRMED: 'bg-blue-100 text-blue-700',
     IN_PROGRESS: 'bg-green-100 text-green-700',
     ONGOING: 'bg-green-100 text-green-700',
+    RETURN_PENDING_PAYMENT: 'bg-amber-100 text-amber-700',
     COMPLETED: 'bg-gray-100 text-gray-700',
     CANCELLED: 'bg-red-100 text-red-700'
 };
@@ -25,6 +26,7 @@ const STATUS_CLASS = {
 const StaffDashboard = () => {
     const navigate = useNavigate();
     const [tasks, setTasks] = useState([]);
+    const [historyTasks, setHistoryTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
@@ -36,8 +38,12 @@ const StaffDashboard = () => {
         if (!showLoader) setRefreshing(true);
         setError('');
         try {
-            const data = await staffService.getMyTasks();
-            setTasks(Array.isArray(data) ? data : []);
+            const [activeData, historyData] = await Promise.all([
+                staffService.getMyTasks(),
+                staffService.getTaskHistory()
+            ]);
+            setTasks(Array.isArray(activeData) ? activeData : []);
+            setHistoryTasks(Array.isArray(historyData) ? historyData : []);
         } catch (fetchError) {
             console.error('Error fetching staff tasks:', fetchError);
             setError(fetchError?.response?.data?.message || 'Failed to load tasks');
@@ -59,9 +65,17 @@ const StaffDashboard = () => {
         () => tasks.filter((task) => task.status === 'IN_PROGRESS' || task.status === 'ONGOING'),
         [tasks]
     );
+    const handledTasks = useMemo(
+        () => historyTasks.filter((task) => task.status === 'RETURN_PENDING_PAYMENT' || task.status === 'COMPLETED'),
+        [historyTasks]
+    );
 
     const filteredTasks = useMemo(() => {
-        const source = activeTab === 'pickup' ? pickupTasks : returnTasks;
+        const source = activeTab === 'pickup'
+            ? pickupTasks
+            : activeTab === 'return'
+                ? returnTasks
+                : handledTasks;
         const term = searchTerm.trim().toLowerCase();
         if (!term) return source;
         return source.filter((task) =>
@@ -70,7 +84,7 @@ const StaffDashboard = () => {
             || task.vehicleName?.toLowerCase().includes(term)
             || task.vehicleLicensePlate?.toLowerCase().includes(term)
         );
-    }, [activeTab, pickupTasks, returnTasks, searchTerm]);
+    }, [activeTab, pickupTasks, returnTasks, handledTasks, searchTerm]);
 
     const startInspection = (bookingId) => {
         const type = activeTab === 'pickup' ? 'PICKUP' : 'RETURN';
@@ -80,7 +94,8 @@ const StaffDashboard = () => {
     const statCards = [
         { label: 'Total Tasks', value: tasks.length, icon: Clock },
         { label: 'Pending Pickup', value: pickupTasks.length, icon: Truck },
-        { label: 'Pending Return', value: returnTasks.length, icon: CheckCircle }
+        { label: 'Pending Return', value: returnTasks.length, icon: CheckCircle },
+        { label: 'Handled', value: handledTasks.length, icon: CheckCircle }
     ];
 
     return (
@@ -101,7 +116,7 @@ const StaffDashboard = () => {
                     </button>
                 </div>
 
-                <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
                     {statCards.map((item) => (
                         <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                             <div className="flex items-center gap-3">
@@ -138,6 +153,15 @@ const StaffDashboard = () => {
                             >
                                 Return ({returnTasks.length})
                             </button>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'history'
+                                    ? 'bg-gray-200 text-gray-800'
+                                    : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                            >
+                                History ({handledTasks.length})
+                            </button>
                         </div>
 
                         <div className="relative w-full md:w-96">
@@ -168,12 +192,21 @@ const StaffDashboard = () => {
                     <div className="rounded-xl border border-gray-200 border-dashed bg-white py-16 text-center">
                         <Clock className="mx-auto mb-3 text-gray-300" size={36} />
                         <p className="font-medium text-gray-800">No tasks found</p>
-                        <p className="text-sm text-gray-500">No pending {activeTab} tasks match your filters.</p>
+                        <p className="text-sm text-gray-500">
+                            {activeTab === 'history'
+                                ? 'No handled tasks match your filters.'
+                                : `No pending ${activeTab} tasks match your filters.`}
+                        </p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
                         {filteredTasks
-                            .sort((a, b) => new Date(a.startDate || 0) - new Date(b.startDate || 0))
+                            .sort((a, b) => {
+                                if (activeTab === 'history') {
+                                    return new Date(b.updatedAt || b.endDate || 0) - new Date(a.updatedAt || a.endDate || 0);
+                                }
+                                return new Date(a.startDate || 0) - new Date(b.startDate || 0);
+                            })
                             .map((task) => (
                                 <div key={task.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -209,16 +242,22 @@ const StaffDashboard = () => {
                                             </div>
                                         </div>
 
-                                        <button
-                                            onClick={() => startInspection(task.id)}
-                                            className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white ${activeTab === 'pickup'
-                                                ? 'bg-orange-600 hover:bg-orange-700'
-                                                : 'bg-blue-600 hover:bg-blue-700'
-                                                }`}
-                                        >
-                                            {activeTab === 'pickup' ? 'Start Pickup' : 'Start Return'}
-                                            <ArrowRight size={16} />
-                                        </button>
+                                        {activeTab !== 'history' ? (
+                                            <button
+                                                onClick={() => startInspection(task.id)}
+                                                className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white ${activeTab === 'pickup'
+                                                    ? 'bg-orange-600 hover:bg-orange-700'
+                                                    : 'bg-blue-600 hover:bg-blue-700'
+                                                    }`}
+                                            >
+                                                {activeTab === 'pickup' ? 'Start Pickup' : 'Start Return'}
+                                                <ArrowRight size={16} />
+                                            </button>
+                                        ) : (
+                                            <div className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600">
+                                                Handled
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

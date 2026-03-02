@@ -35,6 +35,7 @@ const AdminBookingList = () => {
         { id: 'PENDING', label: 'Pending', count: bookings.filter(b => b.status === 'PENDING').length },
         { id: 'CONFIRMED', label: 'Confirmed', count: bookings.filter(b => b.status === 'CONFIRMED').length },
         { id: 'ONGOING', label: 'Ongoing', count: bookings.filter(b => b.status === 'ONGOING' || b.status === 'IN_PROGRESS').length },
+        { id: 'RETURN_PENDING_PAYMENT', label: 'Final Payment', count: bookings.filter(b => b.status === 'RETURN_PENDING_PAYMENT').length },
         { id: 'COMPLETED', label: 'Completed', count: bookings.filter(b => b.status === 'COMPLETED').length },
         { id: 'CANCELLED', label: 'Cancelled', count: bookings.filter(b => b.status === 'CANCELLED').length }
     ];
@@ -162,6 +163,7 @@ const AdminBookingList = () => {
             CONFIRMED: 'bg-blue-100 text-blue-700 border-blue-200',
             ONGOING: 'bg-green-100 text-green-700 border-green-200',
             IN_PROGRESS: 'bg-green-100 text-green-700 border-green-200',
+            RETURN_PENDING_PAYMENT: 'bg-amber-100 text-amber-700 border-amber-200',
             COMPLETED: 'bg-gray-100 text-gray-700 border-gray-200',
             CANCELLED: 'bg-red-100 text-red-700 border-red-200'
         };
@@ -170,6 +172,7 @@ const AdminBookingList = () => {
             CONFIRMED: 'Confirmed',
             ONGOING: 'Ongoing',
             IN_PROGRESS: 'In Progress',
+            RETURN_PENDING_PAYMENT: 'Return Pending Payment',
             COMPLETED: 'Completed',
             CANCELLED: 'Cancelled'
         };
@@ -230,6 +233,8 @@ const AdminBookingList = () => {
                 );
             case 'COMPLETED':
                 return <span className="text-xs text-gray-400">Completed</span>;
+            case 'RETURN_PENDING_PAYMENT':
+                return <span className="text-xs text-amber-600">Awaiting payment</span>;
             case 'CANCELLED':
                 return <span className="text-xs text-gray-400">Cancelled</span>;
             default:

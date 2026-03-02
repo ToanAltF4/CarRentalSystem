@@ -14,6 +14,8 @@ import {
     Eye,
     FileText,
     Hash,
+    Mail,
+    Phone,
     ShieldCheck,
     Truck
 } from 'lucide-react';
@@ -40,7 +42,7 @@ const BookingDetailPage = () => {
                 const data = await bookingService.getByCode(decodeURIComponent(bookingCode));
                 setBooking(data);
                 setReturnDetails(null);
-                if (data?.id && data?.status === 'COMPLETED') {
+                if (data?.id && (data?.status === 'COMPLETED' || data?.status === 'RETURN_PENDING_PAYMENT')) {
                     try {
                         const details = await bookingService.getReturnDetails(data.id);
                         setReturnDetails(details);
@@ -66,6 +68,7 @@ const BookingDetailPage = () => {
             IN_PROGRESS: 'bg-green-100 text-green-700',
             ONGOING: 'bg-green-100 text-green-700',
             ASSIGNED: 'bg-indigo-100 text-indigo-700',
+            RETURN_PENDING_PAYMENT: 'bg-amber-100 text-amber-700',
             COMPLETED: 'bg-gray-100 text-gray-700',
             CANCELLED: 'bg-red-100 text-red-700'
         };
@@ -286,8 +289,24 @@ const BookingDetailPage = () => {
                                             <span>Assigned Staff: {booking.assignedStaffName || '-'}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <Mail size={16} className="text-gray-400" />
+                                            <span>Staff Email: {booking.assignedStaffEmail || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Phone size={16} className="text-gray-400" />
+                                            <span>Staff Phone: {booking.assignedStaffPhone || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
                                             <User size={16} className="text-gray-400" />
                                             <span>Driver: {booking.driverName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Mail size={16} className="text-gray-400" />
+                                            <span>Driver Email: {booking.driverEmail || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Phone size={16} className="text-gray-400" />
+                                            <span>Driver Phone: {booking.driverPhone || '-'}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <User size={16} className="text-gray-400" />

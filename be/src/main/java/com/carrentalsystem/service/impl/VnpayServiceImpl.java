@@ -5,11 +5,18 @@ import com.carrentalsystem.dto.payment.VnpayCreatePaymentResponse;
 import com.carrentalsystem.dto.payment.VnpayReturnResponse;
 import com.carrentalsystem.entity.BookingEntity;
 import com.carrentalsystem.entity.BookingStatus;
+import com.carrentalsystem.entity.ConditionRating;
 import com.carrentalsystem.entity.InvoiceEntity;
+import com.carrentalsystem.entity.InspectionEntity;
+import com.carrentalsystem.entity.InspectionType;
 import com.carrentalsystem.entity.PaymentStatus;
+import com.carrentalsystem.entity.VehicleEntity;
+import com.carrentalsystem.entity.VehicleStatus;
 import com.carrentalsystem.exception.ResourceNotFoundException;
 import com.carrentalsystem.repository.BookingRepository;
+import com.carrentalsystem.repository.InspectionRepository;
 import com.carrentalsystem.repository.InvoiceRepository;
+import com.carrentalsystem.repository.VehicleRepository;
 import com.carrentalsystem.service.VnpayService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +45,8 @@ public class VnpayServiceImpl implements VnpayService {
 
     private final BookingRepository bookingRepository;
     private final InvoiceRepository invoiceRepository;
+    private final InspectionRepository inspectionRepository;
+    private final VehicleRepository vehicleRepository;
 
     @Value("${app.vnpay.tmn-code}")
     private String tmnCode;
@@ -81,6 +90,7 @@ public class VnpayServiceImpl implements VnpayService {
         if (request.getInvoiceId() != null) {
             InvoiceEntity invoice = invoiceRepository.findById(request.getInvoiceId())
                     .orElseThrow(() -> new ResourceNotFoundException("Invoice", "id", request.getInvoiceId()));
+            ensureInvoicePayableForPayment(invoice);
             amount = invoice.getTotalAmount();
             txnRef = invoice.getInvoiceNumber();
         } else if (request.getBookingId() != null) {
@@ -179,10 +189,24 @@ public class VnpayServiceImpl implements VnpayService {
 
         if ("00".equals(responseCode)) {
             if (invoice != null) {
+                if (invoice.getPaymentStatus() == PaymentStatus.PAID) {
+                    return VnpayReturnResponse.builder()
+                            .code("00")
+                            .message("Payment success")
+                            .invoiceNumber(txnRef)
+                            .paymentStatus(PaymentStatus.PAID.name())
+                            .build();
+                }
+                ensureInvoicePayableForPayment(invoice);
                 invoice.setPaymentStatus(PaymentStatus.PAID);
                 invoice.setPaidAt(LocalDateTime.now());
                 invoice.setPaymentMethod("VNPAY");
                 invoiceRepository.save(invoice);
+
+                BookingEntity invoiceBooking = invoice.getBooking();
+                if (invoiceBooking != null && invoiceBooking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+                    closeBookingAfterFinalInvoicePayment(invoiceBooking);
+                }
             } else if (booking != null) {
                 if (booking.getStatus() == BookingStatus.CANCELLED) {
                     return VnpayReturnResponse.builder()
@@ -271,6 +295,34 @@ public class VnpayServiceImpl implements VnpayService {
             }
             throw new IllegalArgumentException("Đơn đặt xe đã hết hạn thanh toán");
         }
+    }
+
+    private void ensureInvoicePayableForPayment(InvoiceEntity invoice) {
+        if (invoice.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new IllegalArgumentException("Invoice is already paid");
+        }
+    }
+
+    private void closeBookingAfterFinalInvoicePayment(BookingEntity booking) {
+        booking.setStatus(BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+
+        VehicleEntity vehicle = booking.getVehicle();
+        if (vehicle == null || vehicle.getStatus() == VehicleStatus.INACTIVE) {
+            return;
+        }
+
+        InspectionEntity returnInspection = inspectionRepository
+                .findByBookingIdAndType(booking.getId(), InspectionType.RETURN)
+                .orElse(null);
+
+        boolean hasDamage = returnInspection != null
+                && (Boolean.TRUE.equals(returnInspection.getHasDamage())
+                        || returnInspection.getExteriorCondition() == ConditionRating.DAMAGED
+                        || returnInspection.getInteriorCondition() == ConditionRating.DAMAGED);
+
+        vehicle.setStatus(hasDamage ? VehicleStatus.MAINTENANCE : VehicleStatus.AVAILABLE);
+        vehicleRepository.save(vehicle);
     }
 
     private boolean isBookingPaymentExpired(BookingEntity booking) {

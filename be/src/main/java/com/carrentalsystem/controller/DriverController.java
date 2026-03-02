@@ -108,6 +108,7 @@ public class DriverController {
     public ResponseEntity<Map<String, Object>> acceptTrip(@PathVariable Long tripId) {
         UserEntity driver = getCurrentDriver();
         BookingEntity trip = findDriverTripOrThrow(driver.getId(), tripId);
+        validateWithDriverTrip(trip);
 
         if (trip.getStatus() != BookingStatus.ASSIGNED) {
             throw new IllegalArgumentException("Trip cannot be accepted in current status: " + trip.getStatus());
@@ -125,12 +126,14 @@ public class DriverController {
     public ResponseEntity<Map<String, Object>> startTrip(@PathVariable Long tripId) {
         UserEntity driver = getCurrentDriver();
         BookingEntity trip = findDriverTripOrThrow(driver.getId(), tripId);
+        validateWithDriverTrip(trip);
 
-        if (trip.getStatus() != BookingStatus.CONFIRMED) {
-            throw new IllegalArgumentException("Trip must be confirmed before starting");
+        // Driver can start only after staff has completed handover inspection.
+        if (trip.getStatus() != BookingStatus.IN_PROGRESS) {
+            throw new IllegalArgumentException("Trip can start only after pickup handover is completed");
         }
 
-        trip.setStatus(BookingStatus.IN_PROGRESS);
+        trip.setStatus(BookingStatus.ONGOING);
         bookingRepository.save(trip);
         log.info("Trip {} started by driver {}", tripId, driver.getId());
         return ResponseEntity.ok(toTripDTO(trip));
@@ -142,15 +145,16 @@ public class DriverController {
     public ResponseEntity<Map<String, Object>> completeTrip(@PathVariable Long tripId) {
         UserEntity driver = getCurrentDriver();
         BookingEntity trip = findDriverTripOrThrow(driver.getId(), tripId);
+        validateWithDriverTrip(trip);
 
-        if (trip.getStatus() != BookingStatus.IN_PROGRESS && trip.getStatus() != BookingStatus.ONGOING) {
-            throw new IllegalArgumentException("Trip must be in progress to complete");
+        if (trip.getStatus() != BookingStatus.ONGOING) {
+            throw new IllegalArgumentException("Trip must be ONGOING");
         }
-
-        trip.setStatus(BookingStatus.COMPLETED);
-        bookingRepository.save(trip);
-        log.info("Trip {} completed by driver {}", tripId, driver.getId());
-        return ResponseEntity.ok(toTripDTO(trip));
+        // Driver is not allowed to close booking. Return flow is handled by staff inspection.
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Trip is ongoing. Please coordinate return with staff for final inspection.");
+        response.put("trip", toTripDTO(trip));
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Decline assigned trip")
@@ -159,6 +163,7 @@ public class DriverController {
     public ResponseEntity<Map<String, Object>> declineTrip(@PathVariable Long tripId) {
         UserEntity driver = getCurrentDriver();
         BookingEntity trip = findDriverTripOrThrow(driver.getId(), tripId);
+        validateWithDriverTrip(trip);
 
         if (trip.getStatus() != BookingStatus.ASSIGNED) {
             throw new IllegalArgumentException("Can only decline assigned trips");
@@ -244,11 +249,24 @@ public class DriverController {
                 selectedDates.isEmpty() ? booking.getEndDate() : selectedDates.get(selectedDates.size() - 1));
         dto.put("selectedDates", selectedDates);
         dto.put("status", booking.getStatus() != null ? booking.getStatus().name() : null);
+        dto.put("rentalTypeName", booking.getRentalType() != null ? booking.getRentalType().getName() : null);
         dto.put("deliveryAddress", booking.getDeliveryAddress());
         dto.put("driverFee", booking.getDriverFee());
         dto.put("totalAmount", booking.getTotalAmount());
         dto.put("notes", booking.getNotes());
         return dto;
+    }
+
+    private void validateWithDriverTrip(BookingEntity trip) {
+        String rentalTypeName = trip.getRentalType() != null ? trip.getRentalType().getName() : null;
+        if (rentalTypeName == null) {
+            throw new IllegalStateException("Trip rental type is not configured");
+        }
+        String normalized = rentalTypeName.trim().toUpperCase();
+        boolean withDriver = normalized.contains("DRIVER") && !normalized.contains("SELF");
+        if (!withDriver) {
+            throw new IllegalStateException("Driver workflow is only available for WITH_DRIVER trips");
+        }
     }
 
     private boolean isBookedOnDate(BookingEntity booking, LocalDate date) {

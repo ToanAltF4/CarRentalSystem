@@ -29,7 +29,6 @@ import java.util.UUID;
 public class ReturnServiceImpl implements ReturnService {
 
     private final BookingRepository bookingRepository;
-    private final VehicleRepository vehicleRepository;
     private final PricingRepository pricingRepository;
     private final InspectionRepository inspectionRepository;
     private final InvoiceRepository invoiceRepository;
@@ -55,7 +54,9 @@ public class ReturnServiceImpl implements ReturnService {
 
         // 4. Calculate fees
         LocalDateTime actualReturnDate = LocalDateTime.now();
-        BigDecimal rentalFee = booking.getTotalAmount();
+        BigDecimal rentalFee = nvl(booking.getRentalFee());
+        BigDecimal driverFee = nvl(booking.getDriverFee());
+        BigDecimal deliveryFee = nvl(booking.getDeliveryFee());
 
         // Calculate overtime
         int overtimeHours = calculateOvertimeHours(resolveScheduledEndDate(booking), actualReturnDate);
@@ -63,39 +64,56 @@ public class ReturnServiceImpl implements ReturnService {
         BigDecimal overtimeFee = overtimeFeePerHour.multiply(BigDecimal.valueOf(overtimeHours));
 
         // Get damage and delivery fees from request
-        BigDecimal damageFee = request.getDamageFee() != null ? request.getDamageFee() : BigDecimal.ZERO;
-        BigDecimal deliveryFee = request.getDeliveryFee() != null ? request.getDeliveryFee() : BigDecimal.ZERO;
+        BigDecimal damageFee = nvl(request.getDamageFee());
+        BigDecimal additionalDeliveryPickupFee = nvl(request.getDeliveryFee());
+        BigDecimal totalDeliveryFee = deliveryFee.add(additionalDeliveryPickupFee);
 
         // Calculate totals
-        BigDecimal subtotal = rentalFee.add(overtimeFee).add(damageFee).add(deliveryFee);
+        BigDecimal subtotal = rentalFee
+                .add(driverFee)
+                .add(totalDeliveryFee)
+                .add(overtimeFee)
+                .add(damageFee);
         BigDecimal taxAmount = BigDecimal.ZERO; // Can be calculated as percentage if needed
         // Total amount logic can be enhanced with tax calculation
         BigDecimal totalAmount = subtotal.add(taxAmount);
 
-        // 5. Generate invoice
-        InvoiceEntity invoice = createInvoice(
-                booking, savedInspection, actualReturnDate,
-                rentalFee, overtimeHours, overtimeFee, overtimeFeePerHour,
-                damageFee, deliveryFee, subtotal, taxAmount, totalAmount);
+        // 5. Generate or update invoice
+        InvoiceEntity existingInvoice = invoiceRepository.findByBookingId(bookingId).orElse(null);
+        InvoiceEntity invoice;
+        if (existingInvoice != null) {
+            log.info("Existing invoice found for booking {}, updating...", bookingId);
+            existingInvoice.setInspection(savedInspection);
+            existingInvoice.setRentalFee(rentalFee);
+            existingInvoice.setDriverFee(driverFee);
+            existingInvoice.setOvertimeHours(overtimeHours);
+            existingInvoice.setOvertimeFee(overtimeFee);
+            existingInvoice.setDamageFee(damageFee);
+            existingInvoice.setDeliveryFee(totalDeliveryFee);
+            existingInvoice.setDiscountAmount(BigDecimal.ZERO);
+            existingInvoice.setTaxAmount(taxAmount);
+            existingInvoice.setSubtotal(subtotal);
+            existingInvoice.setTotalAmount(totalAmount);
+            existingInvoice.setPaymentStatus(PaymentStatus.PENDING);
+            existingInvoice.setActualReturnDate(actualReturnDate);
+            existingInvoice.setIssuedAt(LocalDateTime.now());
+            existingInvoice.setDueDate(LocalDate.now().plusDays(7));
+            invoice = existingInvoice;
+        } else {
+            invoice = createInvoice(
+                    booking, savedInspection, actualReturnDate,
+                    rentalFee, driverFee, overtimeHours, overtimeFee,
+                    damageFee, totalDeliveryFee, subtotal, taxAmount, totalAmount);
+        }
         InvoiceEntity savedInvoice = invoiceRepository.save(invoice);
         log.info("Invoice generated: {}", savedInvoice.getInvoiceNumber());
 
-        // 6. Update booking status to COMPLETED
-        booking.setStatus(BookingStatus.COMPLETED);
+        // 6. Mark booking as returned and waiting for final settlement.
+        booking.setStatus(BookingStatus.RETURN_PENDING_PAYMENT);
         bookingRepository.save(booking);
-        log.info("Booking {} marked as COMPLETED", booking.getBookingCode());
+        log.info("Booking {} marked as RETURN_PENDING_PAYMENT", booking.getBookingCode());
 
-        // 7. Update vehicle operational status.
-        boolean hasDamage = Boolean.TRUE.equals(request.getHasDamage()) ||
-                request.getExteriorCondition() == ConditionRating.DAMAGED ||
-                request.getInteriorCondition() == ConditionRating.DAMAGED;
-
-        if (vehicle.getStatus() != VehicleStatus.INACTIVE) {
-            vehicle.setStatus(hasDamage ? VehicleStatus.MAINTENANCE : VehicleStatus.AVAILABLE);
-        }
-        vehicleRepository.save(vehicle);
-
-        // 8. Build and return response
+        // 7. Build and return response
         return buildReturnResponse(booking, vehicle, savedInspection, savedInvoice, overtimeFeePerHour);
     }
 
@@ -122,11 +140,14 @@ public class ReturnServiceImpl implements ReturnService {
         if (booking.getStatus() == BookingStatus.COMPLETED) {
             throw new IllegalArgumentException("Booking has already been completed");
         }
+        if (booking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+            throw new IllegalArgumentException("Booking return has already been processed and is awaiting payment");
+        }
         if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new IllegalArgumentException("Cannot process return for a cancelled booking");
         }
-        if (booking.getStatus() == BookingStatus.PENDING) {
-            throw new IllegalArgumentException("Booking must be confirmed or in progress before return");
+        if (booking.getStatus() != BookingStatus.IN_PROGRESS && booking.getStatus() != BookingStatus.ONGOING) {
+            throw new IllegalArgumentException("Booking must be in progress before return");
         }
         if (inspectionRepository.existsByBookingIdAndType(booking.getId(), InspectionType.RETURN)) {
             throw new IllegalArgumentException("Return has already been processed for this booking");
@@ -137,14 +158,18 @@ public class ReturnServiceImpl implements ReturnService {
         return InspectionEntity.builder()
                 .booking(booking)
                 .type(InspectionType.RETURN) // Explicitly set type
-                .batteryLevel(request.getBatteryLevel())
-                .odometer(request.getOdometer())
-                .chargingCablePresent(request.getChargingCablePresent())
-                .exteriorCondition(request.getExteriorCondition())
-                .interiorCondition(request.getInteriorCondition())
-                .hasDamage(request.getHasDamage())
+                .batteryLevel(request.getBatteryLevel() != null ? request.getBatteryLevel() : 100)
+                .odometer(request.getOdometer() != null ? request.getOdometer() : 0)
+                .chargingCablePresent(
+                        request.getChargingCablePresent() != null ? request.getChargingCablePresent() : Boolean.TRUE)
+                .exteriorCondition(
+                        request.getExteriorCondition() != null ? request.getExteriorCondition() : ConditionRating.GOOD)
+                .interiorCondition(
+                        request.getInteriorCondition() != null ? request.getInteriorCondition() : ConditionRating.GOOD)
+                .hasDamage(resolveHasDamage(request))
                 .damageDescription(request.getDamageDescription())
-                // .inspectedBy(request.getInspectedBy()) // String not supported anymore
+                .damagePhotos(request.getDamagePhotos())
+                .inspectedById(request.getInspectedById())
                 .inspectionNotes(request.getInspectionNotes())
                 .inspectedAt(LocalDateTime.now())
                 .build();
@@ -178,9 +203,9 @@ public class ReturnServiceImpl implements ReturnService {
             InspectionEntity inspection,
             LocalDateTime actualReturnDate,
             BigDecimal rentalFee,
+            BigDecimal driverFee,
             int overtimeHours,
             BigDecimal overtimeFee,
-            BigDecimal overtimeFeePerHour,
             BigDecimal damageFee,
             BigDecimal deliveryFee,
             BigDecimal subtotal,
@@ -191,6 +216,7 @@ public class ReturnServiceImpl implements ReturnService {
                 .booking(booking)
                 .inspection(inspection)
                 .rentalFee(rentalFee)
+                .driverFee(driverFee)
                 .overtimeHours(overtimeHours)
                 .overtimeFee(overtimeFee)
                 .damageFee(damageFee)
@@ -320,5 +346,17 @@ public class ReturnServiceImpl implements ReturnService {
                 .distinct()
                 .sorted()
                 .toList();
+    }
+
+    private boolean resolveHasDamage(ReturnRequestDTO request) {
+        if (Boolean.TRUE.equals(request.getHasDamage())) {
+            return true;
+        }
+        return request.getExteriorCondition() == ConditionRating.DAMAGED
+                || request.getInteriorCondition() == ConditionRating.DAMAGED;
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 }

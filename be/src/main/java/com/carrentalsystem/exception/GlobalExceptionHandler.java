@@ -6,7 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -129,6 +132,29 @@ public class GlobalExceptionHandler {
         }
 
         /**
+         * Handle JSON deserialization errors (400 Bad Request)
+         */
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+                        HttpMessageNotReadableException ex, HttpServletRequest request) {
+
+                log.error(">>> [DEBUG] JSON parse error: {}", ex.getMessage());
+                if (ex.getCause() != null) {
+                        log.error(">>> [DEBUG] Caused by: {}", ex.getCause().getMessage());
+                }
+
+                ErrorResponse error = ErrorResponse.builder()
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                .message("Invalid request body: " + ex.getMostSpecificCause().getMessage())
+                                .path(request.getRequestURI())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        /**
          * Handle IllegalArgumentException (400 Bad Request)
          */
         @ExceptionHandler(IllegalArgumentException.class)
@@ -161,6 +187,66 @@ public class GlobalExceptionHandler {
                                 .status(HttpStatus.BAD_REQUEST.value())
                                 .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
                                 .message("Invalid booking data or missing required fields")
+                                .path(request.getRequestURI())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        /**
+         * Handle IllegalStateException as Bad Request to avoid generic 500.
+         */
+        @ExceptionHandler(IllegalStateException.class)
+        public ResponseEntity<ErrorResponse> handleIllegalStateException(
+                        IllegalStateException ex, HttpServletRequest request) {
+
+                log.warn("Illegal state: {}", ex.getMessage());
+
+                ErrorResponse error = ErrorResponse.builder()
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                .message(ex.getMessage())
+                                .path(request.getRequestURI())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        /**
+         * Handle multipart max upload size violations.
+         */
+        @ExceptionHandler(MaxUploadSizeExceededException.class)
+        public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(
+                        MaxUploadSizeExceededException ex, HttpServletRequest request) {
+
+                log.warn("Upload size exceeded: {}", ex.getMessage());
+
+                ErrorResponse error = ErrorResponse.builder()
+                                .status(HttpStatus.PAYLOAD_TOO_LARGE.value())
+                                .error(HttpStatus.PAYLOAD_TOO_LARGE.getReasonPhrase())
+                                .message("File too large. Maximum allowed size is 10MB per file.")
+                                .path(request.getRequestURI())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+        }
+
+        /**
+         * Handle multipart parsing/upload errors.
+         */
+        @ExceptionHandler(MultipartException.class)
+        public ResponseEntity<ErrorResponse> handleMultipartException(
+                        MultipartException ex, HttpServletRequest request) {
+
+                log.warn("Multipart request failed: {}", ex.getMessage());
+
+                ErrorResponse error = ErrorResponse.builder()
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                .message("Invalid upload request. Please retry with a valid image file.")
                                 .path(request.getRequestURI())
                                 .timestamp(LocalDateTime.now())
                                 .build();

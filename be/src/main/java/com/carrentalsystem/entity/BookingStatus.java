@@ -35,6 +35,11 @@ public enum BookingStatus {
     ONGOING(7),
 
     /**
+     * Vehicle has been returned, waiting for final invoice payment.
+     */
+    RETURN_PENDING_PAYMENT(8),
+
+    /**
      * Booking was cancelled
      */
     CANCELLED(5);

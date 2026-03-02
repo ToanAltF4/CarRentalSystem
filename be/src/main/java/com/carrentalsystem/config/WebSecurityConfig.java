@@ -128,8 +128,9 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/categories/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/categories/**").hasRole("ADMIN")
 
-                        // File upload - ADMIN only (for vehicle images)
-                        .requestMatchers(HttpMethod.POST, "/api/v1/upload/**").hasRole("ADMIN")
+                        // File upload - used by admin and staff workflows (vehicle images, inspections)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/upload/**")
+                        .hasAnyRole("ADMIN", "MANAGER", "OPERATOR", "STAFF")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/upload/**").hasRole("ADMIN")
 
                         // Booking management - Shared by ADMIN, MANAGER, OPERATOR

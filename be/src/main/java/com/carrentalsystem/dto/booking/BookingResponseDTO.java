@@ -71,8 +71,12 @@ public class BookingResponseDTO {
     // Assignment details (for operator workflow)
     private Long assignedStaffId;
     private String assignedStaffName;
+    private String assignedStaffEmail;
+    private String assignedStaffPhone;
     private Long driverId;
     private String driverName;
+    private String driverEmail;
+    private String driverPhone;
     private LocalDateTime assignedAt;
     private String assignedByName;
 }

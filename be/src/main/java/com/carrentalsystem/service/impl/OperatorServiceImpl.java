@@ -330,12 +330,16 @@ public class OperatorServiceImpl implements OperatorService {
         UserEntity staff = resolveUser.apply(entity.getAssignedStaffId());
         if (staff != null) {
             dto.setAssignedStaffName(staff.getFullName());
+            dto.setAssignedStaffEmail(staff.getEmail());
+            dto.setAssignedStaffPhone(staff.getPhoneNumber());
         }
 
         // Resolve driver name
         UserEntity driver = resolveUser.apply(entity.getDriverId());
         if (driver != null) {
             dto.setDriverName(driver.getFullName());
+            dto.setDriverEmail(driver.getEmail());
+            dto.setDriverPhone(driver.getPhoneNumber());
         }
 
         // Resolve assigned by name

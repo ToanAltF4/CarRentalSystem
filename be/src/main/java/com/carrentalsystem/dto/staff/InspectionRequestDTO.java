@@ -2,11 +2,15 @@ package com.carrentalsystem.dto.staff;
 
 import com.carrentalsystem.entity.ConditionRating;
 import com.carrentalsystem.entity.InspectionType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class InspectionRequestDTO {
     private Long bookingId;
     private InspectionType type; // PICKUP or RETURN

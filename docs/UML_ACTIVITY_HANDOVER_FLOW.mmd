@@ -1,0 +1,68 @@
+flowchart TD
+  A[Operator: View confirmed bookings] --> B[Operator: Assign staff]
+  B --> C{Rental type WITH_DRIVER?}
+  C -- Yes --> D[Operator: Assign driver]
+  D --> E[Driver: Accept assigned trip]
+  E --> F[System: Set booking CONFIRMED]
+  C -- No --> G[Staff: Receive assignment]
+  F --> G
+
+  G --> H[Staff: Prepare vehicle + record initial info]
+  H --> I[Staff: Take and upload handover photos]
+  I --> J{Handover type}
+  J -- Store --> K[Staff: Handover at store]
+  J -- Delivery --> L[Staff: Deliver to customer location]
+  K --> M[System: Set booking IN_PROGRESS + record handover time]
+  L --> M
+
+  M --> N{Rental type WITH_DRIVER?}
+  N -- Yes --> O[Driver: Start driving trip]
+  O --> P[System: Set booking ONGOING]
+  P --> Q[Driver: Drive customer during rental period]
+  N -- No --> R[Customer: Use vehicle during rental period]
+  Q --> S[Customer: Coordinate return with staff]
+  R --> S
+
+  S --> T{Return type}
+  T -- Store --> U[Staff: Receive vehicle at store]
+  T -- Pickup --> V[Staff: Pick up vehicle at customer location]
+  U --> W[Staff: Create return inspection + fill info]
+  V --> W
+
+  W --> X{Any damage found?}
+  X -- Yes --> Y[Staff: Record damage details + upload damage photos]
+  X -- No --> Z[Staff: Confirm no damage]
+  Y --> AA[System: Calculate fees]
+  Z --> AA
+
+  AA --> AB{Returned late?}
+  AB -- Yes --> AC[System: Add overtime fee]
+  AB -- No --> AD[System: No overtime fee]
+  AC --> AE{Any damage?}
+  AD --> AE
+  AE -- Yes --> AF[System: Add damage fee]
+  AE -- No --> AG[System: No damage fee]
+  AF --> AH{Delivery/Pickup service used?}
+  AG --> AH
+  AH -- Yes --> AI[System: Add delivery/pickup fee]
+  AH -- No --> AJ[System: No delivery/pickup fee]
+  AI --> AK[System: Calculate total + create final invoice PENDING]
+  AJ --> AK
+  AK --> AL[System: Set booking RETURN_PENDING_PAYMENT]
+
+  AL --> AM[Customer: View final invoice]
+  AM --> AN{Raise a dispute?}
+  AN -- Yes --> AO[Customer: Submit dispute to operator]
+  AN -- No --> AP[Customer: Proceed final payment]
+  AO --> END1((Stop))
+  AP --> AQ[Payment Gateway: Process transaction]
+
+  AQ --> AR{Payment successful?}
+  AR -- Yes --> AS[System: Mark invoice PAID + close booking COMPLETED]
+  AS --> AT{Return inspection has damage?}
+  AT -- Yes --> AU[System: Vehicle status MAINTENANCE]
+  AT -- No --> AV[System: Vehicle status AVAILABLE]
+  AR -- No --> AW[System: Keep invoice PENDING + notify payment failure]
+  AU --> END2((End))
+  AV --> END2
+  AW --> END2

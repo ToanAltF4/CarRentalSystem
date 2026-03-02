@@ -17,6 +17,15 @@ public interface StaffService {
     List<BookingResponseDTO> getAssignedTasks(Long staffId);
 
     /**
+     * Get handled task history for a staff member.
+     * Includes bookings already returned or completed.
+     *
+     * @param staffId User ID of the staff
+     * @return List of historical bookings
+     */
+    List<BookingResponseDTO> getAssignedTaskHistory(Long staffId);
+
+    /**
      * Get task detail by booking id for assigned staff/driver.
      *
      * @param bookingId Booking ID

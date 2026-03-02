@@ -5,13 +5,13 @@ import com.carrentalsystem.dto.operator.BookingAssignmentDTO;
 import com.carrentalsystem.dto.operator.LicenseActionDTO;
 import com.carrentalsystem.dto.operator.StaffListDTO;
 import com.carrentalsystem.dto.operator.UserLicenseDTO;
-import com.carrentalsystem.entity.UserEntity;
+import com.carrentalsystem.repository.UserRepository;
 import com.carrentalsystem.service.OperatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +23,7 @@ import java.util.List;
 public class OperatorController {
 
     private final OperatorService operatorService;
+    private final UserRepository userRepository;
 
     // ==================== Booking Management ====================
 
@@ -72,17 +73,23 @@ public class OperatorController {
     public ResponseEntity<BookingResponseDTO> assignStaff(
             @PathVariable Long id,
             @RequestBody BookingAssignmentDTO assignment,
-            @AuthenticationPrincipal UserEntity currentUser) {
-        // Note: AuthenticationPrincipal might need adjustment based on how UserDetails
-        // is implemented
-        // For now assuming we can get ID from security context, or pass it if needed
-        Long operatorId = currentUser != null ? currentUser.getId() : null;
+            Authentication authentication) {
+        Long operatorId = resolveCurrentUserId(authentication);
 
         return ResponseEntity.ok(operatorService.assignStaff(
                 id,
                 assignment.getStaffId(),
                 assignment.getDriverId(),
                 operatorId));
+    }
+
+    private Long resolveCurrentUserId(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw new IllegalArgumentException("Unauthorized");
+        }
+        return userRepository.findByEmail(authentication.getName())
+                .map(user -> user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Current user not found"));
     }
 
     @DeleteMapping("/bookings/{id}/assign")

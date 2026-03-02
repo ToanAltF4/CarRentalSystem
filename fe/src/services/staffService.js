@@ -7,6 +7,12 @@ const staffService = {
         return response.data;
     },
 
+    // Get handled task history (returned/completed)
+    getTaskHistory: async () => {
+        const response = await api.get('/v1/staff/tasks/history');
+        return response.data;
+    },
+
     // Get task detail by booking id for current staff
     getTaskDetail: async (bookingId) => {
         const response = await api.get(`/v1/staff/tasks/${bookingId}`);
