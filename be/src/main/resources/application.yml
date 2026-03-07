@@ -23,7 +23,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:ev_fleet}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8&connectTimeout=${DB_CONNECT_TIMEOUT_MS:10000}&socketTimeout=${DB_SOCKET_TIMEOUT_MS:120000}&tcpKeepAlive=true
+    url: jdbc:mysql://${DB_HOST:52.6.255.243}:${DB_PORT:3306}/${DB_NAME:ev_fleet}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8&connectTimeout=${DB_CONNECT_TIMEOUT_MS:10000}&socketTimeout=${DB_SOCKET_TIMEOUT_MS:120000}&tcpKeepAlive=true
     driverClassName: com.mysql.cj.jdbc.Driver
     username: ${DB_USERNAME:evfleet}
     password: ${DB_PASSWORD:evfleet123}
@@ -101,6 +101,12 @@ app:
   booking:
     payment-timeout-minutes: ${BOOKING_PAYMENT_TIMEOUT_MINUTES:15}
     payment-timeout-cron: ${BOOKING_PAYMENT_TIMEOUT_CRON:0 * * * * *}
+  assistant:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:30}
   
 logging:
   level:
