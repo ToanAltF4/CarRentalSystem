@@ -25,7 +25,7 @@ public enum BookingStatus {
     COMPLETED(4),
 
     /**
-     * Trip assigned to driver, waiting for acceptance
+     * Trip assigned to driver (no acceptance required)
      */
     ASSIGNED(6),
 

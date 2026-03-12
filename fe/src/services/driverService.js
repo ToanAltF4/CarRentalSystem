@@ -24,11 +24,6 @@ export const getTripDetail = async (tripId) => {
     return response.data;
 };
 
-export const acceptTrip = async (tripId) => {
-    const response = await api.put(`/v1/driver/trips/${tripId}/accept`);
-    return response.data;
-};
-
 export const startTrip = async (tripId) => {
     const response = await api.put(`/v1/driver/trips/${tripId}/start`);
     return response.data;
@@ -36,11 +31,6 @@ export const startTrip = async (tripId) => {
 
 export const completeTrip = async (tripId) => {
     const response = await api.put(`/v1/driver/trips/${tripId}/complete`);
-    return response.data;
-};
-
-export const declineTrip = async (tripId) => {
-    const response = await api.put(`/v1/driver/trips/${tripId}/decline`);
     return response.data;
 };
 
@@ -54,9 +44,7 @@ export default {
     getMyTrips,
     getTripsByStatus,
     getTripDetail,
-    acceptTrip,
     startTrip,
     completeTrip,
-    declineTrip,
     getEarnings
 };

@@ -102,24 +102,6 @@ public class DriverController {
         return ResponseEntity.ok(toTripDTO(trip));
     }
 
-    @Operation(summary = "Accept assigned trip")
-    @PutMapping("/trips/{tripId}/accept")
-    @PreAuthorize("hasRole('DRIVER')")
-    public ResponseEntity<Map<String, Object>> acceptTrip(@PathVariable Long tripId) {
-        UserEntity driver = getCurrentDriver();
-        BookingEntity trip = findDriverTripOrThrow(driver.getId(), tripId);
-        validateWithDriverTrip(trip);
-
-        if (trip.getStatus() != BookingStatus.ASSIGNED) {
-            throw new IllegalArgumentException("Trip cannot be accepted in current status: " + trip.getStatus());
-        }
-
-        trip.setStatus(BookingStatus.CONFIRMED);
-        bookingRepository.save(trip);
-        log.info("Trip {} accepted by driver {}", tripId, driver.getId());
-        return ResponseEntity.ok(toTripDTO(trip));
-    }
-
     @Operation(summary = "Start trip")
     @PutMapping("/trips/{tripId}/start")
     @PreAuthorize("hasRole('DRIVER')")
@@ -154,28 +136,6 @@ public class DriverController {
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Trip is ongoing. Please coordinate return with staff for final inspection.");
         response.put("trip", toTripDTO(trip));
-        return ResponseEntity.ok(response);
-    }
-
-    @Operation(summary = "Decline assigned trip")
-    @PutMapping("/trips/{tripId}/decline")
-    @PreAuthorize("hasRole('DRIVER')")
-    public ResponseEntity<Map<String, Object>> declineTrip(@PathVariable Long tripId) {
-        UserEntity driver = getCurrentDriver();
-        BookingEntity trip = findDriverTripOrThrow(driver.getId(), tripId);
-        validateWithDriverTrip(trip);
-
-        if (trip.getStatus() != BookingStatus.ASSIGNED) {
-            throw new IllegalArgumentException("Can only decline assigned trips");
-        }
-
-        trip.setDriverId(null);
-        trip.setStatus(BookingStatus.CONFIRMED);
-        bookingRepository.save(trip);
-        log.info("Trip {} declined by driver {}", tripId, driver.getId());
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "Trip declined successfully");
         return ResponseEntity.ok(response);
     }
 

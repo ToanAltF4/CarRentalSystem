@@ -10,8 +10,7 @@ import {
     RefreshCw,
     Search,
     User,
-    Wallet,
-    XCircle
+    Wallet
 } from 'lucide-react';
 import driverService from '../../services/driverService';
 import Pagination from '../../components/common/Pagination';
@@ -274,24 +273,9 @@ const DriverDashboard = () => {
 
                                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
                                     {trip.status === 'ASSIGNED' && (
-                                        <>
-                                            <button
-                                                onClick={() => executeAction(trip.id, driverService.acceptTrip)}
-                                                disabled={actionLoading === trip.id}
-                                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                                            >
-                                                {actionLoading === trip.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                                Accept
-                                            </button>
-                                            <button
-                                                onClick={() => executeAction(trip.id, driverService.declineTrip, 'Decline this trip?')}
-                                                disabled={actionLoading === trip.id}
-                                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-100 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-200 disabled:opacity-60"
-                                            >
-                                                <XCircle size={16} />
-                                                Decline
-                                            </button>
-                                        </>
+                                        <div className="flex-1 text-center py-2.5 text-yellow-700 text-sm font-semibold">
+                                            Assigned by operator. Wait for staff handover.
+                                        </div>
                                     )}
 
                                     {trip.status === 'CONFIRMED' && (

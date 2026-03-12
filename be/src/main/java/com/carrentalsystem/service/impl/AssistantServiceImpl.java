@@ -1,4 +1,4 @@
-﻿package com.carrentalsystem.service.impl;
+package com.carrentalsystem.service.impl;
 
 import com.carrentalsystem.dto.assistant.AssistantChatRequest;
 import com.carrentalsystem.dto.assistant.AssistantChatResponse;
@@ -789,3 +789,4 @@ public class AssistantServiceImpl implements AssistantService {
     private record PriceRange(BigDecimal min, BigDecimal max) {
     }
 }
+
