@@ -1,0 +1,91 @@
+@startuml
+left to right direction
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+skinparam actor {
+  BorderColor Black
+}
+
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+
+actor "Guest" as Guest
+actor "Customer" as Customer
+actor "Staff" as Staff
+actor "VNPay Gateway" as VNPAY
+
+Customer --|> Guest
+
+rectangle "Car Rental System" {
+  usecase UC_Browse as "Browse Vehicle Catalog"
+  usecase UC_Register as "Register Account"
+  usecase UC_Login as "Sign In"
+  usecase UC_ResetPassword as "Reset Password"
+
+  usecase UC_ManageProfile as "Manage Profile"
+  usecase UC_CreateBooking as "Create Booking"
+  usecase UC_TrackBooking as "Track Booking"
+  usecase UC_CancelBooking as "Cancel Booking"
+  usecase UC_MakePayment as "Make Payment"
+
+  usecase UC_ReviewBooking as "Review Booking"
+  usecase UC_AssignResources as "Assign Staff and Driver"
+  usecase UC_ReviewLicense as "Review Driver License"
+
+  usecase UC_InspectVehicle as "Inspect Vehicle"
+  usecase UC_ProcessReturn as "Process Return"
+  usecase UC_ManageTrip as "Manage Driver Trip"
+
+  usecase UC_ViewDashboard as "View Dashboard"
+  usecase UC_ManageVehicle as "Manage Vehicle"
+  usecase UC_ViewReports as "View Reports"
+  usecase UC_ManageUsersRoles as "Manage Users and Roles"
+}
+
+actor "Operator" as Operator
+actor "Driver" as Driver
+actor "Admin" as Admin
+
+' Guest scope
+Guest --> UC_Browse
+Guest --> UC_Register
+Guest --> UC_Login
+Guest --> UC_ResetPassword
+
+' Customer scope
+Customer --> UC_ManageProfile
+Customer --> UC_CreateBooking
+Customer --> UC_TrackBooking
+Customer --> UC_CancelBooking
+Customer --> UC_MakePayment
+
+' Operator scope
+Operator --> UC_ReviewBooking
+Operator --> UC_AssignResources
+Operator --> UC_ReviewLicense
+
+' Staff scope
+Staff --> UC_InspectVehicle
+Staff --> UC_ProcessReturn
+
+' Driver scope
+Driver --> UC_ManageTrip
+
+' Admin scope
+Admin --> UC_ViewDashboard
+Admin --> UC_ManageVehicle
+Admin --> UC_ViewReports
+Admin --> UC_ManageUsersRoles
+
+UC_MakePayment --> VNPAY
+
+' Layout hints: keep these actors on the right side
+UC_ReviewBooking -[hidden]-> Operator
+UC_ManageTrip -[hidden]-> Driver
+UC_ViewDashboard -[hidden]-> Admin
+@enduml

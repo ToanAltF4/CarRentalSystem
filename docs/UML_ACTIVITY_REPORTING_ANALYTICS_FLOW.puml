@@ -1,0 +1,69 @@
+@startuml Reporting and Analytics Flow
+
+skinparam shadowing false
+skinparam defaultFontSize 40
+skinparam activity {
+  FontSize 36
+  BackgroundColor White
+  BorderColor Black
+  BorderThickness 2
+  FontColor Black
+}
+skinparam ArrowColor Black
+skinparam ArrowThickness 4
+
+|Admin|
+start
+:Open Admin Reports page;
+:Choose date range\n(quick range or custom from/to);
+:Click Apply Filter;
+
+|System Handler|
+:Validate admin authentication and role;
+if (Authorized as ADMIN?) then (Yes)
+  :Normalize date range\n(default last 30 days if empty);
+else (No)
+  :Return 403 Forbidden;
+  |Admin|
+  :View access denied message;
+  stop
+endif
+
+|System Handler|
+:Request report overview aggregates;
+:Aggregate report data for selected range\n(status breakdown, revenue by category,\ntop vehicles, daily trend);
+:Build ReportOverviewDTO\n(total revenue, total bookings,\nstatus breakdown, category revenue,\ntop vehicles, daily trend);
+if (Report response successful?) then (Yes)
+  :Return 200 OK with report data;
+else (No)
+  :Return error response;
+  |Admin|
+  :Show "Failed to load report data";
+  if (Retry?) then (Yes)
+    :Click Apply Filter again;
+    |System Handler|
+    :Request report overview aggregates;
+    :Recalculate report aggregates;
+    :Build and return report response;
+  else (No)
+    stop
+  endif
+endif
+
+|Admin|
+:View KPI cards and charts;
+if (Export report?) then (Yes)
+  if (Format = PDF?) then (Yes)
+    :Generate PDF from current report view;
+    :Download PDF file;
+  else (No)
+    :Generate CSV from current report data;
+    :Download CSV file;
+  endif
+else (No)
+  :Continue monitoring analytics;
+endif
+
+stop
+
+@enduml
