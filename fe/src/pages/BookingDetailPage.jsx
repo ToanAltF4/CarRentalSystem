@@ -212,10 +212,65 @@ const BookingDetailPage = () => {
                                                 <span>Invoice: <span className="font-mono">{returnDetails.invoiceNumber}</span></span>
                                             </div>
                                         )}
+                                        {returnDetails?.hasDamage != null && (
+                                            <div className="flex items-center gap-2">
+                                                <ShieldCheck size={16} className="text-gray-400" />
+                                                <span>Damage Reported: {returnDetails.hasDamage ? 'Yes' : 'No'}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.damageDescription && (
+                                            <div className="flex items-start gap-2">
+                                                <ClipboardList size={16} className="text-gray-400 mt-0.5" />
+                                                <span>Damage Details: {returnDetails.damageDescription}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.damagePhotos && (
+                                            <div className="space-y-2">
+                                                <p className="text-xs text-gray-400">Damage Photos</p>
+                                                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                                                    {returnDetails.damagePhotos
+                                                        .split(',')
+                                                        .map((url) => url.trim())
+                                                        .filter(Boolean)
+                                                        .map((url, index) => (
+                                                            <a
+                                                                key={`${url}-${index}`}
+                                                                href={url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="block overflow-hidden rounded-lg border border-gray-200"
+                                                            >
+                                                                <img
+                                                                    src={url}
+                                                                    alt={`damage-${index + 1}`}
+                                                                    className="h-24 w-full object-cover"
+                                                                />
+                                                            </a>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {returnDetails?.damageFee != null && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Damage Fee: {formatPrice(returnDetails.damageFee)}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.totalAmount != null && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Final Invoice Total: <span className="font-semibold text-primary">{formatPrice(returnDetails.totalAmount)}</span></span>
+                                            </div>
+                                        )}
                                         {returnDetails?.paymentStatus && (
                                             <div className="flex items-center gap-2">
                                                 <ShieldCheck size={16} className="text-gray-400" />
                                                 <span>Payment Status: {returnDetails.paymentStatus}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.invoiceNumber && (
+                                            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                                Invoice dispute/complaint: contact 0383927687
                                             </div>
                                         )}
                                     </div>

@@ -52,28 +52,22 @@ public class ReturnServiceImpl implements ReturnService {
         InspectionEntity savedInspection = inspectionRepository.save(inspection);
         log.info("Inspection created with ID: {}", savedInspection.getId());
 
-        // 4. Calculate fees
+        // 4. Calculate fees (final invoice collects only damage fee; rental paid earlier)
         LocalDateTime actualReturnDate = LocalDateTime.now();
-        BigDecimal rentalFee = nvl(booking.getRentalFee());
-        BigDecimal driverFee = nvl(booking.getDriverFee());
-        BigDecimal deliveryFee = nvl(booking.getDeliveryFee());
+        BigDecimal rentalFee = BigDecimal.ZERO;
+        BigDecimal driverFee = BigDecimal.ZERO;
+        BigDecimal deliveryFee = BigDecimal.ZERO;
 
-        // Calculate overtime
-        int overtimeHours = calculateOvertimeHours(resolveScheduledEndDate(booking), actualReturnDate);
-        BigDecimal overtimeFeePerHour = getOvertimeFeePerHour(vehicle);
-        BigDecimal overtimeFee = overtimeFeePerHour.multiply(BigDecimal.valueOf(overtimeHours));
+        // Final settlement only charges damage fee (if any)
+        boolean hasDamage = resolveHasDamage(request);
+        BigDecimal damageFee = hasDamage ? nvl(request.getDamageFee()) : BigDecimal.ZERO;
+        int overtimeHours = 0;
+        BigDecimal overtimeFeePerHour = BigDecimal.ZERO;
+        BigDecimal overtimeFee = BigDecimal.ZERO;
+        BigDecimal totalDeliveryFee = BigDecimal.ZERO;
 
-        // Get damage and delivery fees from request
-        BigDecimal damageFee = nvl(request.getDamageFee());
-        BigDecimal additionalDeliveryPickupFee = nvl(request.getDeliveryFee());
-        BigDecimal totalDeliveryFee = deliveryFee.add(additionalDeliveryPickupFee);
-
-        // Calculate totals
-        BigDecimal subtotal = rentalFee
-                .add(driverFee)
-                .add(totalDeliveryFee)
-                .add(overtimeFee)
-                .add(damageFee);
+        // Calculate totals (damage fee only)
+        BigDecimal subtotal = damageFee;
         BigDecimal taxAmount = BigDecimal.ZERO; // Can be calculated as percentage if needed
         // Total amount logic can be enhanced with tax calculation
         BigDecimal totalAmount = subtotal.add(taxAmount);
@@ -118,7 +112,7 @@ public class ReturnServiceImpl implements ReturnService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public ReturnResponseDTO getReturnByBookingId(Long bookingId) {
         BookingEntity booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
@@ -128,6 +122,18 @@ public class ReturnServiceImpl implements ReturnService {
 
         InvoiceEntity invoice = invoiceRepository.findByBookingId(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice", "bookingId", bookingId));
+
+        // Ensure final invoice only charges damage fee when payment is still pending
+        if (invoice.getPaymentStatus() == PaymentStatus.PENDING) {
+            BigDecimal damageFee = nvl(invoice.getDamageFee());
+            if (invoice.getTotalAmount() == null || invoice.getTotalAmount().compareTo(damageFee) != 0) {
+                invoice.setRentalFee(BigDecimal.ZERO);
+                invoice.setDriverFee(BigDecimal.ZERO);
+                invoice.setDeliveryFee(BigDecimal.ZERO);
+                invoice.setTotalAmount(damageFee);
+                invoiceRepository.save(invoice);
+            }
+        }
 
         BigDecimal overtimeFeePerHour = getOvertimeFeePerHour(booking.getVehicle());
 
@@ -269,6 +275,7 @@ public class ReturnServiceImpl implements ReturnService {
                 .interiorCondition(inspection.getInteriorCondition())
                 .hasDamage(inspection.getHasDamage())
                 .damageDescription(inspection.getDamageDescription())
+                .damagePhotos(inspection.getDamagePhotos())
                 // Invoice details
                 .invoiceId(invoice.getId())
                 .invoiceNumber(invoice.getInvoiceNumber())

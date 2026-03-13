@@ -50,6 +50,7 @@ public class ReturnResponseDTO {
     private ConditionRating interiorCondition;
     private Boolean hasDamage;
     private String damageDescription;
+    private String damagePhotos;
 
     // Invoice details
     private Long invoiceId;

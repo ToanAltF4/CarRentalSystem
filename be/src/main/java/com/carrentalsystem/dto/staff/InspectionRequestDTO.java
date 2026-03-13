@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,4 +25,5 @@ public class InspectionRequestDTO {
     private String damageDescription;
     private String damagePhotos; // Comma separated URLs or JSON
     private String inspectionNotes;
+    private BigDecimal damageFee;
 }

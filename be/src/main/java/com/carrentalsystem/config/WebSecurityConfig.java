@@ -149,7 +149,8 @@ public class WebSecurityConfig {
 
                         // Return vehicle - admin checks and processes
                         .requestMatchers(HttpMethod.POST, "/api/v1/bookings/*/return").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*/return").hasRole("ADMIN")
+                        // Customers can view their own return details; controller enforces ownership
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*/return").authenticated()
 
                         // All other requests require authentication
                         .anyRequest().authenticated())

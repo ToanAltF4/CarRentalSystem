@@ -149,6 +149,7 @@ public class StaffServiceImpl implements StaffService {
                     .hasDamage(request.getHasDamage())
                     .damageDescription(request.getDamageDescription())
                     .damagePhotos(request.getDamagePhotos())
+                    .damageFee(request.getDamageFee())
                     .inspectedById(inspectorId)
                     .inspectionNotes(request.getInspectionNotes())
                     .build();

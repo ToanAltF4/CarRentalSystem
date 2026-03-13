@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Calendar, Car, Clock, DollarSign, XCircle,
@@ -10,6 +10,7 @@ import bookingService from '../services/bookingService';
 import PaymentModal from '../components/common/PaymentModal';
 import Pagination from '../components/common/Pagination';
 import { formatPrice } from '../utils/formatters';
+import paymentService from '../services/paymentService';
 import {
     formatRemainingPaymentTime,
     getPaymentTimeoutMinutes,
@@ -24,6 +25,7 @@ const MyBookingsPage = () => {
     const [error, setError] = useState('');
     const [cancellingId, setCancellingId] = useState(null);
     const [paymentBooking, setPaymentBooking] = useState(null);
+    const [invoiceAmounts, setInvoiceAmounts] = useState({});
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const [now, setNow] = useState(Date.now());
@@ -134,6 +136,31 @@ const MyBookingsPage = () => {
         const start = (safePage - 1) * PAGE_SIZE;
         return filteredBookings.slice(start, start + PAGE_SIZE);
     }, [filteredBookings, safePage]);
+
+    useEffect(() => {
+        const fetchAmounts = async () => {
+            const pendingReturnBookings = paginatedBookings.filter(b => b.status === 'RETURN_PENDING_PAYMENT');
+            
+            for (const booking of pendingReturnBookings) {
+                // Skip if already fetched
+                if (invoiceAmounts[booking.id] !== undefined) continue;
+                
+                try {
+                    const details = await bookingService.getReturnDetails(booking.id);
+                    if (details && details.totalAmount) {
+                        setInvoiceAmounts(prev => ({ ...prev, [booking.id]: details.totalAmount }));
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch invoice amount for booking ${booking.id}`, err);
+                    setInvoiceAmounts(prev => ({ ...prev, [booking.id]: null })); // Mark as failed
+                }
+            }
+        };
+
+        if (paginatedBookings.length > 0) {
+            fetchAmounts();
+        }
+    }, [paginatedBookings]);
 
     if (loading) {
         return (
@@ -340,10 +367,33 @@ const MyBookingsPage = () => {
                                             )}
 
                                             {booking.status === 'RETURN_PENDING_PAYMENT' && (
-                                                <div className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-50 text-amber-700">
-                                                    <Timer size={16} />
-                                                    Awaiting Final Payment
-                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const details = await bookingService.getReturnDetails(booking.id);
+                                                            if (details?.invoiceId) {
+                                                                const result = await paymentService.createVnpayInvoicePayment(details.invoiceId);
+                                                                if (result?.paymentUrl) {
+                                                                    window.location.href = result.paymentUrl;
+                                                                }
+                                                            } else {
+                                                                alert('Invoice not found for this booking');
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Payment error:', err);
+                                                            alert(err.response?.data?.message || 'Failed to create payment');
+                                                        }
+                                                    }}
+                                                    disabled={invoiceAmounts[booking.id] === undefined}
+                                                    className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors font-semibold disabled:opacity-70"
+                                                >
+                                                    {invoiceAmounts[booking.id] === undefined ? (
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                    ) : (
+                                                        <CreditCard size={16} />
+                                                    )}
+                                                    Pay {invoiceAmounts[booking.id] ? formatPrice(invoiceAmounts[booking.id]) : 'Final Invoice'}
+                                                </button>
                                             )}
                                         </div>
                                     </div>

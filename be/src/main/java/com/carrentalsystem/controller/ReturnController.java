@@ -2,6 +2,9 @@ package com.carrentalsystem.controller;
 
 import com.carrentalsystem.dto.returns.ReturnRequestDTO;
 import com.carrentalsystem.dto.returns.ReturnResponseDTO;
+import com.carrentalsystem.entity.BookingEntity;
+import com.carrentalsystem.exception.ResourceNotFoundException;
+import com.carrentalsystem.repository.BookingRepository;
 import com.carrentalsystem.service.ReturnService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,8 +13,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * REST Controller for vehicle return and inspection operations.
@@ -23,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class ReturnController {
 
     private final ReturnService returnService;
+    private final BookingRepository bookingRepository;
 
     @PostMapping("/{bookingId}/return")
     @Operation(summary = "Process vehicle return", description = "Process the return of a rented vehicle. " +
@@ -47,8 +55,35 @@ public class ReturnController {
             @ApiResponse(responseCode = "404", description = "Return not found for this booking")
     })
     public ResponseEntity<ReturnResponseDTO> getReturnDetails(
-            @Parameter(description = "Booking ID") @PathVariable Long bookingId) {
+            @Parameter(description = "Booking ID") @PathVariable Long bookingId,
+            Authentication authentication) {
+        if (!isPrivileged(authentication)) {
+            String email = authentication != null ? authentication.getName() : null;
+            BookingEntity booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
+            if (email == null || booking.getCustomerEmail() == null
+                    || !booking.getCustomerEmail().equalsIgnoreCase(email)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You are not allowed to view this return invoice");
+            }
+        }
         ReturnResponseDTO response = returnService.getReturnByBookingId(bookingId);
         return ResponseEntity.ok(response);
+    }
+
+    private boolean isPrivileged(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        for (GrantedAuthority authority : authentication.getAuthorities()) {
+            String role = authority.getAuthority();
+            if ("ROLE_ADMIN".equals(role)
+                    || "ROLE_MANAGER".equals(role)
+                    || "ROLE_OPERATOR".equals(role)
+                    || "ROLE_STAFF".equals(role)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

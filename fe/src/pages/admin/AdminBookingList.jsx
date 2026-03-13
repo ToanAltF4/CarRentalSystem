@@ -151,6 +151,19 @@ const AdminBookingList = () => {
         }
     };
 
+    const handleMarkCompleted = async (booking) => {
+        if (!window.confirm(`Mark booking ${booking.bookingCode} as Completed? This means payment has been received.`)) return;
+        setActionLoading(booking.id);
+        try {
+            await bookingService.updateStatus(booking.id, 'COMPLETED');
+            await fetchBookings();
+        } catch (err) {
+            alert('Failed to mark completed: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     const getStatusBadge = (status) => {
         const styles = {
             PENDING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -228,7 +241,15 @@ const AdminBookingList = () => {
             case 'COMPLETED':
                 return <span className="text-xs text-gray-400">Completed</span>;
             case 'RETURN_PENDING_PAYMENT':
-                return <span className="text-xs text-amber-600">Awaiting payment</span>;
+                return (
+                    <button
+                        onClick={() => handleMarkCompleted(booking)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition-colors"
+                    >
+                        <CheckCircle size={14} />
+                        Mark Completed
+                    </button>
+                );
             case 'CANCELLED':
                 return <span className="text-xs text-gray-400">Cancelled</span>;
             default:

@@ -48,6 +48,7 @@ const StaffInspection = () => {
         interiorCondition: 'GOOD',
         hasDamage: false,
         damageDescription: '',
+        damageFee: '',
         inspectionNotes: ''
     });
 
@@ -162,6 +163,11 @@ const StaffInspection = () => {
             setError('Please provide damage description.');
             return;
         }
+        const damageFeeValue = formData.damageFee === '' ? null : Number(formData.damageFee);
+        if (formData.hasDamage && damageFeeValue != null && (!Number.isFinite(damageFeeValue) || damageFeeValue < 0)) {
+            setError('Damage fee must be 0 or greater.');
+            return;
+        }
         if (isPickup && photoUrls.length === 0) {
             setError('Please upload at least one handover photo.');
             return;
@@ -184,7 +190,8 @@ const StaffInspection = () => {
                 hasDamage: formData.hasDamage,
                 damageDescription: formData.hasDamage ? formData.damageDescription.trim() : '',
                 damagePhotos: photoUrls.join(','),
-                inspectionNotes: formData.inspectionNotes.trim()
+                inspectionNotes: formData.inspectionNotes.trim(),
+                damageFee: formData.hasDamage ? damageFeeValue : null
             });
             navigate('/staff');
         } catch (submitError) {
@@ -343,13 +350,27 @@ const StaffInspection = () => {
                             </label>
 
                             {formData.hasDamage && (
-                                <textarea
-                                    rows={4}
-                                    value={formData.damageDescription}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, damageDescription: e.target.value }))}
-                                    placeholder="Describe the damage details..."
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 focus:border-red-400 focus:outline-none"
-                                />
+                                <div className="space-y-3">
+                                    <textarea
+                                        rows={4}
+                                        value={formData.damageDescription}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, damageDescription: e.target.value }))}
+                                        placeholder="Describe the damage details..."
+                                        className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 focus:border-red-400 focus:outline-none"
+                                    />
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Damage Fee (VND)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1000"
+                                            value={formData.damageFee}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, damageFee: e.target.value }))}
+                                            placeholder="Enter damage compensation amount"
+                                            className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 focus:border-red-400 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
                             )}
 
                             <textarea
