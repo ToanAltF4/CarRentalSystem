@@ -245,10 +245,96 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
                 COALESCE(SUM(b.total_amount), 0) AS revenue,
                 COUNT(*) AS bookingCount
             FROM bookings b
-            WHERE b.status <> 'CANCELLED'
+            WHERE b.status NOT IN ('CANCELLED', 'PENDING')
               AND YEAR(b.start_date) = :year
             GROUP BY MONTH(b.start_date)
             ORDER BY MONTH(b.start_date)
             """, nativeQuery = true)
     List<MonthlyRevenueProjection> aggregateMonthlyRevenue(@Param("year") Integer year);
+
+    // ── Report projections ──────────────────────────────────────────
+
+    interface StatusCountProjection {
+        String getStatus();
+        Long getCount();
+    }
+
+    interface RevenueByCategoryProjection {
+        String getCategoryName();
+        String getBrand();
+        java.math.BigDecimal getRevenue();
+        Long getBookingCount();
+    }
+
+    interface TopVehicleProjection {
+        Long getVehicleId();
+        String getCategoryName();
+        String getBrand();
+        String getLicensePlate();
+        Long getBookingCount();
+        java.math.BigDecimal getTotalRevenue();
+    }
+
+    interface DailyTrendProjection {
+        String getDate();
+        Long getBookingCount();
+        java.math.BigDecimal getRevenue();
+    }
+
+    // ── Report queries ──────────────────────────────────────────────
+
+    @Query(value = """
+            SELECT b.status AS status, COUNT(*) AS count
+            FROM bookings b
+            WHERE b.created_at >= :from AND b.created_at < :to
+            GROUP BY b.status
+            """, nativeQuery = true)
+    List<StatusCountProjection> countBookingsByStatusInRange(
+            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query(value = """
+            SELECT vc.name AS categoryName, vc.brand AS brand,
+                   COALESCE(SUM(b.total_amount), 0) AS revenue,
+                   COUNT(*) AS bookingCount
+            FROM bookings b
+            JOIN vehicles v ON v.id = b.vehicle_id
+            JOIN vehicle_categories vc ON vc.id = v.vehicle_category_id
+            WHERE b.status NOT IN ('CANCELLED', 'PENDING')
+              AND b.created_at >= :from AND b.created_at < :to
+            GROUP BY vc.id, vc.name, vc.brand
+            ORDER BY revenue DESC
+            """, nativeQuery = true)
+    List<RevenueByCategoryProjection> revenueByCategory(
+            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query(value = """
+            SELECT v.id AS vehicleId, vc.name AS categoryName, vc.brand AS brand,
+                   v.license_plate AS licensePlate,
+                   COUNT(*) AS bookingCount,
+                   COALESCE(SUM(b.total_amount), 0) AS totalRevenue
+            FROM bookings b
+            JOIN vehicles v ON v.id = b.vehicle_id
+            JOIN vehicle_categories vc ON vc.id = v.vehicle_category_id
+            WHERE b.status NOT IN ('CANCELLED', 'PENDING')
+              AND b.created_at >= :from AND b.created_at < :to
+            GROUP BY v.id, vc.name, vc.brand, v.license_plate
+            ORDER BY bookingCount DESC
+            LIMIT :lim
+            """, nativeQuery = true)
+    List<TopVehicleProjection> topVehicles(
+            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
+            @Param("lim") int lim);
+
+    @Query(value = """
+            SELECT DATE(b.created_at) AS date,
+                   COUNT(*) AS bookingCount,
+                   COALESCE(SUM(b.total_amount), 0) AS revenue
+            FROM bookings b
+            WHERE b.status NOT IN ('CANCELLED', 'PENDING')
+              AND b.created_at >= :from AND b.created_at < :to
+            GROUP BY DATE(b.created_at)
+            ORDER BY DATE(b.created_at)
+            """, nativeQuery = true)
+    List<DailyTrendProjection> dailyBookingTrend(
+            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

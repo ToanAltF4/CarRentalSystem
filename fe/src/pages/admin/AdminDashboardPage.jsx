@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
     DollarSign, Car, Calendar, Clock, Users, TrendingUp,
     ChevronRight, Loader2, AlertCircle, ArrowUpRight,
-    CarFront, Shield
+    CarFront, Shield, BarChart3
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import dashboardService from '../../services/dashboardService';
@@ -227,6 +227,16 @@ const AdminDashboardPage = () => {
                     <div>
                         <h3 className="font-bold text-gray-900">Roles</h3>
                         <p className="text-xs text-gray-500">Permissions</p>
+                    </div>
+                </Link>
+
+                <Link to="/admin/reports" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#5fcf86] hover:shadow-md transition-all flex items-center gap-4 group">
+                    <div className="bg-teal-50 p-3 rounded-lg group-hover:bg-[#5fcf86] group-hover:text-white transition-colors text-teal-600">
+                        <BarChart3 size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900">Reports</h3>
+                        <p className="text-xs text-gray-500">Statistics & Analytics</p>
                     </div>
                 </Link>
             </div>

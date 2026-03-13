@@ -36,6 +36,7 @@ const AdminRoleList = lazy(() => import('./pages/admin/AdminRoleList'));
 const AdminCategoryList = lazy(() => import('./pages/admin/AdminCategoryList'));
 const AdminAddCategoryPage = lazy(() => import('./pages/admin/AdminAddCategoryPage'));
 const AdminEditCategoryPage = lazy(() => import('./pages/admin/AdminEditCategoryPage'));
+const AdminReportPage = lazy(() => import('./pages/admin/AdminReportPage'));
 
 const OperatorDashboard = lazy(() => import('./pages/operator/OperatorDashboard'));
 const OperatorBookingList = lazy(() => import('./pages/operator/OperatorBookingList'));
@@ -202,6 +203,14 @@ function App() {
                 element={
                   <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
                     <AdminEditCategoryPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="admin/reports"
+                element={
+                  <PrivateRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                    <AdminReportPage />
                   </PrivateRoute>
                 }
               />
