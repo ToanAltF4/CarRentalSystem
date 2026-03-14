@@ -1,120 +1,148 @@
-# EV Fleet - Hướng dẫn cài đặt trên máy mới (Windows)
+# EV Fleet - Hướng dẫn Setup máy mới (Windows)
 
-## Máy mới chưa cài gì - Chạy lần lượt các lệnh sau trong PowerShell (Run as Admin)
+## Files cần copy từ máy gốc (KHÔNG có trên Git)
 
-### Bước 1: Cài Scoop (package manager - giống apt trên Linux)
+Copy các file sau sang USB / Google Drive / Zalo để mang qua máy mới:
+
+```
+1. C:\Users\ADMIN\.cloudflared\4a1b7b96-8713-4861-8284-fe9c17688055.json
+   → Copy vào: C:\Users\<USER_MÁY_MỚI>\.cloudflared\
+
+2. D:\...\CarRentalSystem\be\env.production
+   → Copy vào: <THƯ_MỤC_PROJECT>\be\env.production
+```
+
+**env.production** chứa tất cả API keys, database password, email password - KHÔNG được push lên git.
+
+---
+
+## Hướng dẫn từng bước (máy mới chưa cài gì)
+
+### Bước 1: Mở PowerShell (Run as Administrator)
+
+Click phải nút Start → Terminal (Admin)
+
+### Bước 2: Cài Scoop (package manager)
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 irm get.scoop.sh | iex
 ```
 
-Đóng PowerShell, mở lại PowerShell mới.
+**ĐÓNG PowerShell, mở lại PowerShell (Admin) mới.**
 
-### Bước 2: Cài tất cả tools cần thiết (1 lệnh)
+### Bước 3: Cài tất cả tools (1 lệnh)
 
 ```powershell
 scoop bucket add java
 scoop install temurin21-jdk maven nodejs-lts cloudflared git
 ```
 
-### Bước 3: Verify đã cài xong
+Chờ xong, kiểm tra:
 
 ```powershell
 java -version
 mvn -version
 node -v
-npm -v
 cloudflared version
-git --version
 ```
 
-Tất cả phải hiện version, không có lỗi.
+Tất cả phải hiện version, không lỗi.
 
 ### Bước 4: Clone project
 
 ```powershell
 cd D:\
-git clone https://github.com/YOUR_REPO/CarRentalSystem.git
+git clone https://github.com/ToanAltF4/CarRentalSystem.git
 cd CarRentalSystem
+git checkout dev
 ```
 
-### Bước 5: Setup Cloudflare Tunnel (chỉ cần 1 lần)
+### Bước 5: Copy 2 file từ máy gốc
 
-**Cách 1: Copy từ máy gốc (nhanh nhất)**
-
-Copy toàn bộ thư mục `C:\Users\ADMIN\.cloudflared\` từ máy gốc sang máy mới tại `C:\Users\<TEN_USER>\.cloudflared\`
-
-Files cần copy:
-- `cert.pem`
-- `4a1b7b96-8713-4861-8284-fe9c17688055.json`
-- `config-evfleet.yml`
-
-Sau đó sửa đường dẫn trong `config-evfleet.yml`:
+**File 1:** Tunnel credentials
 ```
-credentials-file: C:\Users\<TEN_USER>\.cloudflared\4a1b7b96-8713-4861-8284-fe9c17688055.json
+Từ:  C:\Users\ADMIN\.cloudflared\4a1b7b96-8713-4861-8284-fe9c17688055.json
+Vào: C:\Users\<USER>\.cloudflared\4a1b7b96-8713-4861-8284-fe9c17688055.json
 ```
 
-Và sửa đường dẫn trong `start.bat`:
-```
-set "CLOUDFLARED_CONFIG=C:\Users\<TEN_USER>\.cloudflared\config-evfleet.yml"
-```
-
-**Cách 2: Login lại (nếu không copy được)**
-
+Tạo thư mục trước nếu chưa có:
 ```powershell
-cloudflared tunnel login
-```
-Chọn domain `fpt.tokyo` trên trình duyệt.
-
-Rồi tạo config file `C:\Users\<TEN_USER>\.cloudflared\config-evfleet.yml`:
-```yaml
-tunnel: 4a1b7b96-8713-4861-8284-fe9c17688055
-credentials-file: C:\Users\<TEN_USER>\.cloudflared\4a1b7b96-8713-4861-8284-fe9c17688055.json
-
-ingress:
-  - hostname: api.fpt.tokyo
-    service: http://localhost:8080
-  - hostname: fpt.tokyo
-    service: http://localhost:3000
-  - hostname: www.fpt.tokyo
-    service: http://localhost:3000
-  - hostname: kimngan.site
-    service: http://localhost:5000
-  - hostname: www.kimngan.site
-    service: http://localhost:5000
-  - service: http_status:404
+mkdir "$env:USERPROFILE\.cloudflared" -Force
 ```
 
-### Bước 6: Chạy project
+**File 2:** Environment production
+```
+Từ:  máy gốc: be\env.production
+Vào: máy mới: be\env.production
+```
 
-Double-click `start.bat`
+### Bước 6: Setup Cloudflare Tunnel
 
-Hoặc chạy trong CMD:
+```cmd
+setup-tunnel.bat
+```
+
+Trình duyệt mở → chọn **fpt.tokyo** → Authorize.
+
+### Bước 7: Cài frontend dependencies
+
+```cmd
+cd fe
+npm install
+cd ..
+```
+
+### Bước 8: Chạy!
+
 ```cmd
 start.bat
 ```
 
+Hoặc double-click **start-silent.vbs** để chạy ẩn (không hiện cửa sổ đen).
+
+Chờ ~30 giây, truy cập:
+- https://fpt.tokyo (Frontend)
+- https://api.fpt.tokyo (Backend API)
+- https://api.fpt.tokyo/swagger-ui/index.html (API Docs)
+
 ---
 
-## Tóm tắt nhanh (copy-paste)
+## Các file .bat có sẵn
 
-```powershell
-# PowerShell (Admin) - Chạy 1 lần duy nhất
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-irm get.scoop.sh | iex
+| File | Chức năng |
+|------|-----------|
+| `start.bat` | Chạy tất cả (có cửa sổ CMD) |
+| `start-silent.vbs` | Chạy ẩn, không cửa sổ |
+| `stop.bat` | Tắt tất cả services |
+| `rebuild.bat` | Build lại sau khi code thay đổi |
+| `setup-new-machine.bat` | Cài tools tự động (thay cho bước 2-3) |
+| `setup-tunnel.bat` | Setup Cloudflare tunnel (bước 6) |
 
-# Đóng mở lại PowerShell rồi chạy:
-scoop bucket add java
-scoop install temurin21-jdk maven nodejs-lts cloudflared git
+---
 
-# Clone project
-git clone https://github.com/YOUR_REPO/CarRentalSystem.git
-cd CarRentalSystem
+## Xử lý sự cố
 
-# Chạy
-start.bat
-```
+### Backend không start được
+- Kiểm tra Java: `java -version` (cần Java 21)
+- Kiểm tra file `be\env.production` đã copy chưa
+- Xem log: `be\backend.log` (nếu chạy silent)
+
+### Frontend không build được
+- Chạy: `cd fe && npm install` rồi thử lại
+- Kiểm tra Node: `node -v` (cần v18+)
+
+### Tunnel không kết nối
+- Kiểm tra file credentials: `C:\Users\<USER>\.cloudflared\4a1b7b96-...json`
+- Kiểm tra config: `C:\Users\<USER>\.cloudflared\config-evfleet.yml`
+- Chạy test: `cloudflared tunnel --config %USERPROFILE%\.cloudflared\config-evfleet.yml ingress validate`
+
+### Trang web trắng / lỗi API
+- Backend chưa start xong (chờ thêm 15-30 giây)
+- Kiểm tra: http://localhost:8080/actuator/health
+- Kiểm tra: http://localhost:3000
+
+---
 
 ## Ports sử dụng
 
@@ -122,21 +150,3 @@ start.bat
 |---------|------|
 | Backend API | 8080 |
 | Frontend | 3000 |
-
-## URLs khi chạy tunnel
-
-| URL | Service |
-|-----|---------|
-| https://fpt.tokyo | Frontend |
-| https://api.fpt.tokyo | Backend API |
-| https://api.fpt.tokyo/swagger-ui/index.html | API Docs |
-
-## Tài khoản test (trong database)
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@evfleet.com | admin123 |
-| Staff | staff@evfleet.com | staff123 |
-| Customer | customer1@evfleet.com | customer123 |
-
-(Kiểm tra lại password trong migration scripts nếu không đúng)

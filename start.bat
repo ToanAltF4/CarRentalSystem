@@ -12,9 +12,19 @@ set "BE_DIR=%PROJECT_DIR%be"
 set "FE_DIR=%PROJECT_DIR%fe"
 set "CLOUDFLARED_CONFIG=%USERPROFILE%\.cloudflared\config-evfleet.yml"
 
-:: Check prerequisites
-java -version >nul 2>&1
-if errorlevel 1 ( echo [ERROR] Java not found! Run setup-new-machine.bat first. & pause & exit /b 1 )
+:: Auto-detect Java 21 (prefer Scoop install over system Java)
+set "JAVA_CMD=java"
+set "SCOOP_JAVA=%USERPROFILE%\scoop\apps\temurin21-jdk\current\bin\java.exe"
+if exist "%SCOOP_JAVA%" (
+    set "JAVA_CMD=%SCOOP_JAVA%"
+    echo [INFO] Using Scoop Java 21: %SCOOP_JAVA%
+) else (
+    :: Check if system java exists
+    java -version >nul 2>&1
+    if errorlevel 1 ( echo [ERROR] Java not found! Run setup-new-machine.bat first. & pause & exit /b 1 )
+)
+
+:: Check other prerequisites
 node -v >nul 2>&1
 if errorlevel 1 ( echo [ERROR] Node.js not found! Run setup-new-machine.bat first. & pause & exit /b 1 )
 cloudflared version >nul 2>&1
@@ -69,7 +79,7 @@ echo.
 
 :: Start Backend with production env
 cd /d "%BE_DIR%"
-start "EV-Fleet-Backend" cmd /c "title EV-Fleet Backend && color 0B && echo Starting Backend on port 8080... && java -jar target\car-rental-system-be-0.0.1-SNAPSHOT.jar && pause"
+start "EV-Fleet-Backend" cmd /c "title EV-Fleet Backend && color 0B && echo Starting Backend on port 8080... && "%JAVA_CMD%" -jar target\car-rental-system-be-0.0.1-SNAPSHOT.jar && pause"
 
 echo       Waiting for backend to start (15s)...
 timeout /t 15 /nobreak >nul
