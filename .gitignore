@@ -1,6 +1,7 @@
 ### User / Environment ###
 .DS_Store
 Thumbs.db
+.claude/
 *.tmp
 *.bak
 *.swp
@@ -9,7 +10,7 @@ Thumbs.db
 .env.*
 env.example
 !.env.example
-
+env.production
 
 ### Java / Spring Boot ###
 target/

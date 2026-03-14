@@ -42,6 +42,9 @@ public class AuthController {
     private final OtpService otpService;
     private final PasswordResetService passwordResetService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+
     /**
      * Login endpoint.
      * Validates credentials and account status, returns JWT + refresh token in
@@ -65,11 +68,13 @@ public class AuthController {
 
         // Set refresh token as HttpOnly cookie
         Cookie refreshTokenCookie = new Cookie("refreshToken", authResponse.getRefreshToken());
-        refreshTokenCookie.setHttpOnly(true); // CRITICAL: Prevent JavaScript access
-        refreshTokenCookie.setSecure(false); // false for http://localhost, true for https
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setSecure(cookieSecure);
         refreshTokenCookie.setPath("/");
         refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
-        // SameSite=Lax is default in modern browsers
+        if (cookieSecure) {
+            refreshTokenCookie.setAttribute("SameSite", "None");
+        }
 
         response.addCookie(refreshTokenCookie);
 
@@ -142,9 +147,12 @@ public class AuthController {
         // Set new refresh token cookie (refresh token might be rotated)
         Cookie newRefreshTokenCookie = new Cookie("refreshToken", authResponse.getRefreshToken());
         newRefreshTokenCookie.setHttpOnly(true);
-        newRefreshTokenCookie.setSecure(false);
+        newRefreshTokenCookie.setSecure(cookieSecure);
         newRefreshTokenCookie.setPath("/");
         newRefreshTokenCookie.setMaxAge(7 * 24 * 60 * 60);
+        if (cookieSecure) {
+            newRefreshTokenCookie.setAttribute("SameSite", "None");
+        }
 
         response.addCookie(newRefreshTokenCookie);
 
@@ -183,9 +191,12 @@ public class AuthController {
         // Clear refresh token cookie
         Cookie clearCookie = new Cookie("refreshToken", null);
         clearCookie.setHttpOnly(true);
-        clearCookie.setSecure(false);
+        clearCookie.setSecure(cookieSecure);
         clearCookie.setPath("/");
         clearCookie.setMaxAge(0); // Expire immediately
+        if (cookieSecure) {
+            clearCookie.setAttribute("SameSite", "None");
+        }
 
         response.addCookie(clearCookie);
 
