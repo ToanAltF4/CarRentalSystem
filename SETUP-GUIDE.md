@@ -140,7 +140,7 @@ Chờ ~30 giây, truy cập:
 ### Trang web trắng / lỗi API
 - Backend chưa start xong (chờ thêm 15-30 giây)
 - Kiểm tra: http://localhost:8080/actuator/health
-- Kiểm tra: http://localhost:3000
+- Kiểm tra: http://localhost:4000
 
 ---
 
@@ -149,4 +149,4 @@ Chờ ~30 giây, truy cập:
 | Service | Port |
 |---------|------|
 | Backend API | 8080 |
-| Frontend | 3000 |
+| Frontend | 4000 |

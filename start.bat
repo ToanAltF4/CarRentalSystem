@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title EV Fleet - Car Rental System
 color 0A
 echo ============================================
@@ -38,6 +39,7 @@ if not exist "%CLOUDFLARED_CONFIG%" (
 )
 
 echo [OK] All prerequisites detected.
+echo [OK] Java: !JAVA_CMD!
 echo.
 
 :: ============================================
@@ -79,14 +81,14 @@ echo.
 
 :: Start Backend with production env
 cd /d "%BE_DIR%"
-start "EV-Fleet-Backend" cmd /c "title EV-Fleet Backend && color 0B && echo Starting Backend on port 8080... && "%JAVA_CMD%" -jar target\car-rental-system-be-0.0.1-SNAPSHOT.jar && pause"
+start "EV-Fleet-Backend" cmd /c "title EV-Fleet Backend && color 0B && echo Starting Backend on port 8080... && !JAVA_CMD! -jar target\car-rental-system-be-0.0.1-SNAPSHOT.jar && pause"
 
 echo       Waiting for backend to start (15s)...
 timeout /t 15 /nobreak >nul
 
 :: Start Frontend
 cd /d "%FE_DIR%"
-start "EV-Fleet-Frontend" cmd /c "title EV-Fleet Frontend && color 0D && echo Serving frontend on port 3000... && npx serve dist -l 3000 -s"
+start "EV-Fleet-Frontend" cmd /c "title EV-Fleet Frontend && color 0D && echo Serving frontend on port 3000... && npx serve dist -l 4000 -s"
 
 timeout /t 3 /nobreak >nul
 
@@ -104,7 +106,7 @@ echo.
 echo    Frontend:  https://fpt.tokyo
 echo    Backend:   https://api.fpt.tokyo
 echo    Swagger:   https://api.fpt.tokyo/swagger-ui/index.html
-echo    Local FE:  http://localhost:3000
+echo    Local FE:  http://localhost:4000
 echo    Local API: http://localhost:8080
 echo.
 echo    To stop: close the 3 CMD windows or run stop.bat

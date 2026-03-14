@@ -60,9 +60,9 @@ echo ingress:
 echo   - hostname: api.fpt.tokyo
 echo     service: http://localhost:8080
 echo   - hostname: fpt.tokyo
-echo     service: http://localhost:3000
+echo     service: http://localhost:4000
 echo   - hostname: www.fpt.tokyo
-echo     service: http://localhost:3000
+echo     service: http://localhost:4000
 echo   - hostname: kimngan.site
 echo     service: http://localhost:5000
 echo   - hostname: www.kimngan.site

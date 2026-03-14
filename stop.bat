@@ -7,7 +7,7 @@ for /f "tokens=2" %%a in ('tasklist /fi "imagename eq java.exe" /fo list ^| find
 )
 
 :: Kill node/serve (frontend)
-for /f "tokens=2" %%a in ('netstat -ano ^| findstr ":3000.*LISTEN"') do (
+for /f "tokens=2" %%a in ('netstat -ano ^| findstr ":4000.*LISTEN"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
 

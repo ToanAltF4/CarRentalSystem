@@ -21,7 +21,7 @@ WshShell.Run "cmd /c cd /d """ & projectDir & "be"" && " & javaCmd & " -jar targ
 WScript.Sleep 15000
 
 ' Start Frontend (hidden)
-WshShell.Run "cmd /c cd /d """ & projectDir & "fe"" && npx serve dist -l 3000 -s > frontend.log 2>&1", 0, False
+WshShell.Run "cmd /c cd /d """ & projectDir & "fe"" && npx serve dist -l 4000 -s > frontend.log 2>&1", 0, False
 
 ' Wait 3 seconds
 WScript.Sleep 3000
