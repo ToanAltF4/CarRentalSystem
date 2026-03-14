@@ -1,0 +1,194 @@
+@startuml
+left to right direction
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+hide circle
+
+entity "payment_methods" as payment_methods {
+  * id : TINYINT <<PK>>
+  --
+  code : VARCHAR(30) <<UQ>>
+  name : VARCHAR(50)
+}
+
+entity "rental_types" as rental_types {
+  * id : TINYINT <<PK>>
+  --
+  code : VARCHAR(30) <<UQ>>
+  name : VARCHAR(50)
+}
+
+entity "pickup_methods" as pickup_methods {
+  * id : TINYINT <<PK>>
+  --
+  code : VARCHAR(30) <<UQ>>
+  name : VARCHAR(50)
+}
+
+entity "roles" as roles {
+  * id : BIGINT <<PK>>
+  --
+  role_name : VARCHAR(50) <<UQ>>
+  description : VARCHAR(255)
+}
+
+entity "vehicle_categories" as vehicle_categories {
+  * id : BIGINT <<PK>>
+  --
+  brand : VARCHAR(80)
+  name : VARCHAR(120)
+  model : VARCHAR(120)
+  seats : INT
+  battery_capacity_kwh : DECIMAL(6,2)
+  range_km : INT
+  charging_time_hours : DECIMAL(5,2)
+  description : TEXT
+}
+
+entity "vehicle_category_images" as vehicle_category_images {
+  * id : BIGINT <<PK>>
+  --
+  vehicle_category_id : BIGINT <<FK>>
+  image_url : VARCHAR(500)
+  is_primary : BOOLEAN
+  sort_order : INT
+}
+
+entity "pricing" as pricing {
+  * id : BIGINT <<PK>>
+  --
+  vehicle_category_id : BIGINT <<FK>>
+  daily_price : DECIMAL(10,2)
+  weekly_price : DECIMAL(10,2)
+  monthly_price : DECIMAL(10,2)
+  overtime_fee_per_hour : DECIMAL(10,2)
+  effective_from : DATE
+  effective_to : DATE
+  is_active : BOOLEAN
+}
+
+entity "vehicles" as vehicles {
+  * id : BIGINT <<PK>>
+  --
+  vehicle_category_id : BIGINT <<FK>>
+  license_plate : VARCHAR(20) <<UQ>>
+  status : VARCHAR(30)
+  vin : VARCHAR(50) <<UQ>>
+  odometer : INT
+  current_battery_percent : INT
+}
+
+entity "users" as users {
+  * id : BIGINT <<PK>>
+  --
+  full_name : VARCHAR(255)
+  email : VARCHAR(255) <<UQ>>
+  password : VARCHAR(255)
+  role_id : BIGINT <<FK>>
+  phone : VARCHAR(20)
+  license_type : VARCHAR(50)
+  license_number : VARCHAR(50)
+  license_status : VARCHAR(30)
+  date_of_birth : DATE
+  status : VARCHAR(30)
+}
+
+entity "refresh_tokens" as refresh_tokens {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT <<FK,UQ>>
+  token : VARCHAR(500)
+  expiry_date : TIMESTAMP
+}
+
+entity "driver_pricing" as driver_pricing {
+  * id : BIGINT <<PK>>
+  --
+  vehicle_category_id : BIGINT <<FK>>
+  daily_fee : DECIMAL(10,2)
+  effective_from : DATE
+  effective_to : DATE
+  is_active : BOOLEAN
+}
+
+entity "bookings" as bookings {
+  * id : BIGINT <<PK>>
+  --
+  booking_code : VARCHAR(20) <<UQ>>
+  vehicle_id : BIGINT <<FK>>
+  user_id : BIGINT <<FK>>
+  rental_type_id : TINYINT <<FK>>
+  pickup_method_id : TINYINT <<FK>>
+  customer_name : VARCHAR(100)
+  customer_email : VARCHAR(100)
+  start_date : DATE
+  end_date : DATE
+  daily_rate : DECIMAL(10,2)
+  rental_fee : DECIMAL(12,2)
+  driver_fee : DECIMAL(12,2)
+  delivery_fee : DECIMAL(12,2)
+  total_amount : DECIMAL(12,2)
+  status : VARCHAR(30)
+}
+
+entity "inspections" as inspections {
+  * id : BIGINT <<PK>>
+  --
+  booking_id : BIGINT <<FK>>
+  inspection_type : VARCHAR(20)
+  battery_level : INT
+  odometer : INT
+  charging_cable_present : BOOLEAN
+  exterior_condition : VARCHAR(30)
+  interior_condition : VARCHAR(30)
+  has_damage : BOOLEAN
+  inspected_by : BIGINT <<FK>>
+  inspected_at : DATETIME
+}
+
+entity "invoices" as invoices {
+  * id : BIGINT <<PK>>
+  --
+  invoice_number : VARCHAR(30) <<UQ>>
+  booking_id : BIGINT <<FK,UQ>>
+  rental_fee : DECIMAL(12,2)
+  driver_fee : DECIMAL(12,2)
+  delivery_fee : DECIMAL(12,2)
+  damage_fee : DECIMAL(10,2)
+  total_amount : DECIMAL(12,2)
+  payment_status : VARCHAR(30)
+}
+
+entity "payments" as payments {
+  * id : BIGINT <<PK>>
+  --
+  invoice_id : BIGINT <<FK>>
+  payment_method_id : TINYINT <<FK>>
+  amount : DECIMAL(12,2)
+  payment_status : VARCHAR(30)
+}
+
+roles ||--|{ users
+
+vehicle_categories ||--|{ vehicle_category_images
+vehicle_categories ||--|{ pricing
+vehicle_categories ||--|{ vehicles
+vehicle_categories ||--o{ driver_pricing
+
+refresh_tokens }o--|| users
+
+vehicles ||--o{ bookings
+users ||--|{ bookings
+rental_types ||--|{ bookings
+pickup_methods ||--|{ bookings
+
+bookings ||--o{ inspections
+users ||--o{ inspections
+
+bookings ||--o| invoices
+invoices ||--o{ payments
+payment_methods ||--|{ payments
+
+@enduml

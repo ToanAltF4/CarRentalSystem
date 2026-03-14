@@ -1,0 +1,45 @@
+@startuml
+left to right direction
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+rectangle "payment_methods" as payment_methods
+rectangle "rental_types" as rental_types
+rectangle "pickup_methods" as pickup_methods
+rectangle "roles" as roles
+rectangle "vehicle_categories" as vehicle_categories
+rectangle "vehicle_category_images" as vehicle_category_images
+rectangle "pricing" as pricing
+rectangle "vehicles" as vehicles
+rectangle "users" as users
+rectangle "refresh_tokens" as refresh_tokens
+rectangle "driver_pricing" as driver_pricing
+rectangle "bookings" as bookings
+rectangle "inspections" as inspections
+rectangle "invoices" as invoices
+rectangle "payments" as payments
+
+roles ||--|{ users
+
+vehicle_categories ||--|{ vehicle_category_images
+vehicle_categories ||--|{ pricing
+vehicle_categories ||--|{ vehicles
+vehicle_categories ||--o{ driver_pricing
+
+refresh_tokens }o--|| users
+
+vehicles ||--o{ bookings
+users ||--|{ bookings
+rental_types ||--|{ bookings
+pickup_methods ||--|{ bookings
+
+bookings ||--o{ inspections
+users ||--o{ inspections
+
+bookings ||--o| invoices
+invoices ||--o{ payments
+payment_methods ||--|{ payments
+
+@enduml

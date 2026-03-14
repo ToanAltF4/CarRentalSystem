@@ -93,6 +93,8 @@ app:
     command: ${VNP_COMMAND:pay}
     curr-code: ${VNP_CURR_CODE:VND}
     locale: ${VNP_LOCALE:vn}
+  cookie:
+    secure: ${APP_COOKIE_SECURE:false}
   fe-base-url: ${FE_BASE_URL:http://localhost:5173}
   otp:
     expiration-minutes: ${OTP_EXPIRATION_MINUTES:10}
