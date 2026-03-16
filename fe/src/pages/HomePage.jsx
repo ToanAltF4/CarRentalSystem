@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Zap, MapPin } from 'lucide-react';
+import { ChevronRight, Zap } from 'lucide-react';
 import HeroSection from '../components/HeroSection';
 import PromoSection from '../components/PromoSection';
 import CarCard from '../components/ui/CarCard';
 import vehicleCategoryService from '../services/vehicleCategoryService';
 
 // Mock data removed
-
-const locations = [
-    { name: 'Ho Chi Minh City', count: '2,500+ vehicles', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&q=80&w=400' },
-    { name: 'Hanoi', count: '1,800+ vehicles', image: 'https://images.unsplash.com/photo-1509030450996-dd1a26dda07a?auto=format&fit=crop&q=80&w=400' },
-    { name: 'Da Nang', count: '800+ vehicles', image: 'https://images.unsplash.com/photo-1559592413-7d6ffba9e360?auto=format&fit=crop&q=80&w=400' },
-    { name: 'Nha Trang', count: '500+ vehicles', image: 'https://images.unsplash.com/photo-1559628233-100c798642d4?auto=format&fit=crop&q=80&w=400' }
-];
 
 const normalizeFeaturedCars = (categories) => {
     if (!Array.isArray(categories)) return [];
@@ -116,44 +109,6 @@ const HomePage = () => {
                         View All Vehicles
                         <ChevronRight size={18} />
                     </Link>
-                </div>
-            </section>
-
-            {/* Locations Section */}
-            <section className="py-16 bg-[#f6f6f6]">
-                <div className="container mx-auto px-4">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <div className="flex items-center gap-2 text-[#5fcf86] mb-2">
-                                <MapPin size={20} />
-                                <span className="font-semibold text-sm uppercase tracking-wide">Locations</span>
-                            </div>
-                            <h2 className="text-2xl md:text-3xl font-bold text-[#141414]">
-                                Popular Locations
-                            </h2>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                        {locations.map((loc, index) => (
-                            <Link
-                                key={index}
-                                to={`/vehicles?location=${loc.name}`}
-                                className="group relative aspect-[4/3] rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all"
-                            >
-                                <img
-                                    src={loc.image}
-                                    alt={loc.name}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                                <div className="absolute bottom-4 left-4 text-white">
-                                    <h3 className="font-bold text-lg">{loc.name}</h3>
-                                    <p className="text-white/80 text-sm">{loc.count}</p>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
                 </div>
             </section>
 
