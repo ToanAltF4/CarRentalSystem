@@ -42,6 +42,7 @@ public class BookingResponseDTO {
     private Integer totalDays;
     private BigDecimal dailyRate;
     private BigDecimal totalAmount;
+    private BigDecimal finalInvoiceTotal;
     private BookingStatus status;
     private String notes;
 

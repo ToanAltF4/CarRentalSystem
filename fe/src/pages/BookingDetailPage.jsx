@@ -126,16 +126,8 @@ const BookingDetailPage = () => {
 
             {!error && booking && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="flex flex-col md:flex-row">
-                        <div className="md:w-72 h-52 md:h-auto flex-shrink-0">
-                            <img
-                                src={booking.vehicleImage || 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800'}
-                                alt={booking.vehicleName || 'Vehicle'}
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
-
-                        <div className="flex-1 p-6">
+                    <div className="flex flex-col">
+                        <div className="p-6">
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
                                 <div>
                                     <div className="flex items-center gap-3 mb-2">
@@ -202,10 +194,35 @@ const BookingDetailPage = () => {
                                                 <span>Delivery Fee: {formatPrice(booking.deliveryFee || 0)}</span>
                                             </div>
                                         )}
-                                        <div className="flex items-center gap-2">
-                                            <DollarSign size={16} className="text-gray-400" />
-                                            <span>Total: <span className="font-semibold text-primary">{formatPrice(booking.totalAmount || 0)}</span></span>
-                                        </div>
+                                        {(booking.insuranceFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Insurance Fee: {formatPrice(booking.insuranceFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {(booking.serviceFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Service Fee: {formatPrice(booking.serviceFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {booking?.finalInvoiceTotal != null ? (
+                                            <>
+                                                <div className="flex items-center gap-2">
+                                                    <DollarSign size={16} className="text-gray-400" />
+                                                    <span>Final Invoice Total: <span className="font-semibold text-primary">{formatPrice(booking.finalInvoiceTotal)}</span></span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-gray-500">
+                                                    <DollarSign size={16} className="text-gray-300" />
+                                                    <span>Rental Total (Paid): {formatPrice(booking.totalAmount || 0)}</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Total: <span className="font-semibold text-primary">{formatPrice(booking.totalAmount || 0)}</span></span>
+                                            </div>
+                                        )}
                                         {returnDetails?.invoiceNumber && (
                                             <div className="flex items-center gap-2">
                                                 <FileText size={16} className="text-gray-400" />
@@ -254,12 +271,6 @@ const BookingDetailPage = () => {
                                             <div className="flex items-center gap-2">
                                                 <DollarSign size={16} className="text-gray-400" />
                                                 <span>Damage Fee: {formatPrice(returnDetails.damageFee)}</span>
-                                            </div>
-                                        )}
-                                        {returnDetails?.totalAmount != null && (
-                                            <div className="flex items-center gap-2">
-                                                <DollarSign size={16} className="text-gray-400" />
-                                                <span>Final Invoice Total: <span className="font-semibold text-primary">{formatPrice(returnDetails.totalAmount)}</span></span>
                                             </div>
                                         )}
                                         {returnDetails?.paymentStatus && (

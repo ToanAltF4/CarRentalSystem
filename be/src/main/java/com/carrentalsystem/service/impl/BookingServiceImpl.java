@@ -38,6 +38,8 @@ public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
     private final VehicleRepository vehicleRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final VehicleCategoryImageRepository vehicleCategoryImageRepository;
     private final VehicleCategoryRepository vehicleCategoryRepository;
     private final UserRepository userRepository;
     private final PricingRepository pricingRepository;
@@ -314,8 +316,18 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingResponseDTO> getBookingsByCustomerEmail(String email) {
+        long startNs = System.nanoTime();
         List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByCreatedAtDescWithDetails(email);
-        return toEnrichedDTOList(bookings);
+        long fetchNs = System.nanoTime();
+        List<BookingResponseDTO> result = toEnrichedDTOList(bookings, false, false, false, false);
+        long mapNs = System.nanoTime();
+        log.info("getBookingsByCustomerEmail: email={}, bookings={}, fetchMs={}, mapMs={}, totalMs={}",
+                email,
+                bookings != null ? bookings.size() : 0,
+                (fetchNs - startNs) / 1_000_000,
+                (mapNs - fetchNs) / 1_000_000,
+                (mapNs - startNs) / 1_000_000);
+        return result;
     }
 
     @Override
@@ -384,16 +396,22 @@ public class BookingServiceImpl implements BookingService {
     // ============== Private Helper Methods ==============
 
     private BookingResponseDTO toEnrichedDTO(BookingEntity entity) {
-        return toEnrichedDTO(entity, null);
+        return toEnrichedDTO(entity, null, null, null, true, true, true);
     }
 
-    private BookingResponseDTO toEnrichedDTO(BookingEntity entity, java.util.Map<Long, UserEntity> userMap) {
+    private BookingResponseDTO toEnrichedDTO(BookingEntity entity, java.util.Map<Long, UserEntity> userMap,
+            java.util.Map<Long, java.math.BigDecimal> damageFeeMap,
+            java.util.Map<Long, String> vehicleImageMap,
+            boolean includeSelectedDates,
+            boolean allowImageFallback,
+            boolean includeUserEnrichment) {
         BookingResponseDTO dto = bookingMapper.toResponseDTO(entity);
 
         // Helper to resolve user from map or DB
         java.util.function.Function<Long, UserEntity> resolveUser = (id) -> {
-            if (id == null)
+            if (!includeUserEnrichment || id == null) {
                 return null;
+            }
             if (userMap != null && userMap.containsKey(id)) {
                 return userMap.get(id);
             }
@@ -401,25 +419,31 @@ public class BookingServiceImpl implements BookingService {
         };
 
         // Enrich Staff Name
-        UserEntity staff = resolveUser.apply(entity.getAssignedStaffId());
-        if (staff != null) {
-            dto.setAssignedStaffName(staff.getFullName());
-            dto.setAssignedStaffEmail(staff.getEmail());
-            dto.setAssignedStaffPhone(staff.getPhoneNumber());
+        if (includeUserEnrichment) {
+            UserEntity staff = resolveUser.apply(entity.getAssignedStaffId());
+            if (staff != null) {
+                dto.setAssignedStaffName(staff.getFullName());
+                dto.setAssignedStaffEmail(staff.getEmail());
+                dto.setAssignedStaffPhone(staff.getPhoneNumber());
+            }
         }
 
         // Enrich Driver Name
-        UserEntity driver = resolveUser.apply(entity.getDriverId());
-        if (driver != null) {
-            dto.setDriverName(driver.getFullName());
-            dto.setDriverEmail(driver.getEmail());
-            dto.setDriverPhone(driver.getPhoneNumber());
+        if (includeUserEnrichment) {
+            UserEntity driver = resolveUser.apply(entity.getDriverId());
+            if (driver != null) {
+                dto.setDriverName(driver.getFullName());
+                dto.setDriverEmail(driver.getEmail());
+                dto.setDriverPhone(driver.getPhoneNumber());
+            }
         }
 
         // Enrich Assigned By
-        UserEntity assigner = resolveUser.apply(entity.getAssignedBy());
-        if (assigner != null) {
-            dto.setAssignedByName(assigner.getFullName());
+        if (includeUserEnrichment) {
+            UserEntity assigner = resolveUser.apply(entity.getAssignedBy());
+            if (assigner != null) {
+                dto.setAssignedByName(assigner.getFullName());
+            }
         }
 
         // Rental Type Name (Fallback if Mapper missed it or null)
@@ -436,6 +460,17 @@ public class BookingServiceImpl implements BookingService {
             dto.setPickupMethodId(entity.getPickupMethod().getId());
         }
 
+        Long categoryId = entity.getVehicle() != null && entity.getVehicle().getVehicleCategory() != null
+                ? entity.getVehicle().getVehicleCategory().getId()
+                : null;
+        String vehicleImage = categoryId != null && vehicleImageMap != null ? vehicleImageMap.get(categoryId) : null;
+        if (vehicleImage == null && categoryId != null && allowImageFallback) {
+            vehicleImage = resolvePrimaryImage(categoryId);
+        }
+        if (vehicleImage != null) {
+            dto.setVehicleImage(vehicleImage);
+        }
+
         // Fee breakdown
         dto.setRentalFee(entity.getRentalFee());
         dto.setDriverFee(entity.getDriverFee());
@@ -444,26 +479,52 @@ public class BookingServiceImpl implements BookingService {
         dto.setServiceFee(entity.getServiceFee());
         dto.setDeliveryAddress(entity.getDeliveryAddress());
         dto.setDeliveryDistanceKm(entity.getDeliveryDistanceKm());
-        dto.setSelectedDates(resolveSelectedDatesFromBooking(entity));
+        if (includeSelectedDates) {
+            dto.setSelectedDates(resolveSelectedDatesFromBooking(entity));
+        }
+
+        // Final invoice total = rental total paid + damage fee (if any)
+        java.math.BigDecimal damageFee = null;
+        if (damageFeeMap != null) {
+            damageFee = damageFeeMap.get(entity.getId());
+        }
+        if (damageFee == null) {
+            InvoiceEntity invoice = invoiceRepository.findByBookingId(entity.getId()).orElse(null);
+            damageFee = invoice != null && invoice.getDamageFee() != null ? invoice.getDamageFee() : BigDecimal.ZERO;
+        }
+        if (damageFee != null) {
+            BigDecimal rentalTotal = entity.getTotalAmount() != null ? entity.getTotalAmount() : BigDecimal.ZERO;
+            dto.setFinalInvoiceTotal(rentalTotal.add(damageFee));
+        }
 
         return dto;
     }
 
     private List<BookingResponseDTO> toEnrichedDTOList(List<BookingEntity> entities) {
+        return toEnrichedDTOList(entities, true, true, false, true);
+    }
+
+    private List<BookingResponseDTO> toEnrichedDTOList(List<BookingEntity> entities,
+            boolean includeUserEnrichment,
+            boolean includeSelectedDates,
+            boolean allowImageFallback,
+            boolean includeVehicleImages) {
         if (entities == null || entities.isEmpty()) {
             return List.of();
         }
 
         // 1. Collect all User IDs to fetch
         java.util.Set<Long> userIds = new java.util.HashSet<>();
-        entities.forEach(b -> {
-            if (b.getAssignedStaffId() != null)
-                userIds.add(b.getAssignedStaffId());
-            if (b.getDriverId() != null)
-                userIds.add(b.getDriverId());
-            if (b.getAssignedBy() != null)
-                userIds.add(b.getAssignedBy());
-        });
+        if (includeUserEnrichment) {
+            entities.forEach(b -> {
+                if (b.getAssignedStaffId() != null)
+                    userIds.add(b.getAssignedStaffId());
+                if (b.getDriverId() != null)
+                    userIds.add(b.getDriverId());
+                if (b.getAssignedBy() != null)
+                    userIds.add(b.getAssignedBy());
+            });
+        }
 
         // 2. Batch fetch users
         java.util.Map<Long, UserEntity> userMap = new java.util.HashMap<>();
@@ -473,11 +534,67 @@ public class BookingServiceImpl implements BookingService {
                     java.util.stream.Collectors.toMap(UserEntity::getId, java.util.function.Function.identity()));
         }
 
-        // 3. Map to DTOs using the userMap
-        final java.util.Map<Long, UserEntity> finalUserMap = userMap;
-        return entities.stream()
-                .map(entity -> toEnrichedDTO(entity, finalUserMap))
+        // 3. Batch fetch damage fees for final totals
+        java.util.Map<Long, java.math.BigDecimal> damageFeeMap = java.util.Map.of();
+        java.util.List<Long> bookingIds = entities.stream()
+                .map(BookingEntity::getId)
+                .filter(java.util.Objects::nonNull)
                 .toList();
+        if (!bookingIds.isEmpty()) {
+            damageFeeMap = invoiceRepository.findDamageByBookingIdIn(bookingIds).stream()
+                    .filter(inv -> inv.getBookingId() != null)
+                    .collect(java.util.stream.Collectors.toMap(
+                            inv -> inv.getBookingId(),
+                            inv -> inv.getDamageFee() != null ? inv.getDamageFee() : java.math.BigDecimal.ZERO,
+                            (a, b) -> a));
+        }
+
+        // 4. Batch fetch primary vehicle images (optional)
+        java.util.Map<Long, String> vehicleImageMap = java.util.Map.of();
+        if (includeVehicleImages) {
+            java.util.List<Long> categoryIds = entities.stream()
+                    .map(BookingEntity::getVehicle)
+                    .filter(java.util.Objects::nonNull)
+                    .map(VehicleEntity::getVehicleCategory)
+                    .filter(java.util.Objects::nonNull)
+                    .map(VehicleCategoryEntity::getId)
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .toList();
+            if (!categoryIds.isEmpty()) {
+                vehicleImageMap = vehicleCategoryImageRepository.findByVehicleCategoryIdInOrdered(categoryIds).stream()
+                        .filter(img -> img.getVehicleCategory() != null && img.getVehicleCategory().getId() != null)
+                        .collect(java.util.stream.Collectors.toMap(
+                                img -> img.getVehicleCategory().getId(),
+                                img -> img.getImageUrl(),
+                                (a, b) -> a));
+            }
+        }
+
+        // 5. Map to DTOs using the userMap + damageFeeMap + vehicleImageMap
+        final java.util.Map<Long, UserEntity> finalUserMap = userMap;
+        final java.util.Map<Long, java.math.BigDecimal> finalDamageFeeMap = damageFeeMap;
+        final java.util.Map<Long, String> finalVehicleImageMap = vehicleImageMap;
+        return entities.stream()
+                .map(entity -> toEnrichedDTO(
+                        entity,
+                        finalUserMap,
+                        finalDamageFeeMap,
+                        includeVehicleImages ? finalVehicleImageMap : null,
+                        includeSelectedDates,
+                        allowImageFallback,
+                        includeUserEnrichment))
+                .toList();
+    }
+
+    private String resolvePrimaryImage(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return vehicleCategoryImageRepository.findByVehicleCategoryIdOrdered(categoryId).stream()
+                .findFirst()
+                .map(VehicleCategoryImageEntity::getImageUrl)
+                .orElse(null);
     }
 
     private List<LocalDate> normalizeRequestedDates(BookingRequestDTO request) {

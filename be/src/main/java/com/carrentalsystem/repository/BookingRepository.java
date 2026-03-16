@@ -85,7 +85,7 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
      */
     List<BookingEntity> findByCustomerEmailOrderByCreatedAtDesc(String customerEmail);
 
-    @Query("SELECT b FROM BookingEntity b " +
+    @Query("SELECT DISTINCT b FROM BookingEntity b " +
             "LEFT JOIN FETCH b.vehicle v " +
             "LEFT JOIN FETCH v.vehicleCategory " +
             "LEFT JOIN FETCH b.rentalType " +

@@ -26,7 +26,6 @@ const MyBookingsPage = () => {
     const [cancellingId, setCancellingId] = useState(null);
     const [paymentBooking, setPaymentBooking] = useState(null);
     const [returnPayingId, setReturnPayingId] = useState(null);
-    const [invoiceAmounts, setInvoiceAmounts] = useState({});
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const [now, setNow] = useState(Date.now());
@@ -137,31 +136,6 @@ const MyBookingsPage = () => {
         const start = (safePage - 1) * PAGE_SIZE;
         return filteredBookings.slice(start, start + PAGE_SIZE);
     }, [filteredBookings, safePage]);
-
-    useEffect(() => {
-        const fetchAmounts = async () => {
-            const pendingReturnBookings = paginatedBookings.filter(b => b.status === 'RETURN_PENDING_PAYMENT');
-            
-            for (const booking of pendingReturnBookings) {
-                // Skip if already fetched
-                if (invoiceAmounts[booking.id] !== undefined) continue;
-                
-                try {
-                    const details = await bookingService.getReturnDetails(booking.id);
-                    if (details && details.totalAmount) {
-                        setInvoiceAmounts(prev => ({ ...prev, [booking.id]: details.totalAmount }));
-                    }
-                } catch (err) {
-                    console.error(`Failed to fetch invoice amount for booking ${booking.id}`, err);
-                    setInvoiceAmounts(prev => ({ ...prev, [booking.id]: null })); // Mark as failed
-                }
-            }
-        };
-
-        if (paginatedBookings.length > 0) {
-            fetchAmounts();
-        }
-    }, [paginatedBookings]);
 
     if (loading) {
         return (
@@ -310,13 +284,26 @@ const MyBookingsPage = () => {
                                                         <p className="font-medium">{booking.totalDays} days</p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-gray-600">
-                                                    <DollarSign size={16} className="text-gray-400" />
-                                                    <div>
-                                                        <p className="text-xs text-gray-400">Total</p>
-                                                        <p className="font-semibold text-primary">{formatPrice(booking.totalAmount)}</p>
-                                                    </div>
-                                                </div>
+                        <div className="flex items-center gap-2 text-gray-600">
+                            <DollarSign size={16} className="text-gray-400" />
+                            <div>
+                                {(booking.status === 'RETURN_PENDING_PAYMENT' || booking.status === 'COMPLETED') ? (
+                                    <>
+                                        <p className="text-xs text-gray-400">Final Invoice</p>
+                                        <p className="font-semibold text-primary">
+                                            {booking.finalInvoiceTotal != null
+                                                ? formatPrice(booking.finalInvoiceTotal)
+                                                : '—'}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-xs text-gray-400">Total</p>
+                                        <p className="font-semibold text-primary">{formatPrice(booking.totalAmount)}</p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
                                             </div>
                                         </div>
 
@@ -388,19 +375,17 @@ const MyBookingsPage = () => {
                                                             setReturnPayingId(null);
                                                         }
                                                     }}
-                                                    disabled={invoiceAmounts[booking.id] === undefined || returnPayingId === booking.id}
+                                                    disabled={returnPayingId === booking.id}
                                                     className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors font-semibold disabled:opacity-70"
                                                 >
                                                     {returnPayingId === booking.id ? (
-                                                        <Loader2 size={16} className="animate-spin" />
-                                                    ) : invoiceAmounts[booking.id] === undefined ? (
                                                         <Loader2 size={16} className="animate-spin" />
                                                     ) : (
                                                         <CreditCard size={16} />
                                                     )}
                                                     {returnPayingId === booking.id
                                                         ? 'Redirecting to VNPay...'
-                                                        : `Pay ${invoiceAmounts[booking.id] ? formatPrice(invoiceAmounts[booking.id]) : 'Final Invoice'}`}
+                                                        : `Pay ${booking.finalInvoiceTotal != null ? formatPrice(booking.finalInvoiceTotal) : 'Final Invoice'}`}
                                                 </button>
                                             )}
                                         </div>

@@ -21,6 +21,16 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, Long> {
 
     Optional<InvoiceEntity> findByBookingId(Long bookingId);
 
+    List<InvoiceEntity> findByBookingIdIn(List<Long> bookingIds);
+
+    interface BookingDamageProjection {
+        Long getBookingId();
+        java.math.BigDecimal getDamageFee();
+    }
+
+    @Query("SELECT i.booking.id AS bookingId, i.damageFee AS damageFee FROM InvoiceEntity i WHERE i.booking.id IN :bookingIds")
+    List<BookingDamageProjection> findDamageByBookingIdIn(@Param("bookingIds") List<Long> bookingIds);
+
     boolean existsByBookingId(Long bookingId);
 
     List<InvoiceEntity> findByPaymentStatusOrderByIdDesc(PaymentStatus status);
