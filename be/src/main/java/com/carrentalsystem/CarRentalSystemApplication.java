@@ -42,7 +42,7 @@ public class CarRentalSystemApplication {
         }
       }
     } catch (IOException ex) {
-      // If env file cannot be read, continue without blocking startup.
+      // If env file cannot be read, continue without blocking startupp.
       System.err.println("Failed to load env file: " + path + " (" + ex.getMessage() + ")");
     }
   }
