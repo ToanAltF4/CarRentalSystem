@@ -25,6 +25,7 @@ const MyBookingsPage = () => {
     const [error, setError] = useState('');
     const [cancellingId, setCancellingId] = useState(null);
     const [paymentBooking, setPaymentBooking] = useState(null);
+    const [returnPayingId, setReturnPayingId] = useState(null);
     const [invoiceAmounts, setInvoiceAmounts] = useState({});
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
@@ -370,6 +371,7 @@ const MyBookingsPage = () => {
                                                 <button
                                                     onClick={async () => {
                                                         try {
+                                                            setReturnPayingId(booking.id);
                                                             const details = await bookingService.getReturnDetails(booking.id);
                                                             if (details?.invoiceId) {
                                                                 const result = await paymentService.createVnpayInvoicePayment(details.invoiceId);
@@ -382,17 +384,23 @@ const MyBookingsPage = () => {
                                                         } catch (err) {
                                                             console.error('Payment error:', err);
                                                             alert(err.response?.data?.message || 'Failed to create payment');
+                                                        } finally {
+                                                            setReturnPayingId(null);
                                                         }
                                                     }}
-                                                    disabled={invoiceAmounts[booking.id] === undefined}
+                                                    disabled={invoiceAmounts[booking.id] === undefined || returnPayingId === booking.id}
                                                     className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors font-semibold disabled:opacity-70"
                                                 >
-                                                    {invoiceAmounts[booking.id] === undefined ? (
+                                                    {returnPayingId === booking.id ? (
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                    ) : invoiceAmounts[booking.id] === undefined ? (
                                                         <Loader2 size={16} className="animate-spin" />
                                                     ) : (
                                                         <CreditCard size={16} />
                                                     )}
-                                                    Pay {invoiceAmounts[booking.id] ? formatPrice(invoiceAmounts[booking.id]) : 'Final Invoice'}
+                                                    {returnPayingId === booking.id
+                                                        ? 'Redirecting to VNPay...'
+                                                        : `Pay ${invoiceAmounts[booking.id] ? formatPrice(invoiceAmounts[booking.id]) : 'Final Invoice'}`}
                                                 </button>
                                             )}
                                         </div>

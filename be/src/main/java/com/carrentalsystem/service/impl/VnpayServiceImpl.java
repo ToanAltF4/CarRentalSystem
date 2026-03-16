@@ -96,16 +96,32 @@ public class VnpayServiceImpl implements VnpayService {
         } else if (request.getBookingId() != null) {
             BookingEntity booking = bookingRepository.findById(request.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", request.getBookingId()));
-            ensureBookingPayableForPayment(booking, true);
-            amount = booking.getTotalAmount();
-            txnRef = booking.getBookingCode();
+            if (booking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+                InvoiceEntity invoice = invoiceRepository.findByBookingId(booking.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Invoice", "bookingId", booking.getId()));
+                ensureInvoicePayableForPayment(invoice);
+                amount = invoice.getTotalAmount();
+                txnRef = invoice.getInvoiceNumber();
+            } else {
+                ensureBookingPayableForPayment(booking, true);
+                amount = booking.getTotalAmount();
+                txnRef = booking.getBookingCode();
+            }
         } else {
             BookingEntity booking = bookingRepository.findByBookingCode(request.getBookingCode())
                     .orElseThrow(
                             () -> new ResourceNotFoundException("Booking", "bookingCode", request.getBookingCode()));
-            ensureBookingPayableForPayment(booking, true);
-            amount = booking.getTotalAmount();
-            txnRef = booking.getBookingCode();
+            if (booking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+                InvoiceEntity invoice = invoiceRepository.findByBookingId(booking.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Invoice", "bookingId", booking.getId()));
+                ensureInvoicePayableForPayment(invoice);
+                amount = invoice.getTotalAmount();
+                txnRef = invoice.getInvoiceNumber();
+            } else {
+                ensureBookingPayableForPayment(booking, true);
+                amount = booking.getTotalAmount();
+                txnRef = booking.getBookingCode();
+            }
         }
 
         if (amount == null) {
@@ -117,6 +133,7 @@ public class VnpayServiceImpl implements VnpayService {
 
         String ipAddress = getClientIp(servletRequest);
         String createDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String vnpTxnRef = buildUniqueTxnRef(txnRef);
 
         Map<String, String> params = new HashMap<>();
         params.put("vnp_Version", version);
@@ -126,7 +143,7 @@ public class VnpayServiceImpl implements VnpayService {
                 .setScale(0, RoundingMode.HALF_UP)
                 .toPlainString());
         params.put("vnp_CurrCode", currencyCode);
-        params.put("vnp_TxnRef", txnRef);
+        params.put("vnp_TxnRef", vnpTxnRef);
         params.put("vnp_OrderInfo", "Payment for " + txnRef);
         params.put("vnp_OrderType", "other");
         params.put("vnp_Locale", locale);
@@ -180,11 +197,12 @@ public class VnpayServiceImpl implements VnpayService {
                     .build();
         }
 
-        InvoiceEntity invoice = invoiceRepository.findByInvoiceNumber(txnRef).orElse(null);
-        BookingEntity booking = invoice == null ? bookingRepository.findByBookingCode(txnRef).orElse(null) : null;
+        String baseTxnRef = extractBaseTxnRef(txnRef);
+        InvoiceEntity invoice = invoiceRepository.findByInvoiceNumber(baseTxnRef).orElse(null);
+        BookingEntity booking = invoice == null ? bookingRepository.findByBookingCode(baseTxnRef).orElse(null) : null;
 
         if (invoice == null && booking == null) {
-            throw new ResourceNotFoundException("Transaction", "txnRef", txnRef);
+            throw new ResourceNotFoundException("Transaction", "txnRef", baseTxnRef);
         }
 
         if ("00".equals(responseCode)) {
@@ -193,7 +211,7 @@ public class VnpayServiceImpl implements VnpayService {
                     return VnpayReturnResponse.builder()
                             .code("00")
                             .message("Payment success")
-                            .invoiceNumber(txnRef)
+                            .invoiceNumber(baseTxnRef)
                             .paymentStatus(PaymentStatus.PAID.name())
                             .build();
                 }
@@ -212,7 +230,7 @@ public class VnpayServiceImpl implements VnpayService {
                     return VnpayReturnResponse.builder()
                             .code("24")
                             .message("Đơn đặt xe đã bị hủy trước khi thanh toán hoàn tất")
-                            .invoiceNumber(txnRef)
+                            .invoiceNumber(baseTxnRef)
                             .paymentStatus(booking.getStatus().name())
                             .build();
                 }
@@ -220,7 +238,7 @@ public class VnpayServiceImpl implements VnpayService {
                     return VnpayReturnResponse.builder()
                             .code("24")
                             .message("Đơn đặt xe không còn ở trạng thái chờ thanh toán")
-                            .invoiceNumber(txnRef)
+                            .invoiceNumber(baseTxnRef)
                             .paymentStatus(booking.getStatus().name())
                             .build();
                 }
@@ -230,7 +248,7 @@ public class VnpayServiceImpl implements VnpayService {
                     return VnpayReturnResponse.builder()
                             .code("24")
                             .message("Đơn đặt xe đã hết hạn thanh toán")
-                            .invoiceNumber(txnRef)
+                            .invoiceNumber(baseTxnRef)
                             .paymentStatus(booking.getStatus().name())
                             .build();
                 }
@@ -243,7 +261,7 @@ public class VnpayServiceImpl implements VnpayService {
                 // Create new PAID invoice for this booking
                 InvoiceEntity newInvoice = InvoiceEntity.builder()
                         .booking(booking)
-                        .invoiceNumber(txnRef) // Using booking code/txnRef as invoice number
+                        .invoiceNumber(baseTxnRef) // Using booking code as invoice number
                         .rentalFee(rentalFee)
                         .driverFee(driverFee)
                         .deliveryFee(deliveryFee)
@@ -268,7 +286,7 @@ public class VnpayServiceImpl implements VnpayService {
             return VnpayReturnResponse.builder()
                     .code("00")
                     .message("Payment success")
-                    .invoiceNumber(txnRef)
+                    .invoiceNumber(baseTxnRef)
                     .paymentStatus(PaymentStatus.PAID.name())
                     .build();
         }
@@ -276,7 +294,7 @@ public class VnpayServiceImpl implements VnpayService {
         return VnpayReturnResponse.builder()
                 .code(responseCode)
                 .message("Payment failed")
-                .invoiceNumber(txnRef)
+                .invoiceNumber(baseTxnRef)
                 .paymentStatus(invoice != null ? invoice.getPaymentStatus().name() : booking.getStatus().name())
                 .build();
     }
@@ -374,5 +392,18 @@ public class VnpayServiceImpl implements VnpayService {
             return xff.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private String buildUniqueTxnRef(String baseRef) {
+        String suffix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        return baseRef + "-" + suffix;
+    }
+
+    private String extractBaseTxnRef(String txnRef) {
+        int lastDash = txnRef != null ? txnRef.lastIndexOf('-') : -1;
+        if (lastDash <= 0) {
+            return txnRef;
+        }
+        return txnRef.substring(0, lastDash);
     }
 }
