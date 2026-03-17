@@ -46,6 +46,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 20
 
   flyway:
     enabled: ${FLYWAY_ENABLED:false}

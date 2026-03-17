@@ -22,8 +22,10 @@ import java.net.http.HttpResponse;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -202,6 +204,13 @@ public class AssistantServiceImpl implements AssistantService {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("vehicleId", vehicle.getId());
             item.put("vehicleName", vehicleName);
+            item.put("categoryBrand", vehicle.getCategoryBrand());
+            item.put("categoryName", vehicle.getCategoryName());
+            item.put("categoryModel", vehicle.getCategoryModel());
+            item.put("brand", vehicle.getBrand());
+            item.put("name", vehicle.getName());
+            item.put("model", vehicle.getModel());
+            item.put("licensePlate", vehicle.getLicensePlate());
             item.put("seats", vehicle.getSeats());
             item.put("rentalPrice", vehicle.getDailyPrice());
             item.put("availabilityStatus", vehicle.getStatus() == null ? null : vehicle.getStatus().name());
@@ -439,6 +448,17 @@ public class AssistantServiceImpl implements AssistantService {
             filtered = priceFiltered;
         }
 
+        List<String> identityPhrases = extractVehicleIdentityPhrases(filtered, question);
+        if (!identityPhrases.isEmpty()) {
+            List<JsonNode> identityFiltered = new ArrayList<>();
+            for (JsonNode vehicle : filtered) {
+                if (matchesAllIdentityPhrases(vehicle, identityPhrases)) {
+                    identityFiltered.add(vehicle);
+                }
+            }
+            filtered = identityFiltered;
+        }
+
         return filtered;
     }
 
@@ -634,6 +654,154 @@ public class AssistantServiceImpl implements AssistantService {
         String lower = input.toLowerCase(Locale.ROOT).replace('đ', 'd');
         return Normalizer.normalize(lower, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "");
+    }
+
+    private List<String> extractVehicleIdentityPhrases(List<JsonNode> vehicles, String question) {
+        if (vehicles == null || vehicles.isEmpty() || question == null || question.isBlank()) {
+            return List.of();
+        }
+
+        String questionSearch = toSearchableText(question);
+        String questionCompact = toCompactSearchText(question);
+        if (questionSearch.isBlank() && questionCompact.isBlank()) {
+            return List.of();
+        }
+
+        LinkedHashSet<String> matched = new LinkedHashSet<>();
+        for (JsonNode vehicle : vehicles) {
+            for (String candidate : collectVehicleIdentityCandidates(vehicle)) {
+                if (containsSearchPhrase(questionSearch, questionCompact, candidate)) {
+                    matched.add(candidate);
+                }
+            }
+        }
+
+        if (matched.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> sorted = matched.stream()
+                .sorted(Comparator.comparingInt(String::length).reversed())
+                .toList();
+
+        List<String> pruned = new ArrayList<>();
+        for (String candidate : sorted) {
+            boolean covered = false;
+            for (String existing : pruned) {
+                if (existing.equals(candidate) || existing.contains(candidate)) {
+                    covered = true;
+                    break;
+                }
+            }
+            if (!covered) {
+                pruned.add(candidate);
+            }
+        }
+        return pruned;
+    }
+
+    private boolean matchesAllIdentityPhrases(JsonNode vehicle, List<String> phrases) {
+        if (phrases == null || phrases.isEmpty()) {
+            return true;
+        }
+
+        String vehicleSearch = buildVehicleIdentitySearchText(vehicle);
+        String vehicleCompact = buildVehicleIdentityCompactText(vehicle);
+        for (String phrase : phrases) {
+            if (!containsSearchPhrase(vehicleSearch, vehicleCompact, phrase)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String buildVehicleIdentitySearchText(JsonNode vehicle) {
+        StringBuilder builder = new StringBuilder();
+        for (String candidate : collectVehicleIdentityCandidates(vehicle)) {
+            if (candidate.contains(" ")) {
+                builder.append(candidate).append(' ');
+            }
+        }
+        return builder.toString().trim();
+    }
+
+    private String buildVehicleIdentityCompactText(JsonNode vehicle) {
+        StringBuilder builder = new StringBuilder();
+        for (String candidate : collectVehicleIdentityCandidates(vehicle)) {
+            builder.append(candidate.replace(" ", ""));
+        }
+        return builder.toString();
+    }
+
+    private List<String> collectVehicleIdentityCandidates(JsonNode vehicle) {
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        addIdentityCandidate(candidates, readField(vehicle, "vehicleName", "tenXe", "name"));
+        addIdentityCandidate(candidates, readField(vehicle, "categoryBrand", "brand"));
+        addIdentityCandidate(candidates, readField(vehicle, "categoryName", "name"));
+        addIdentityCandidate(candidates, readField(vehicle, "categoryModel", "model"));
+        addIdentityCandidate(candidates, readField(vehicle, "licensePlate", "bienSoXe"));
+        return new ArrayList<>(candidates);
+    }
+
+    private void addIdentityCandidate(Set<String> candidates, String rawValue) {
+        if (rawValue == null || rawValue.isBlank() || "No data".equals(rawValue)) {
+            return;
+        }
+
+        String searchable = toSearchableText(rawValue);
+        if (isUsefulIdentityCandidate(searchable)) {
+            candidates.add(searchable);
+        }
+
+        String compact = toCompactSearchText(rawValue);
+        if (isUsefulIdentityCandidate(compact)) {
+            candidates.add(compact);
+        }
+    }
+
+    private boolean isUsefulIdentityCandidate(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        if (value.length() >= 3) {
+            return true;
+        }
+        return value.matches(".*\\d.*");
+    }
+
+    private String toSearchableText(String input) {
+        String normalized = normalizeForMatching(input)
+                .replaceAll("[^a-z0-9]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ");
+        return normalized;
+    }
+
+    private String toCompactSearchText(String input) {
+        return normalizeForMatching(input)
+                .replaceAll("[^a-z0-9]+", "");
+    }
+
+    private boolean containsSearchPhrase(String searchText, String compactText, String phrase) {
+        if (phrase == null || phrase.isBlank()) {
+            return false;
+        }
+
+        String normalizedPhrase = phrase.trim();
+        if (normalizedPhrase.contains(" ")) {
+            String haystack = ' ' + (searchText == null ? "" : searchText.trim()) + ' ';
+            String needle = ' ' + normalizedPhrase + ' ';
+            return haystack.contains(needle);
+        }
+
+        String haystack = ' ' + (searchText == null ? "" : searchText.trim()) + ' ';
+        String needle = ' ' + normalizedPhrase + ' ';
+        if (haystack.contains(needle)) {
+            return true;
+        }
+
+        String compactHaystack = compactText == null ? "" : compactText.trim();
+        return !compactHaystack.isBlank() && compactHaystack.contains(normalizedPhrase.replace(" ", ""));
     }
 
     private Integer parseIntField(JsonNode node, String... keys) {

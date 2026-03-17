@@ -383,13 +383,10 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingResponseDTO> getUpcomingBookings() {
         LocalDate today = LocalDate.now();
-        List<BookingEntity> bookings = bookingRepository.findAllWithVehicle().stream()
-                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED)
-                .filter(booking -> hasUpcomingRentalDay(booking, today))
-                .sorted(Comparator.comparing(
-                        booking -> firstUpcomingRentalDay(booking, today),
-                        Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
+        // Pre-filter at DB level: only non-terminal bookings whose end date hasn't passed.
+        // Avoids loading the entire bookings table into memory.
+        List<BookingEntity> bookings = bookingRepository.findUpcomingWithDetails(
+                List.of(BookingStatus.CANCELLED, BookingStatus.COMPLETED), today);
         return toEnrichedDTOList(bookings);
     }
 
@@ -693,10 +690,16 @@ public class BookingServiceImpl implements BookingService {
             return List.of();
         }
         Set<LocalDate> requestedSet = new HashSet<>(requestedDates);
+        LocalDate minDate = requestedDates.stream().min(Comparator.naturalOrder()).orElseThrow();
+        LocalDate maxDate = requestedDates.stream().max(Comparator.naturalOrder()).orElseThrow();
 
-        return bookingRepository.findByVehicleIdOrderByCreatedAtDescWithDetails(vehicleId).stream()
-                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED
-                        && booking.getStatus() != BookingStatus.COMPLETED)
+        // Pre-filter at DB level using date-range overlap — avoids loading all vehicle
+        // bookings into memory just to parse CSV dates for conflict detection.
+        return bookingRepository.findActiveByVehicleIdAndDateRange(
+                        vehicleId,
+                        List.of(BookingStatus.CANCELLED, BookingStatus.COMPLETED),
+                        minDate,
+                        maxDate).stream()
                 .flatMap(booking -> resolveSelectedDatesFromBooking(booking).stream())
                 .filter(requestedSet::contains)
                 .distinct()

@@ -159,6 +159,20 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     @Query("SELECT COUNT(b) FROM BookingEntity b WHERE (b.assignedStaffId = :staffId OR b.driverId = :staffId) AND b.status IN :statuses")
     int countActiveBookingsByStaff(@Param("staffId") Long staffId, @Param("statuses") List<BookingStatus> statuses);
 
+    /**
+     * Fetch all bookings where the user is either the assigned staff or the driver.
+     * Replaces two separate queries (findByAssignedStaffIdWithDetails + findByDriverIdWithDetails)
+     * that were previously merged in memory.
+     */
+    @Query("SELECT DISTINCT b FROM BookingEntity b " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
+            "LEFT JOIN FETCH v.vehicleCategory.images " +
+            "LEFT JOIN FETCH b.rentalType " +
+            "LEFT JOIN FETCH b.pickupMethod " +
+            "WHERE b.assignedStaffId = :staffId OR b.driverId = :staffId")
+    List<BookingEntity> findByStaffOrDriverIdWithDetails(@Param("staffId") Long staffId);
+
     @Query("SELECT b FROM BookingEntity b " +
             "LEFT JOIN FETCH b.vehicle v " +
             "LEFT JOIN FETCH v.vehicleCategory " +
@@ -191,6 +205,39 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
             "LEFT JOIN FETCH b.pickupMethod " +
             "ORDER BY b.createdAt DESC")
     List<BookingEntity> findAllWithVehicle();
+
+    /**
+     * Find non-cancelled, non-completed bookings whose end date is on or after today,
+     * ordered by start date ascending. Used by getUpcomingBookings() to avoid loading
+     * the entire bookings table into memory.
+     */
+    @Query("SELECT b FROM BookingEntity b " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
+            "LEFT JOIN FETCH b.rentalType " +
+            "LEFT JOIN FETCH b.pickupMethod " +
+            "WHERE b.status NOT IN :excludedStatuses " +
+            "AND b.endDate >= :today " +
+            "ORDER BY b.startDate ASC")
+    List<BookingEntity> findUpcomingWithDetails(
+            @Param("excludedStatuses") List<BookingStatus> excludedStatuses,
+            @Param("today") LocalDate today);
+
+    /**
+     * Find active bookings for a vehicle whose date range overlaps the requested window.
+     * Used by findConflictingDates() to pre-filter bookings before in-memory date parsing,
+     * avoiding a full vehicle-booking table scan.
+     */
+    @Query("SELECT b FROM BookingEntity b " +
+            "WHERE b.vehicle.id = :vehicleId " +
+            "AND b.status NOT IN :excludedStatuses " +
+            "AND b.endDate >= :minDate " +
+            "AND b.startDate <= :maxDate")
+    List<BookingEntity> findActiveByVehicleIdAndDateRange(
+            @Param("vehicleId") Long vehicleId,
+            @Param("excludedStatuses") List<BookingStatus> excludedStatuses,
+            @Param("minDate") LocalDate minDate,
+            @Param("maxDate") LocalDate maxDate);
 
     @Query("SELECT b FROM BookingEntity b " +
             "LEFT JOIN FETCH b.vehicle v " +

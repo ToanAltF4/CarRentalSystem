@@ -74,14 +74,9 @@ public class StaffServiceImpl implements StaffService {
     }
 
     private List<BookingEntity> loadDistinctAssignedTasks(Long staffId) {
-        // Find bookings assigned to staff or where user is the driver
-        List<BookingEntity> staffTasks = bookingRepository.findByAssignedStaffIdWithDetails(staffId);
-        List<BookingEntity> driverTasks = bookingRepository.findByDriverIdWithDetails(staffId);
-
-        // Merge lists (avoid duplicates if same person is both staff and driver on same
-        // booking, unlikely but possible)
-        staffTasks.addAll(driverTasks);
-        return staffTasks.stream().distinct().collect(Collectors.toList());
+        // Single query replacing the previous two-query pattern (findByAssignedStaffId +
+        // findByDriverId) that required an in-memory merge and distinct step.
+        return bookingRepository.findByStaffOrDriverIdWithDetails(staffId);
     }
 
     @Override
