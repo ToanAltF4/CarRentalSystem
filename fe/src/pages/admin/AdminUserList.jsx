@@ -1,24 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Users, Search, Filter, CheckCircle, XCircle, Clock,
     ChevronLeft, Eye, Shield, AlertCircle, Loader2,
     Plus, Edit2, Trash2, ToggleLeft, ToggleRight, X
 } from 'lucide-react';
+import useListViewState from '../../hooks/useListViewState';
 import userService from '../../services/userService';
+import { peekCachedGet } from '../../services/requestCache';
 import Pagination from '../../components/common/Pagination';
+
+const LIST_STATE_KEY = 'admin-user-list-page';
+const LIST_STATE_TTL_MS = 10 * 60 * 1000;
+const USERS_CACHE_KEY = 'users:all';
 
 /**
  * Admin User Management Page with Full CRUD
  */
 const AdminUserList = () => {
     const PAGE_SIZE = 10;
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterLicense, setFilterLicense] = useState('ALL');
-    const [filterRole, setFilterRole] = useState('ALL');
-    const [currentPage, setCurrentPage] = useState(1);
+    const cachedUsers = peekCachedGet(USERS_CACHE_KEY);
+    const [users, setUsers] = useState(() =>
+        Array.isArray(cachedUsers) ? cachedUsers : []
+    );
+    const [loading, setLoading] = useState(!Array.isArray(cachedUsers));
+
+    const { state: listViewState, setState: setListViewState } = useListViewState({
+        cacheKey: LIST_STATE_KEY,
+        ttlMs: LIST_STATE_TTL_MS,
+        initialState: {
+            searchTerm: '',
+            filterLicense: 'ALL',
+            filterRole: 'ALL',
+            currentPage: 1,
+        },
+    });
+
+    const searchTerm = listViewState.searchTerm;
+    const filterLicense = listViewState.filterLicense;
+    const filterRole = listViewState.filterRole;
+    const currentPage = listViewState.currentPage;
     const [actionLoading, setActionLoading] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
 
@@ -36,21 +57,24 @@ const AdminUserList = () => {
     });
     const [formError, setFormError] = useState('');
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
-        setLoading(true);
+    const fetchUsers = useCallback(async (showLoader = true) => {
+        if (showLoader) {
+            setLoading(true);
+        }
         try {
             const data = await userService.getAllUsers();
-            setUsers(data);
+            setUsers(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching users:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (Array.isArray(cachedUsers)) return;
+        fetchUsers(true);
+    }, [cachedUsers, fetchUsers]);
 
     // CRUD Operations
     const handleCreateUser = async (e) => {
@@ -93,7 +117,7 @@ const AdminUserList = () => {
             setUsers(users.filter(u => u.id !== selectedUser.id));
             setShowDeleteModal(false);
             setSelectedUser(null);
-        } catch (err) {
+        } catch {
             alert('Failed to delete user');
         } finally {
             setActionLoading(null);
@@ -105,7 +129,7 @@ const AdminUserList = () => {
         try {
             const updated = await userService.toggleUserStatus(user.id);
             setUsers(users.map(u => u.id === user.id ? updated : u));
-        } catch (err) {
+        } catch {
             alert('Failed to toggle status');
         } finally {
             setActionLoading(null);
@@ -120,7 +144,7 @@ const AdminUserList = () => {
             if (selectedUser?.id === userId) {
                 setSelectedUser(updated);
             }
-        } catch (err) {
+        } catch {
             alert('Failed to approve license');
         } finally {
             setActionLoading(null);
@@ -135,7 +159,7 @@ const AdminUserList = () => {
             if (selectedUser?.id === userId) {
                 setSelectedUser(updated);
             }
-        } catch (err) {
+        } catch {
             alert('Failed to reject license');
         } finally {
             setActionLoading(null);
@@ -181,10 +205,6 @@ const AdminUserList = () => {
         const matchesRole = filterRole === 'ALL' || user.roleName === filterRole;
         return matchesSearch && matchesLicense && matchesRole;
     });
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, filterLicense, filterRole, users]);
 
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
@@ -333,7 +353,13 @@ const AdminUserList = () => {
                                 type="text"
                                 placeholder="Search by name or email..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) =>
+                                    setListViewState((prev) => ({
+                                        ...prev,
+                                        searchTerm: e.target.value,
+                                        currentPage: 1,
+                                    }))
+                                }
                                 className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm"
                             />
                         </div>
@@ -341,7 +367,13 @@ const AdminUserList = () => {
                             <Filter size={16} className="text-gray-400" />
                             <select
                                 value={filterRole}
-                                onChange={(e) => setFilterRole(e.target.value)}
+                                onChange={(e) =>
+                                    setListViewState((prev) => ({
+                                        ...prev,
+                                        filterRole: e.target.value,
+                                        currentPage: 1,
+                                    }))
+                                }
                                 className="px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm focus:border-primary outline-none"
                             >
                                 <option value="ALL">All Roles</option>
@@ -354,7 +386,13 @@ const AdminUserList = () => {
                             </select>
                             <select
                                 value={filterLicense}
-                                onChange={(e) => setFilterLicense(e.target.value)}
+                                onChange={(e) =>
+                                    setListViewState((prev) => ({
+                                        ...prev,
+                                        filterLicense: e.target.value,
+                                        currentPage: 1,
+                                    }))
+                                }
                                 className="px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm focus:border-primary outline-none"
                             >
                                 <option value="ALL">All License Status</option>
@@ -481,7 +519,12 @@ const AdminUserList = () => {
                         totalPages={totalPages}
                         totalItems={filteredUsers.length}
                         pageSize={PAGE_SIZE}
-                        onPageChange={setCurrentPage}
+                        onPageChange={(page) =>
+                            setListViewState((prev) => ({
+                                ...prev,
+                                currentPage: page,
+                            }))
+                        }
                     />
                 )}
             </div>

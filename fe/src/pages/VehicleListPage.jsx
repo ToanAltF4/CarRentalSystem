@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, SlidersHorizontal, Loader2, ChevronRight, Car } from 'lucide-react';
 import CarCard from '../components/ui/CarCard';
+import useListViewState from '../hooks/useListViewState';
+import { peekCachedGet } from '../services/requestCache';
 import vehicleCategoryService from '../services/vehicleCategoryService';
 import vehicleService from '../services/vehicleService';
 
@@ -18,23 +20,63 @@ const toNumber = (value) => {
     return Number.isFinite(num) ? num : 0;
 };
 
-const VehicleListPage = () => {
-    const [categoryCatalog, setCategoryCatalog] = useState([]);
-    const [brandCatalog, setBrandCatalog] = useState([]);
-    const [vehiclePool, setVehiclePool] = useState([]);
+const LIST_STATE_KEY = 'vehicle-list-page';
+const LIST_STATE_TTL_MS = 10 * 60 * 1000;
+const CATEGORY_CACHE_KEY = 'vehicle-categories:all';
+const BRAND_CACHE_KEY = 'vehicle-categories:brands';
+const VEHICLE_CACHE_KEY = 'vehicles:all';
 
-    const [loading, setLoading] = useState(true);
+const VehicleListPage = () => {
+    const cachedCategoryRaw = peekCachedGet(CATEGORY_CACHE_KEY);
+    const cachedBrandRaw = peekCachedGet(BRAND_CACHE_KEY);
+    const cachedVehicleRaw = peekCachedGet(VEHICLE_CACHE_KEY);
+
+    const hasCategoryCache = cachedCategoryRaw !== undefined;
+    const hasVehicleCache = cachedVehicleRaw !== undefined;
+    const [hasWarmDataCache] = useState(() => hasCategoryCache && hasVehicleCache);
+
+    const [categoryCatalog, setCategoryCatalog] = useState(() => {
+        if (!Array.isArray(cachedCategoryRaw)) return [];
+        return cachedCategoryRaw
+            .map((item) => vehicleCategoryService.normalizeCategory(item))
+            .filter(Boolean);
+    });
+    const [brandCatalog, setBrandCatalog] = useState(() => {
+        if (!Array.isArray(cachedBrandRaw)) return [];
+        return cachedBrandRaw.filter(Boolean);
+    });
+    const [vehiclePool, setVehiclePool] = useState(() => {
+        if (!Array.isArray(cachedVehicleRaw)) return [];
+        return cachedVehicleRaw;
+    });
+
+    const [loading, setLoading] = useState(!hasWarmDataCache);
     const [error, setError] = useState(null);
 
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBrand, setSelectedBrand] = useState('ALL');
-    const [selectedType, setSelectedType] = useState('ALL');
-    const [priceRange, setPriceRange] = useState('ALL');
-    const [sortBy, setSortBy] = useState('popular');
-    const [showFilters, setShowFilters] = useState(false);
+    const { state: listViewState, setState: setListViewState } = useListViewState({
+        cacheKey: LIST_STATE_KEY,
+        ttlMs: LIST_STATE_TTL_MS,
+        initialState: {
+            searchTerm: '',
+            selectedBrand: 'ALL',
+            selectedType: 'ALL',
+            priceRange: 'ALL',
+            sortBy: 'popular',
+            showFilters: false,
+        },
+    });
 
-    const loadInitialData = useCallback(async () => {
-        setLoading(true);
+    const searchTerm = listViewState.searchTerm;
+    const selectedBrand = listViewState.selectedBrand;
+    const selectedType = listViewState.selectedType;
+    const priceRange = listViewState.priceRange;
+    const sortBy = listViewState.sortBy;
+    const showFilters = listViewState.showFilters;
+
+    const loadInitialData = useCallback(async (showLoader = true) => {
+        if (showLoader) {
+            setLoading(true);
+        }
         setError(null);
         try {
             const [categoryRaw, brandRaw, vehicles] = await Promise.all([
@@ -62,8 +104,8 @@ const VehicleListPage = () => {
     }, []);
 
     useEffect(() => {
-        loadInitialData();
-    }, [loadInitialData]);
+        loadInitialData(!hasWarmDataCache);
+    }, [hasWarmDataCache, loadInitialData]);
 
     const statsByCategory = useMemo(() => {
         const map = new Map();
@@ -130,15 +172,23 @@ const VehicleListPage = () => {
 
     useEffect(() => {
         if (!brands.includes(selectedBrand)) {
-            setSelectedBrand('ALL');
+            setListViewState((prev) =>
+                prev.selectedBrand === 'ALL'
+                    ? prev
+                    : { ...prev, selectedBrand: 'ALL' }
+            );
         }
-    }, [brands, selectedBrand]);
+    }, [brands, selectedBrand, setListViewState]);
 
     useEffect(() => {
         if (!types.includes(selectedType)) {
-            setSelectedType('ALL');
+            setListViewState((prev) =>
+                prev.selectedType === 'ALL'
+                    ? prev
+                    : { ...prev, selectedType: 'ALL' }
+            );
         }
-    }, [types, selectedType]);
+    }, [setListViewState, selectedType, types]);
 
     const filterByPrice = (vehicleType) => {
         if (priceRange === 'ALL') return true;
@@ -197,11 +247,14 @@ const VehicleListPage = () => {
         }));
 
     const clearFilters = () => {
-        setSearchTerm('');
-        setSelectedBrand('ALL');
-        setSelectedType('ALL');
-        setPriceRange('ALL');
-        setSortBy('popular');
+        setListViewState((prev) => ({
+            ...prev,
+            searchTerm: '',
+            selectedBrand: 'ALL',
+            selectedType: 'ALL',
+            priceRange: 'ALL',
+            sortBy: 'popular',
+        }));
     };
 
     const hasActiveFilters =
@@ -247,7 +300,12 @@ const VehicleListPage = () => {
                                         type="text"
                                         placeholder="Brand, model, plate..."
                                         value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onChange={(e) =>
+                                            setListViewState((prev) => ({
+                                                ...prev,
+                                                searchTerm: e.target.value,
+                                            }))
+                                        }
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#5fcf86] focus:ring-2 focus:ring-[#5fcf86]/20 outline-none transition-all"
                                     />
                                 </div>
@@ -259,7 +317,12 @@ const VehicleListPage = () => {
                                     {brands.map((brand) => (
                                         <button
                                             key={brand}
-                                            onClick={() => setSelectedBrand(brand)}
+                                            onClick={() =>
+                                                setListViewState((prev) => ({
+                                                    ...prev,
+                                                    selectedBrand: brand,
+                                                }))
+                                            }
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedBrand === brand
                                                 ? 'bg-[#5fcf86] text-white'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -277,7 +340,12 @@ const VehicleListPage = () => {
                                     {types.map((type) => (
                                         <button
                                             key={type}
-                                            onClick={() => setSelectedType(type)}
+                                            onClick={() =>
+                                                setListViewState((prev) => ({
+                                                    ...prev,
+                                                    selectedType: type,
+                                                }))
+                                            }
                                             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${selectedType === type
                                                 ? 'border-[#5fcf86] bg-[#5fcf86]/10 text-[#22884e]'
                                                 : 'border-gray-200 text-gray-700 hover:border-gray-300'
@@ -303,7 +371,12 @@ const VehicleListPage = () => {
                                                 type="radio"
                                                 name="priceRange"
                                                 checked={priceRange === range.value}
-                                                onChange={() => setPriceRange(range.value)}
+                                                onChange={() =>
+                                                    setListViewState((prev) => ({
+                                                        ...prev,
+                                                        priceRange: range.value,
+                                                    }))
+                                                }
                                                 className="w-4 h-4 text-[#5fcf86] border-gray-300 focus:ring-[#5fcf86]"
                                             />
                                             <span className="text-sm text-gray-700">{range.label}</span>
@@ -323,12 +396,22 @@ const VehicleListPage = () => {
                                         type="text"
                                         placeholder="Brand, model, plate..."
                                         value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onChange={(e) =>
+                                            setListViewState((prev) => ({
+                                                ...prev,
+                                                searchTerm: e.target.value,
+                                            }))
+                                        }
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#5fcf86] outline-none"
                                     />
                                 </div>
                                 <button
-                                    onClick={() => setShowFilters(!showFilters)}
+                                    onClick={() =>
+                                        setListViewState((prev) => ({
+                                            ...prev,
+                                            showFilters: !prev.showFilters,
+                                        }))
+                                    }
                                     className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-medium ${hasActiveFilters
                                         ? 'border-[#5fcf86] text-[#5fcf86] bg-[#5fcf86]/5'
                                         : 'border-gray-200 text-gray-600'
@@ -343,7 +426,12 @@ const VehicleListPage = () => {
                                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                                     <select
                                         value={selectedBrand}
-                                        onChange={(e) => setSelectedBrand(e.target.value)}
+                                        onChange={(e) =>
+                                            setListViewState((prev) => ({
+                                                ...prev,
+                                                selectedBrand: e.target.value,
+                                            }))
+                                        }
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white"
                                     >
                                         {brands.map((brand) => (
@@ -354,7 +442,12 @@ const VehicleListPage = () => {
                                     </select>
                                     <select
                                         value={selectedType}
-                                        onChange={(e) => setSelectedType(e.target.value)}
+                                        onChange={(e) =>
+                                            setListViewState((prev) => ({
+                                                ...prev,
+                                                selectedType: e.target.value,
+                                            }))
+                                        }
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white"
                                     >
                                         {types.map((type) => (
@@ -365,7 +458,12 @@ const VehicleListPage = () => {
                                     </select>
                                     <select
                                         value={priceRange}
-                                        onChange={(e) => setPriceRange(e.target.value)}
+                                        onChange={(e) =>
+                                            setListViewState((prev) => ({
+                                                ...prev,
+                                                priceRange: e.target.value,
+                                            }))
+                                        }
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white"
                                     >
                                         {PRICE_RANGES.map((range) => (
@@ -392,7 +490,12 @@ const VehicleListPage = () => {
                                 <span className="text-sm text-gray-500 hidden sm:inline">Sort by:</span>
                                 <select
                                     value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
+                                    onChange={(e) =>
+                                        setListViewState((prev) => ({
+                                            ...prev,
+                                            sortBy: e.target.value,
+                                        }))
+                                    }
                                     className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-[#5fcf86] outline-none bg-white"
                                 >
                                     <option value="popular">Most Available</option>
@@ -412,7 +515,7 @@ const VehicleListPage = () => {
                             <div className="text-center py-20">
                                 <p className="text-red-500 mb-4">{error}</p>
                                 <button
-                                    onClick={loadInitialData}
+                                    onClick={() => loadInitialData(true)}
                                     className="px-6 py-2 bg-[#5fcf86] text-white rounded-lg font-semibold hover:bg-[#4bc076] transition-colors"
                                 >
                                     Retry

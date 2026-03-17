@@ -54,6 +54,12 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
             "WHERE b.id = :id")
     Optional<BookingEntity> findByIdWithDetails(@Param("id") Long id);
 
+    @Query("SELECT b FROM BookingEntity b " +
+            "LEFT JOIN FETCH b.vehicle v " +
+            "LEFT JOIN FETCH v.vehicleCategory " +
+            "WHERE b.id = :id")
+    Optional<BookingEntity> findByIdWithVehicleCategory(@Param("id") Long id);
+
     /**
      * Find bookings by vehicle ID.
      */

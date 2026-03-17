@@ -241,8 +241,14 @@ const bookingService = {
      * Get return details for a booking
      */
     getReturnDetails: async (bookingId) => {
-        const response = await api.get(`/v1/bookings/${bookingId}/return`);
-        return response.data;
+        return cachedGet(
+            `${BOOKING_CACHE_PREFIX}return-details:${bookingId}`,
+            async () => {
+                const response = await api.get(`/v1/bookings/${bookingId}/return`);
+                return response.data;
+            },
+            15_000
+        );
     }
 };
 

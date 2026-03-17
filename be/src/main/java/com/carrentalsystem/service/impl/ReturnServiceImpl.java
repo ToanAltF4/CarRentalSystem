@@ -8,8 +8,10 @@ import com.carrentalsystem.repository.*;
 import com.carrentalsystem.service.ReturnService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -113,9 +115,17 @@ public class ReturnServiceImpl implements ReturnService {
 
     @Override
     @Transactional
-    public ReturnResponseDTO getReturnByBookingId(Long bookingId) {
-        BookingEntity booking = bookingRepository.findById(bookingId)
+    public ReturnResponseDTO getReturnByBookingId(Long bookingId, String requesterEmail, boolean privileged) {
+        BookingEntity booking = bookingRepository.findByIdWithVehicleCategory(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
+
+        if (!privileged) {
+            if (requesterEmail == null || booking.getCustomerEmail() == null
+                    || !booking.getCustomerEmail().equalsIgnoreCase(requesterEmail)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You are not allowed to view this return invoice");
+            }
+        }
 
         InspectionEntity inspection = inspectionRepository.findByBookingIdAndType(bookingId, InspectionType.RETURN)
                 .orElseThrow(() -> new ResourceNotFoundException("Inspection", "bookingId", bookingId));
@@ -135,7 +145,10 @@ public class ReturnServiceImpl implements ReturnService {
             }
         }
 
-        BigDecimal overtimeFeePerHour = getOvertimeFeePerHour(booking.getVehicle());
+        Integer overtimeHours = invoice.getOvertimeHours();
+        BigDecimal overtimeFeePerHour = (overtimeHours != null && overtimeHours > 0)
+                ? getOvertimeFeePerHour(booking.getVehicle())
+                : BigDecimal.ZERO;
 
         return buildReturnResponse(booking, booking.getVehicle(), inspection, invoice, overtimeFeePerHour);
     }

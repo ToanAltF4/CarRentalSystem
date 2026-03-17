@@ -1,32 +1,56 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import useListViewState from '../../hooks/useListViewState';
 import vehicleService from '../../services/vehicleService';
+import { peekCachedGet } from '../../services/requestCache';
 import Pagination from '../../components/common/Pagination';
+
+const LIST_STATE_KEY = 'admin-vehicle-list-page';
+const LIST_STATE_TTL_MS = 10 * 60 * 1000;
+const VEHICLE_CACHE_KEY = 'vehicles:all';
 
 const AdminVehicleList = () => {
     const PAGE_SIZE = 10;
-    const [vehicles, setVehicles] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const cachedVehicles = peekCachedGet(VEHICLE_CACHE_KEY);
+
+    const [vehicles, setVehicles] = useState(() =>
+        Array.isArray(cachedVehicles) ? cachedVehicles : []
+    );
+    const [loading, setLoading] = useState(!Array.isArray(cachedVehicles));
     const [error, setError] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
 
-    useEffect(() => {
-        fetchVehicles();
-    }, []);
+    const { state: listViewState, setState: setListViewState } = useListViewState({
+        cacheKey: LIST_STATE_KEY,
+        ttlMs: LIST_STATE_TTL_MS,
+        initialState: {
+            searchQuery: '',
+            currentPage: 1,
+        },
+    });
 
-    const fetchVehicles = async () => {
-        try {
+    const searchQuery = listViewState.searchQuery;
+    const currentPage = listViewState.currentPage;
+
+    const fetchVehicles = useCallback(async (showLoader = true) => {
+        if (showLoader) {
             setLoading(true);
+        }
+        try {
+            setError('');
             const data = await vehicleService.getAll();
-            setVehicles(data);
+            setVehicles(Array.isArray(data) ? data : []);
         } catch (err) {
             setError('Failed to load vehicles');
             console.error(err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (Array.isArray(cachedVehicles)) return;
+        fetchVehicles(true);
+    }, [cachedVehicles, fetchVehicles]);
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this vehicle?')) return;
@@ -58,10 +82,6 @@ const AdminVehicleList = () => {
             v.categoryName.toLowerCase().includes(q)
         );
     });
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, vehicles]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
@@ -116,7 +136,13 @@ const AdminVehicleList = () => {
                     type="text"
                     placeholder="Search by license plate, VIN, brand, or model..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) =>
+                        setListViewState((prev) => ({
+                            ...prev,
+                            searchQuery: e.target.value,
+                            currentPage: 1,
+                        }))
+                    }
                     className="w-full md:w-96 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5fcf86] focus:border-transparent"
                 />
             </div>
@@ -226,7 +252,12 @@ const AdminVehicleList = () => {
                     totalPages={totalPages}
                     totalItems={filtered.length}
                     pageSize={PAGE_SIZE}
-                    onPageChange={setCurrentPage}
+                    onPageChange={(page) =>
+                        setListViewState((prev) => ({
+                            ...prev,
+                            currentPage: page,
+                        }))
+                    }
                 />
             )}
 

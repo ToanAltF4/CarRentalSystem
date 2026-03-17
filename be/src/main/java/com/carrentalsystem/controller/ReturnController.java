@@ -2,9 +2,6 @@ package com.carrentalsystem.controller;
 
 import com.carrentalsystem.dto.returns.ReturnRequestDTO;
 import com.carrentalsystem.dto.returns.ReturnResponseDTO;
-import com.carrentalsystem.entity.BookingEntity;
-import com.carrentalsystem.exception.ResourceNotFoundException;
-import com.carrentalsystem.repository.BookingRepository;
 import com.carrentalsystem.service.ReturnService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,12 +10,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * REST Controller for vehicle return and inspection operations.
@@ -30,7 +25,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class ReturnController {
 
     private final ReturnService returnService;
-    private final BookingRepository bookingRepository;
 
     @PostMapping("/{bookingId}/return")
     @Operation(summary = "Process vehicle return", description = "Process the return of a rented vehicle. " +
@@ -57,17 +51,9 @@ public class ReturnController {
     public ResponseEntity<ReturnResponseDTO> getReturnDetails(
             @Parameter(description = "Booking ID") @PathVariable Long bookingId,
             Authentication authentication) {
-        if (!isPrivileged(authentication)) {
-            String email = authentication != null ? authentication.getName() : null;
-            BookingEntity booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
-            if (email == null || booking.getCustomerEmail() == null
-                    || !booking.getCustomerEmail().equalsIgnoreCase(email)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "You are not allowed to view this return invoice");
-            }
-        }
-        ReturnResponseDTO response = returnService.getReturnByBookingId(bookingId);
+        boolean privileged = isPrivileged(authentication);
+        String email = authentication != null ? authentication.getName() : null;
+        ReturnResponseDTO response = returnService.getReturnByBookingId(bookingId, email, privileged);
         return ResponseEntity.ok(response);
     }
 

@@ -30,35 +30,59 @@ const BookingDetailPage = () => {
     const [error, setError] = useState('');
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchReturnDetails = async (bookingId) => {
+            try {
+                const details = await bookingService.getReturnDetails(bookingId);
+                if (isMounted) {
+                    setReturnDetails(details);
+                }
+            } catch {
+                // Return details are optional on this page.
+            }
+        };
+
         const fetchBooking = async () => {
             if (!bookingCode) {
-                setError('Booking code is missing');
-                setLoading(false);
+                if (isMounted) {
+                    setError('Booking code is missing');
+                    setLoading(false);
+                }
                 return;
             }
 
-            setLoading(true);
+            if (isMounted) {
+                setLoading(true);
+                setError('');
+            }
             try {
                 const data = await bookingService.getByCode(decodeURIComponent(bookingCode));
+                if (!isMounted) return;
+
                 setBooking(data);
                 setReturnDetails(null);
                 if (data?.id && (data?.status === 'COMPLETED' || data?.status === 'RETURN_PENDING_PAYMENT')) {
-                    try {
-                        const details = await bookingService.getReturnDetails(data.id);
-                        setReturnDetails(details);
-                    } catch {
-                        // Return details are optional on this page.
-                    }
+                    void fetchReturnDetails(data.id);
                 }
             } catch (err) {
+                if (!isMounted) return;
                 console.error('Failed to fetch booking details:', err);
                 setError('Failed to load booking details');
+                setBooking(null);
+                setReturnDetails(null);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchBooking();
+
+        return () => {
+            isMounted = false;
+        };
     }, [bookingCode]);
 
     const getStatusBadge = (status) => {
@@ -95,6 +119,8 @@ const BookingDetailPage = () => {
         if (Number.isNaN(date.getTime())) return String(value);
         return date.toLocaleString('en-GB');
     };
+
+    const finalInvoiceTotal = booking?.finalInvoiceTotal ?? returnDetails?.totalAmount ?? null;
 
     if (loading) {
         return (
@@ -206,11 +232,11 @@ const BookingDetailPage = () => {
                                                 <span>Service Fee: {formatPrice(booking.serviceFee || 0)}</span>
                                             </div>
                                         )}
-                                        {booking?.finalInvoiceTotal != null ? (
+                                        {finalInvoiceTotal != null ? (
                                             <>
                                                 <div className="flex items-center gap-2">
                                                     <DollarSign size={16} className="text-gray-400" />
-                                                    <span>Final Invoice Total: <span className="font-semibold text-primary">{formatPrice(booking.finalInvoiceTotal)}</span></span>
+                                                    <span>Final Invoice Total: <span className="font-semibold text-primary">{formatPrice(finalInvoiceTotal)}</span></span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-gray-500">
                                                     <DollarSign size={16} className="text-gray-300" />

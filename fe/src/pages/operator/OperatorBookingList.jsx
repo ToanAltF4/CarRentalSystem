@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     Calendar,
@@ -10,9 +10,11 @@ import {
     XCircle,
     RefreshCw
 } from 'lucide-react';
+import useListViewState from '../../hooks/useListViewState';
 import operatorService from '../../services/operatorService';
 import StaffAssignmentModal from '../../components/operator/StaffAssignmentModal';
 import Pagination from '../../components/common/Pagination';
+import { peekCachedGet } from '../../services/requestCache';
 
 const STATUS_OPTIONS = [
     { value: 'ALL', label: 'All Statuses' },
@@ -61,23 +63,51 @@ const isInTodayRange = (booking) => {
     return start <= today && today <= end;
 };
 
+const LIST_STATE_KEY = 'operator-booking-list-page';
+const LIST_STATE_TTL_MS = 10 * 60 * 1000;
+
 const OperatorBookingList = () => {
     const PAGE_SIZE = 10;
     const [searchParams] = useSearchParams();
-    const [bookings, setBookings] = useState([]);
-    const [loading, setLoading] = useState(true);
+
+    const queryStatus = searchParams.get('status');
+    const queryTodayOnly = searchParams.get('filter') === 'today';
+
+    const { state: listViewState, setState: setListViewState } = useListViewState({
+        cacheKey: LIST_STATE_KEY,
+        ttlMs: LIST_STATE_TTL_MS,
+        initialState: {
+            filterStatus: queryStatus || 'ALL',
+            todayOnly: queryTodayOnly,
+            filterRentalType: 'ALL',
+            searchTerm: '',
+            currentPage: 1,
+        },
+    });
+
+    const filterStatus = listViewState.filterStatus;
+    const todayOnly = listViewState.todayOnly;
+    const filterRentalType = listViewState.filterRentalType;
+    const searchTerm = listViewState.searchTerm;
+    const currentPage = listViewState.currentPage;
+
+    const bookingCacheKey = useMemo(
+        () => operatorService.getBookingsCacheKey(filterStatus, todayOnly),
+        [filterStatus, todayOnly]
+    );
+    const cachedBookings = peekCachedGet(bookingCacheKey);
+
+    const [bookings, setBookings] = useState(() =>
+        Array.isArray(cachedBookings) ? cachedBookings : []
+    );
+    const [loading, setLoading] = useState(!Array.isArray(cachedBookings));
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
-    const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'ALL');
-    const [todayOnly, setTodayOnly] = useState(searchParams.get('filter') === 'today');
-    const [filterRentalType, setFilterRentalType] = useState('ALL');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
 
     const [showAssignmentModal, setShowAssignmentModal] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState(null);
 
-    const fetchBookings = async (showLoader = true) => {
+    const fetchBookings = useCallback(async (showLoader = true) => {
         if (showLoader) setLoading(true);
         if (!showLoader) setRefreshing(true);
         setError('');
@@ -98,12 +128,28 @@ const OperatorBookingList = () => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [filterStatus, todayOnly]);
 
     useEffect(() => {
+        if (queryStatus || queryTodayOnly) {
+            setListViewState((prev) => ({
+                ...prev,
+                filterStatus: queryStatus || prev.filterStatus,
+                todayOnly: queryTodayOnly || prev.todayOnly,
+                currentPage: 1,
+            }));
+        }
+    }, [queryStatus, queryTodayOnly, setListViewState]);
+
+    useEffect(() => {
+        const warmCache = peekCachedGet(operatorService.getBookingsCacheKey(filterStatus, todayOnly));
+        if (warmCache !== undefined) {
+            setBookings(Array.isArray(warmCache) ? warmCache : []);
+            setLoading(false);
+            return;
+        }
         fetchBookings(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterStatus, todayOnly]);
+    }, [fetchBookings, filterStatus, todayOnly]);
 
     const handleApprove = async (id) => {
         if (!window.confirm('Approve this booking?')) return;
@@ -161,10 +207,6 @@ const OperatorBookingList = () => {
         })
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [filterStatus, todayOnly, filterRentalType, searchTerm, bookings]);
-
     const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
     const paginatedBookings = filteredBookings.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -194,7 +236,13 @@ const OperatorBookingList = () => {
                             type="text"
                             placeholder="Search code, customer, vehicle..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) =>
+                                setListViewState((prev) => ({
+                                    ...prev,
+                                    searchTerm: e.target.value,
+                                    currentPage: 1,
+                                }))
+                            }
                             className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-3 focus:border-primary focus:outline-none"
                         />
                     </div>
@@ -202,7 +250,13 @@ const OperatorBookingList = () => {
                     <div className="relative">
                         <select
                             value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
+                            onChange={(e) =>
+                                setListViewState((prev) => ({
+                                    ...prev,
+                                    filterStatus: e.target.value,
+                                    currentPage: 1,
+                                }))
+                            }
                             className="w-full appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-3 pr-10 focus:border-primary focus:outline-none"
                         >
                             {STATUS_OPTIONS.map((option) => (
@@ -217,7 +271,13 @@ const OperatorBookingList = () => {
                     <div className="relative">
                         <select
                             value={filterRentalType}
-                            onChange={(e) => setFilterRentalType(e.target.value)}
+                            onChange={(e) =>
+                                setListViewState((prev) => ({
+                                    ...prev,
+                                    filterRentalType: e.target.value,
+                                    currentPage: 1,
+                                }))
+                            }
                             className="w-full appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-3 pr-10 focus:border-primary focus:outline-none"
                         >
                             <option value="ALL">All Services</option>
@@ -231,7 +291,13 @@ const OperatorBookingList = () => {
                         <input
                             type="checkbox"
                             checked={todayOnly}
-                            onChange={(e) => setTodayOnly(e.target.checked)}
+                            onChange={(e) =>
+                                setListViewState((prev) => ({
+                                    ...prev,
+                                    todayOnly: e.target.checked,
+                                    currentPage: 1,
+                                }))
+                            }
                             className="h-4 w-4 accent-primary"
                         />
                         <span className="text-sm font-medium text-gray-700">Today only</span>
@@ -373,7 +439,12 @@ const OperatorBookingList = () => {
                             totalPages={totalPages}
                             totalItems={filteredBookings.length}
                             pageSize={PAGE_SIZE}
-                            onPageChange={setCurrentPage}
+                            onPageChange={(page) =>
+                                setListViewState((prev) => ({
+                                    ...prev,
+                                    currentPage: page,
+                                }))
+                            }
                             className="mt-4 pt-3"
                         />
                     </div>

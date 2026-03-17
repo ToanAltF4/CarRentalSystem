@@ -292,14 +292,14 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponseDTO getBookingById(Long id) {
         BookingEntity booking = bookingRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
-        return toEnrichedDTO(booking);
+        return toDetailDTO(booking);
     }
 
     @Override
     public BookingResponseDTO getBookingByCode(String bookingCode) {
         BookingEntity booking = bookingRepository.findByBookingCodeWithDetails(bookingCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "code", bookingCode));
-        return toEnrichedDTO(booking);
+        return toDetailDTO(booking);
     }
 
     @Override
@@ -319,7 +319,7 @@ public class BookingServiceImpl implements BookingService {
         long startNs = System.nanoTime();
         List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByCreatedAtDescWithDetails(email);
         long fetchNs = System.nanoTime();
-        List<BookingResponseDTO> result = toEnrichedDTOList(bookings, false, false, false, false);
+        List<BookingResponseDTO> result = toEnrichedDTOList(bookings, false, false, false, false, true);
         long mapNs = System.nanoTime();
         log.info("getBookingsByCustomerEmail: email={}, bookings={}, fetchMs={}, mapMs={}, totalMs={}",
                 email,
@@ -393,7 +393,14 @@ public class BookingServiceImpl implements BookingService {
     // ============== Private Helper Methods ==============
 
     private BookingResponseDTO toEnrichedDTO(BookingEntity entity) {
-        return toEnrichedDTO(entity, null, null, null, true, true, true);
+        return toEnrichedDTO(entity, null, null, null, true, true, true, true);
+    }
+
+    private BookingResponseDTO toDetailDTO(BookingEntity entity) {
+        // Detail endpoint does not render vehicle thumbnail, so skip image lookups to reduce DB round-trips.
+        return toEnrichedDTOList(List.of(entity), true, true, false, false, false).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", entity.getId()));
     }
 
     private BookingResponseDTO toEnrichedDTO(BookingEntity entity, java.util.Map<Long, UserEntity> userMap,
@@ -401,7 +408,8 @@ public class BookingServiceImpl implements BookingService {
             java.util.Map<Long, String> vehicleImageMap,
             boolean includeSelectedDates,
             boolean allowImageFallback,
-            boolean includeUserEnrichment) {
+            boolean includeUserEnrichment,
+            boolean includeFinalInvoice) {
         BookingResponseDTO dto = bookingMapper.toResponseDTO(entity);
 
         // Helper to resolve user from map or DB
@@ -480,32 +488,35 @@ public class BookingServiceImpl implements BookingService {
             dto.setSelectedDates(resolveSelectedDatesFromBooking(entity));
         }
 
-        // Final invoice total = rental total paid + damage fee (if any)
-        java.math.BigDecimal damageFee = null;
-        if (damageFeeMap != null) {
-            damageFee = damageFeeMap.get(entity.getId());
-        }
-        if (damageFee == null) {
-            InvoiceEntity invoice = invoiceRepository.findByBookingId(entity.getId()).orElse(null);
-            damageFee = invoice != null && invoice.getDamageFee() != null ? invoice.getDamageFee() : BigDecimal.ZERO;
-        }
-        if (damageFee != null) {
-            BigDecimal rentalTotal = entity.getTotalAmount() != null ? entity.getTotalAmount() : BigDecimal.ZERO;
-            dto.setFinalInvoiceTotal(rentalTotal.add(damageFee));
+        if (includeFinalInvoice) {
+            // Final invoice total = rental total paid + damage fee (if any)
+            java.math.BigDecimal damageFee = null;
+            if (damageFeeMap != null) {
+                damageFee = damageFeeMap.get(entity.getId());
+            }
+            if (damageFee == null) {
+                InvoiceEntity invoice = invoiceRepository.findByBookingId(entity.getId()).orElse(null);
+                damageFee = invoice != null && invoice.getDamageFee() != null ? invoice.getDamageFee() : BigDecimal.ZERO;
+            }
+            if (damageFee != null) {
+                BigDecimal rentalTotal = entity.getTotalAmount() != null ? entity.getTotalAmount() : BigDecimal.ZERO;
+                dto.setFinalInvoiceTotal(rentalTotal.add(damageFee));
+            }
         }
 
         return dto;
     }
 
     private List<BookingResponseDTO> toEnrichedDTOList(List<BookingEntity> entities) {
-        return toEnrichedDTOList(entities, true, true, false, true);
+        return toEnrichedDTOList(entities, true, true, false, true, true);
     }
 
     private List<BookingResponseDTO> toEnrichedDTOList(List<BookingEntity> entities,
             boolean includeUserEnrichment,
             boolean includeSelectedDates,
             boolean allowImageFallback,
-            boolean includeVehicleImages) {
+            boolean includeVehicleImages,
+            boolean includeFinalInvoice) {
         if (entities == null || entities.isEmpty()) {
             return List.of();
         }
@@ -537,7 +548,7 @@ public class BookingServiceImpl implements BookingService {
                 .map(BookingEntity::getId)
                 .filter(java.util.Objects::nonNull)
                 .toList();
-        if (!bookingIds.isEmpty()) {
+        if (includeFinalInvoice && !bookingIds.isEmpty()) {
             damageFeeMap = invoiceRepository.findDamageByBookingIdIn(bookingIds).stream()
                     .filter(inv -> inv.getBookingId() != null)
                     .collect(java.util.stream.Collectors.toMap(
@@ -580,7 +591,8 @@ public class BookingServiceImpl implements BookingService {
                         includeVehicleImages ? finalVehicleImageMap : null,
                         includeSelectedDates,
                         allowImageFallback,
-                        includeUserEnrichment))
+                        includeUserEnrichment,
+                        includeFinalInvoice))
                 .toList();
     }
 

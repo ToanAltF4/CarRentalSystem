@@ -20,5 +20,5 @@ public interface ReturnService {
     /**
      * Get return details by booking ID.
      */
-    ReturnResponseDTO getReturnByBookingId(Long bookingId);
+    ReturnResponseDTO getReturnByBookingId(Long bookingId, String requesterEmail, boolean privileged);
 }

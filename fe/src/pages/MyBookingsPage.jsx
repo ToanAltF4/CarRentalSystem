@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Calendar, Car, Clock, DollarSign, XCircle,
@@ -6,28 +6,48 @@ import {
     ChevronRight, Eye, Timer, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import useListViewState from '../hooks/useListViewState';
 import bookingService from '../services/bookingService';
 import PaymentModal from '../components/common/PaymentModal';
 import Pagination from '../components/common/Pagination';
 import { formatPrice } from '../utils/formatters';
 import paymentService from '../services/paymentService';
+import { peekCachedGet } from '../services/requestCache';
 import {
     formatRemainingPaymentTime,
     getPaymentTimeoutMinutes,
     getRemainingPaymentMs
 } from '../utils/bookingPaymentTimeout';
 
+const LIST_STATE_KEY = 'my-bookings-page';
+const LIST_STATE_TTL_MS = 10 * 60 * 1000;
+
 const MyBookingsPage = () => {
     const PAGE_SIZE = 6;
     const { user } = useAuth();
-    const [bookings, setBookings] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const bookingCacheKey = user?.email ? `bookings:by-email:${user.email}` : null;
+    const cachedBookings = bookingCacheKey ? peekCachedGet(bookingCacheKey) : undefined;
+
+    const [bookings, setBookings] = useState(() =>
+        Array.isArray(cachedBookings) ? cachedBookings : []
+    );
+    const [loading, setLoading] = useState(!Array.isArray(cachedBookings));
     const [error, setError] = useState('');
     const [cancellingId, setCancellingId] = useState(null);
     const [paymentBooking, setPaymentBooking] = useState(null);
     const [returnPayingId, setReturnPayingId] = useState(null);
-    const [activeStatus, setActiveStatus] = useState('ALL');
-    const [currentPage, setCurrentPage] = useState(1);
+
+    const { state: listViewState, setState: setListViewState } = useListViewState({
+        cacheKey: LIST_STATE_KEY,
+        ttlMs: LIST_STATE_TTL_MS,
+        initialState: {
+            activeStatus: 'ALL',
+            currentPage: 1,
+        },
+    });
+
+    const activeStatus = listViewState.activeStatus;
+    const currentPage = listViewState.currentPage;
     const [now, setNow] = useState(Date.now());
     const timeoutMinutes = getPaymentTimeoutMinutes();
 
@@ -36,13 +56,15 @@ const MyBookingsPage = () => {
         return () => clearInterval(timer);
     }, []);
 
-    const fetchBookings = async () => {
-        setLoading(true);
+    const fetchBookings = useCallback(async (showLoader = true) => {
+        if (showLoader) {
+            setLoading(true);
+        }
+        setError('');
         try {
-            // Use authenticated user's email
             if (user?.email) {
                 const data = await bookingService.getByEmail(user.email);
-                setBookings(data);
+                setBookings(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Failed to fetch bookings:', err);
@@ -50,13 +72,24 @@ const MyBookingsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.email]);
 
     useEffect(() => {
-        if (user) {
-            fetchBookings();
+        if (!user?.email) {
+            setBookings([]);
+            setLoading(false);
+            return;
         }
-    }, [user]);
+
+        const warmCache = peekCachedGet(`bookings:by-email:${user.email}`);
+        if (warmCache !== undefined) {
+            setBookings(Array.isArray(warmCache) ? warmCache : []);
+            setLoading(false);
+            return;
+        }
+
+        fetchBookings(true);
+    }, [fetchBookings, user?.email]);
 
     const handleCancel = async (id) => {
         if (!window.confirm('Are you sure you want to cancel this booking?')) return;
@@ -64,7 +97,7 @@ const MyBookingsPage = () => {
         setCancellingId(id);
         try {
             await bookingService.cancel(id);
-            await fetchBookings(); // Refresh list
+            await fetchBookings(false);
         } catch (err) {
             console.error('Failed to cancel booking:', err);
             alert(err.response?.data?.message || 'Failed to cancel booking');
@@ -75,7 +108,7 @@ const MyBookingsPage = () => {
 
     const handlePaymentSuccess = () => {
         setPaymentBooking(null);
-        fetchBookings(); // Refresh to show updated status
+        fetchBookings(false);
     };
 
     const getVehicleDisplayName = (booking) => {
@@ -126,10 +159,6 @@ const MyBookingsPage = () => {
         return [...list].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }, [activeStatus, bookings]);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [activeStatus, bookings]);
-
     const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
     const paginatedBookings = useMemo(() => {
@@ -159,7 +188,7 @@ const MyBookingsPage = () => {
                     <p className="text-gray-500 mt-1">Welcome back, {user?.fullName || 'Guest'}!</p>
                 </div>
                 <button
-                    onClick={fetchBookings}
+                    onClick={() => fetchBookings(true)}
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:border-primary/40 hover:text-primary transition-colors"
                 >
                     <RefreshCw size={16} />
@@ -173,7 +202,13 @@ const MyBookingsPage = () => {
                     {statusFilters.map((filter) => (
                         <button
                             key={filter.key}
-                            onClick={() => setActiveStatus(filter.key)}
+                            onClick={() =>
+                                setListViewState((prev) => ({
+                                    ...prev,
+                                    activeStatus: filter.key,
+                                    currentPage: 1,
+                                }))
+                            }
                             className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${activeStatus === filter.key
                                 ? 'bg-primary text-white'
                                 : 'bg-white border border-gray-200 text-gray-700 hover:border-primary/40'
@@ -404,7 +439,12 @@ const MyBookingsPage = () => {
                     totalPages={totalPages}
                     totalItems={filteredBookings.length}
                     pageSize={PAGE_SIZE}
-                    onPageChange={setCurrentPage}
+                    onPageChange={(page) =>
+                        setListViewState((prev) => ({
+                            ...prev,
+                            currentPage: page,
+                        }))
+                    }
                 />
             )}
 
