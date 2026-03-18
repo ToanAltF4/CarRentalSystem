@@ -43,29 +43,29 @@ echo.
 if not exist "%BE_DIR%\target\car-rental-system-be-0.0.1-SNAPSHOT.jar" (
     echo [1/3] Building Backend... this may take a few minutes
     cd /d "%BE_DIR%"
-    call mvn clean package -DskipTests -B -q
-    if errorlevel 1 ( echo [ERROR] Backend build failed! & pause & exit /b 1 )
+    call mvnw.cmd clean package -DskipTests -B -q
+    if errorlevel 1 (
+        echo       Trying mvn instead of mvnw...
+        call mvn clean package -DskipTests -B -q
+        if errorlevel 1 ( echo [ERROR] Backend build failed! & pause & exit /b 1 )
+    )
     echo       Done!
 ) else (
     echo [1/3] Backend JAR found, skipping build.
 )
 
 :: ============================================
-:: STEP 2: Build Frontend (only if dist missing)
+:: STEP 2: Install Frontend dependencies
 :: ============================================
-if not exist "%FE_DIR%\dist\index.html" (
-    echo [2/3] Building Frontend...
-    cd /d "%FE_DIR%"
-    if not exist "node_modules" (
-        echo       Installing npm dependencies...
-        call npm ci --silent
-    )
-    set "VITE_API_BASE_URL=https://api.fpt.tokyo/api"
-    call npm run build
-    if errorlevel 1 ( echo [ERROR] Frontend build failed! & pause & exit /b 1 )
+echo [2/3] Checking Frontend dependencies...
+cd /d "%FE_DIR%"
+if not exist "node_modules" (
+    echo       Installing npm dependencies...
+    call npm install
+    if errorlevel 1 ( echo [ERROR] npm install failed! & pause & exit /b 1 )
     echo       Done!
 ) else (
-    echo [2/3] Frontend dist found, skipping build.
+    echo       node_modules found, skipping install.
 )
 
 :: ============================================
@@ -81,9 +81,9 @@ start "EV-Fleet-Backend" cmd /c "title EV-Fleet Backend && color 0B && echo Star
 echo       Waiting for backend to start (15s)...
 timeout /t 15 /nobreak >nul
 
-:: Start Frontend
+:: Start Frontend (dev mode on port 5173)
 cd /d "%FE_DIR%"
-start "EV-Fleet-Frontend" cmd /c "title EV-Fleet Frontend && color 0D && echo Serving frontend on port 4000... && npx serve dist -l 4000 -s"
+start "EV-Fleet-Frontend" cmd /c "title EV-Fleet Frontend && color 0D && echo Starting frontend dev server on port 5173... && set VITE_API_BASE_URL=https://api.fpt.tokyo/api && npx vite --host"
 
 timeout /t 3 /nobreak >nul
 
@@ -101,7 +101,7 @@ echo.
 echo    Frontend:  https://fpt.tokyo
 echo    Backend:   https://api.fpt.tokyo
 echo    Swagger:   https://api.fpt.tokyo/swagger-ui/index.html
-echo    Local FE:  http://localhost:4000
+echo    Local FE:  http://localhost:5173
 echo    Local API: http://localhost:8080
 echo.
 echo    To stop: close the 3 CMD windows or run stop.bat
