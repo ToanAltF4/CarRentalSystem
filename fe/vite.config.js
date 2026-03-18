@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    allowedHosts: ['fpt.tokyo'],
     proxy: {
       '/nominatim': {
         target: 'https://nominatim.openstreetmap.org',
