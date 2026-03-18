@@ -83,7 +83,7 @@ timeout /t 15 /nobreak >nul
 
 :: Start Frontend (dev mode on port 5173)
 cd /d "%FE_DIR%"
-start "EV-Fleet-Frontend" cmd /c "title EV-Fleet Frontend && color 0D && echo Starting frontend dev server on port 5173... && set VITE_API_BASE_URL=https://api.fpt.tokyo/api && npx vite --host"
+start "EV-Fleet-Frontend" cmd /c "title EV-Fleet Frontend && color 0D && echo Starting frontend dev server on port 5173... && set "VITE_API_BASE_URL=https://api.fpt.tokyo/api" && npx vite --host"
 
 timeout /t 3 /nobreak >nul
 
