@@ -319,7 +319,9 @@ public class BookingServiceImpl implements BookingService {
         long startNs = System.nanoTime();
         List<BookingEntity> bookings = bookingRepository.findByCustomerEmailOrderByCreatedAtDescWithDetails(email);
         long fetchNs = System.nanoTime();
-        List<BookingResponseDTO> result = toEnrichedDTOList(bookings, false, false, false, false, true);
+        // Customer booking list must include vehicle thumbnails so each booking card
+        // shows the rented car image instead of the frontend fallback image.
+        List<BookingResponseDTO> result = toEnrichedDTOList(bookings, false, false, false, true, true);
         long mapNs = System.nanoTime();
         log.info("getBookingsByCustomerEmail: email={}, bookings={}, fetchMs={}, mapMs={}, totalMs={}",
                 email,
