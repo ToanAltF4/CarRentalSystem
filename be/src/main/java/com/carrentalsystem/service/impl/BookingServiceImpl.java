@@ -400,13 +400,13 @@ public class BookingServiceImpl implements BookingService {
 
     private BookingResponseDTO toDetailDTO(BookingEntity entity) {
         // Detail endpoint does not render vehicle thumbnail, so skip image lookups to reduce DB round-trips.
-        return toEnrichedDTOList(List.of(entity), true, true, false, false, false).stream()
+        return toEnrichedDTOList(List.of(entity), true, true, false, false, true).stream()
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", entity.getId()));
     }
 
     private BookingResponseDTO toEnrichedDTO(BookingEntity entity, java.util.Map<Long, UserEntity> userMap,
-            java.util.Map<Long, java.math.BigDecimal> damageFeeMap,
+            java.util.Map<Long, java.math.BigDecimal> invoiceTotalMap,
             java.util.Map<Long, String> vehicleImageMap,
             boolean includeSelectedDates,
             boolean allowImageFallback,
@@ -491,18 +491,26 @@ public class BookingServiceImpl implements BookingService {
         }
 
         if (includeFinalInvoice) {
-            // Final invoice total = rental total paid + damage fee (if any)
-            java.math.BigDecimal damageFee = null;
-            if (damageFeeMap != null) {
-                damageFee = damageFeeMap.get(entity.getId());
+            // Final invoice behavior:
+            // - RETURN_PENDING_PAYMENT: amount to pay now (damage fee only)
+            // - COMPLETED: total paid = rental total + damage fee (if any)
+            java.math.BigDecimal invoiceTotal = null;
+            if (invoiceTotalMap != null) {
+                invoiceTotal = invoiceTotalMap.get(entity.getId());
             }
-            if (damageFee == null) {
+            if (invoiceTotal == null) {
                 InvoiceEntity invoice = invoiceRepository.findByBookingId(entity.getId()).orElse(null);
-                damageFee = invoice != null && invoice.getDamageFee() != null ? invoice.getDamageFee() : BigDecimal.ZERO;
+                invoiceTotal = invoice != null ? invoice.getTotalAmount() : null;
             }
-            if (damageFee != null) {
+            BookingStatus status = entity.getStatus();
+            if (status == BookingStatus.RETURN_PENDING_PAYMENT) {
+                if (invoiceTotal != null) {
+                    dto.setFinalInvoiceTotal(invoiceTotal);
+                }
+            } else if (status == BookingStatus.COMPLETED) {
                 BigDecimal rentalTotal = entity.getTotalAmount() != null ? entity.getTotalAmount() : BigDecimal.ZERO;
-                dto.setFinalInvoiceTotal(rentalTotal.add(damageFee));
+                BigDecimal damageTotal = invoiceTotal != null ? invoiceTotal : BigDecimal.ZERO;
+                dto.setFinalInvoiceTotal(rentalTotal.add(damageTotal));
             }
         }
 
@@ -544,18 +552,18 @@ public class BookingServiceImpl implements BookingService {
                     java.util.stream.Collectors.toMap(UserEntity::getId, java.util.function.Function.identity()));
         }
 
-        // 3. Batch fetch damage fees for final totals
-        java.util.Map<Long, java.math.BigDecimal> damageFeeMap = java.util.Map.of();
+        // 3. Batch fetch invoice totals for final totals
+        java.util.Map<Long, java.math.BigDecimal> invoiceTotalMap = java.util.Map.of();
         java.util.List<Long> bookingIds = entities.stream()
                 .map(BookingEntity::getId)
                 .filter(java.util.Objects::nonNull)
                 .toList();
         if (includeFinalInvoice && !bookingIds.isEmpty()) {
-            damageFeeMap = invoiceRepository.findDamageByBookingIdIn(bookingIds).stream()
+            invoiceTotalMap = invoiceRepository.findTotalByBookingIdIn(bookingIds).stream()
                     .filter(inv -> inv.getBookingId() != null)
                     .collect(java.util.stream.Collectors.toMap(
                             inv -> inv.getBookingId(),
-                            inv -> inv.getDamageFee() != null ? inv.getDamageFee() : java.math.BigDecimal.ZERO,
+                            inv -> inv.getTotalAmount(),
                             (a, b) -> a));
         }
 
@@ -581,15 +589,15 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 5. Map to DTOs using the userMap + damageFeeMap + vehicleImageMap
+        // 5. Map to DTOs using the userMap + invoiceTotalMap + vehicleImageMap
         final java.util.Map<Long, UserEntity> finalUserMap = userMap;
-        final java.util.Map<Long, java.math.BigDecimal> finalDamageFeeMap = damageFeeMap;
+        final java.util.Map<Long, java.math.BigDecimal> finalInvoiceTotalMap = invoiceTotalMap;
         final java.util.Map<Long, String> finalVehicleImageMap = vehicleImageMap;
         return entities.stream()
                 .map(entity -> toEnrichedDTO(
                         entity,
                         finalUserMap,
-                        finalDamageFeeMap,
+                        finalInvoiceTotalMap,
                         includeVehicleImages ? finalVehicleImageMap : null,
                         includeSelectedDates,
                         allowImageFallback,

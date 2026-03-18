@@ -319,26 +319,35 @@ const MyBookingsPage = () => {
                                                         <p className="font-medium">{booking.totalDays} days</p>
                                                     </div>
                                                 </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                            <DollarSign size={16} className="text-gray-400" />
-                            <div>
-                                {(booking.status === 'RETURN_PENDING_PAYMENT' || booking.status === 'COMPLETED') ? (
-                                    <>
-                                        <p className="text-xs text-gray-400">Final Invoice</p>
-                                        <p className="font-semibold text-primary">
-                                            {booking.finalInvoiceTotal != null
-                                                ? formatPrice(booking.finalInvoiceTotal)
-                                                : '—'}
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <p className="text-xs text-gray-400">Total</p>
-                                        <p className="font-semibold text-primary">{formatPrice(booking.totalAmount)}</p>
-                                    </>
-                                )}
-                            </div>
-                        </div>
+                                                <div className="flex items-center gap-2 text-gray-600">
+                                                    <DollarSign size={16} className="text-gray-400" />
+                                                    <div>
+                                                        {booking.status === 'RETURN_PENDING_PAYMENT' ? (
+                                                            <>
+                                                                <p className="text-xs text-gray-400">Final Invoice</p>
+                                                                <p className="font-semibold text-primary">
+                                                                    {booking.finalInvoiceTotal != null
+                                                                        ? formatPrice(booking.finalInvoiceTotal)
+                                                                        : '-'}
+                                                                </p>
+                                                            </>
+                                                        ) : booking.status === 'COMPLETED' ? (
+                                                            <>
+                                                                <p className="text-xs text-gray-400">Total Paid</p>
+                                                                <p className="font-semibold text-primary">
+                                                                    {booking.finalInvoiceTotal != null
+                                                                        ? formatPrice(booking.finalInvoiceTotal)
+                                                                        : formatPrice(booking.totalAmount || 0)}
+                                                                </p>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <p className="text-xs text-gray-400">Total</p>
+                                                                <p className="font-semibold text-primary">{formatPrice(booking.totalAmount)}</p>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -461,6 +470,7 @@ const MyBookingsPage = () => {
 };
 
 export default MyBookingsPage;
+
 
 
 

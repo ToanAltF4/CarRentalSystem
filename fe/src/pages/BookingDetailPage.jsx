@@ -121,6 +121,8 @@ const BookingDetailPage = () => {
     };
 
     const finalInvoiceTotal = booking?.finalInvoiceTotal ?? returnDetails?.totalAmount ?? null;
+    const isReturnPending = booking?.status === 'RETURN_PENDING_PAYMENT';
+    const isCompleted = booking?.status === 'COMPLETED';
 
     if (loading) {
         return (
@@ -232,21 +234,40 @@ const BookingDetailPage = () => {
                                                 <span>Service Fee: {formatPrice(booking.serviceFee || 0)}</span>
                                             </div>
                                         )}
-                                        {finalInvoiceTotal != null ? (
+                                        {isReturnPending ? (
                                             <>
                                                 <div className="flex items-center gap-2">
                                                     <DollarSign size={16} className="text-gray-400" />
-                                                    <span>Final Invoice Total: <span className="font-semibold text-primary">{formatPrice(finalInvoiceTotal)}</span></span>
+                                                    <span>
+                                                        Final Invoice Total:{' '}
+                                                        <span className="font-semibold text-primary">
+                                                            {finalInvoiceTotal != null ? formatPrice(finalInvoiceTotal) : '-'}
+                                                        </span>
+                                                    </span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-gray-500">
                                                     <DollarSign size={16} className="text-gray-300" />
                                                     <span>Rental Total (Paid): {formatPrice(booking.totalAmount || 0)}</span>
                                                 </div>
                                             </>
+                                        ) : isCompleted ? (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>
+                                                    Total Paid:{' '}
+                                                    <span className="font-semibold text-primary">
+                                                        {finalInvoiceTotal != null
+                                                            ? formatPrice(finalInvoiceTotal)
+                                                            : formatPrice(booking.totalAmount || 0)}
+                                                    </span>
+                                                </span>
+                                            </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 <DollarSign size={16} className="text-gray-400" />
-                                                <span>Total: <span className="font-semibold text-primary">{formatPrice(booking.totalAmount || 0)}</span></span>
+                                                <span>
+                                                    Total: <span className="font-semibold text-primary">{formatPrice(booking.totalAmount || 0)}</span>
+                                                </span>
                                             </div>
                                         )}
                                         {returnDetails?.invoiceNumber && (
