@@ -61,7 +61,7 @@ const HeroSection = () => {
                         </div>
                         <div className="flex items-center gap-2 text-white/90 text-sm">
                             <Sparkles size={18} className="text-[#5fcf86]" />
-                            <span>New 2023-2024 Models</span>
+                            <span>New 2024-2025 Models</span>
                         </div>
                         <div className="flex items-center gap-2 text-white/90 text-sm">
                             <Headphones size={18} className="text-[#5fcf86]" />

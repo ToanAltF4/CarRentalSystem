@@ -19,13 +19,13 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            setError('Chỉ chấp nhận file ảnh');
+            setError('Only image files are accepted');
             return;
         }
 
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-            setError('File vượt quá 10MB');
+            setError('File exceeds 10MB limit');
             return;
         }
 
@@ -62,7 +62,7 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
         } catch (err) {
             console.error('Upload failed:', err);
             const msg = err.response?.data?.error || err.message || 'Upload failed';
-            setError(`Lỗi: ${msg}`);
+            setError(`Error: ${msg}`);
             setUploading(false);
         }
     };
@@ -84,7 +84,7 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
     return (
         <div className="w-full">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Hình ảnh xe
+                Vehicle Image
             </label>
 
             {!preview ? (
@@ -100,8 +100,8 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
                         <div className="w-14 h-14 rounded-full bg-[#5fcf86]/10 flex items-center justify-center">
                             <Upload size={24} className="text-[#5fcf86]" />
                         </div>
-                        <span className="text-sm font-medium">Nhấn để tải ảnh lên</span>
-                        <span className="text-xs text-gray-400">PNG, JPG tối đa 10MB</span>
+                        <span className="text-sm font-medium">Click to upload image</span>
+                        <span className="text-xs text-gray-400">PNG, JPG up to 10MB</span>
                     </div>
                 </div>
             ) : (
@@ -126,7 +126,7 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
                     {uploading && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
                             <Loader2 size={36} className="animate-spin text-[#5fcf86] mb-3" />
-                            <span className="text-sm font-semibold text-gray-700">Đang tải lên...</span>
+                            <span className="text-sm font-semibold text-gray-700">Uploading...</span>
                             <div className="w-48 h-2 bg-gray-200 rounded-full mt-3 overflow-hidden">
                                 <div
                                     className="h-full bg-[#5fcf86] rounded-full transition-all duration-300"
@@ -142,7 +142,7 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
                             <div className="flex items-center gap-2 text-white">
                                 <CheckCircle size={18} className="text-green-400" />
-                                <span className="text-sm font-medium">Tải lên thành công!</span>
+                                <span className="text-sm font-medium">Upload successful!</span>
                             </div>
                         </div>
                     )}
@@ -156,7 +156,7 @@ const ImageUpload = ({ onUploadSuccess, folder = 'vehicles' }) => {
                                 onClick={retryUpload}
                                 className="mt-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                             >
-                                Thử lại
+                                Retry
                             </button>
                         </div>
                     )}

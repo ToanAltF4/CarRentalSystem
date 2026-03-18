@@ -12,7 +12,7 @@ const CarCard = ({ car }) => {
         dailyRate = 0,
         rating = 5.0,
         trips = 0,
-        location = 'Quận 1, TP.HCM',
+        location = 'Ho Chi Minh City',
         discount = null,
         delivery = true,
         isElectric = true,
@@ -55,7 +55,7 @@ const CarCard = ({ car }) => {
                 {/* Discount Badge - Top Left */}
                 {discount && (
                     <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md">
-                        Giảm {discount}%
+                        -{discount}%
                     </div>
                 )}
 
@@ -63,7 +63,7 @@ const CarCard = ({ car }) => {
                 {isElectric && (
                     <div className="absolute top-3 right-3 bg-[#5fcf86] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md flex items-center gap-1">
                         <Zap size={12} />
-                        Điện
+                        EV
                     </div>
                 )}
 
@@ -71,7 +71,7 @@ const CarCard = ({ car }) => {
                 {delivery && (
                     <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm text-[#5fcf86] text-xs font-semibold px-3 py-1.5 rounded-lg shadow-md flex items-center gap-1.5">
                         <Truck size={14} />
-                        Giao xe tận nơi
+                        Delivery
                     </div>
                 )}
             </div>
@@ -90,7 +90,7 @@ const CarCard = ({ car }) => {
                         <span className="font-semibold text-[#141414]">{rating.toFixed(1)}</span>
                     </div>
                     <span className="text-gray-400">•</span>
-                    <span className="text-gray-500">{trips} chuyến</span>
+                    <span className="text-gray-500">{trips} trips</span>
                 </div>
 
                 {/* Price & Location */}
@@ -104,7 +104,7 @@ const CarCard = ({ car }) => {
                     {/* Price */}
                     <div className="text-right">
                         <span className="text-lg font-bold text-[#5fcf86]">{formatPrice(dailyRate)}</span>
-                        <span className="text-gray-400 text-xs">/ngày</span>
+                        <span className="text-gray-400 text-xs">/day</span>
                     </div>
                 </div>
             </div>

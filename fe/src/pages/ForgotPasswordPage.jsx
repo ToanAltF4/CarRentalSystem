@@ -21,7 +21,7 @@ function ForgotPasswordPage() {
             console.error('Forgot password error:', err);
             setError(
                 err.response?.data?.message ||
-                'Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.'
+                'Failed to send reset email. Please try again.'
             );
         } finally {
             setLoading(false);
@@ -36,21 +36,21 @@ function ForgotPasswordPage() {
                         <svg style={styles.successIcon} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
-                        <h2 style={styles.successTitle}>Email đã được gửi!</h2>
+                        <h2 style={styles.successTitle}>Email Sent!</h2>
                         <p style={styles.successText}>
-                            Chúng tôi đã gửi link đặt lại mật khẩu đến email <strong>{email}</strong>
+                            We have sent a password reset link to <strong>{email}</strong>
                         </p>
                         <p style={styles.successText}>
-                            Vui lòng kiểm tra hộp thư của bạn và làm theo hướng dẫn.
+                            Please check your inbox and follow the instructions.
                         </p>
                         <p style={styles.helpText}>
-                            Link có hiệu lực trong 1 giờ.
+                            The link is valid for 1 hour.
                         </p>
                         <button
                             onClick={() => navigate('/login')}
                             style={styles.button}
                         >
-                            Quay lại đăng nhập
+                            Back to Login
                         </button>
                     </div>
                 </div>
@@ -67,9 +67,9 @@ function ForgotPasswordPage() {
                     </svg>
                 </div>
 
-                <h2 style={styles.title}>Quên mật khẩu?</h2>
+                <h2 style={styles.title}>Forgot Password?</h2>
                 <p style={styles.subtitle}>
-                    Nhập email của bạn và chúng tôi sẽ gửi link đặt lại mật khẩu
+                    Enter your email and we will send you a password reset link
                 </p>
 
                 {error && (
@@ -115,18 +115,18 @@ function ForgotPasswordPage() {
                                     <circle style={styles.spinnerCircle} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path style={styles.spinnerPath} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Đang gửi...
+                                Sending...
                             </span>
                         ) : (
-                            'Gửi link đặt lại mật khẩu'
+                            'Send Reset Link'
                         )}
                     </button>
                 </form>
 
                 <p style={styles.footer}>
-                    Nhớ mật khẩu?{' '}
+                    Remember your password?{' '}
                     <a href="/login" style={styles.link}>
-                        Đăng nhập
+                        Login
                     </a>
                 </p>
             </div>

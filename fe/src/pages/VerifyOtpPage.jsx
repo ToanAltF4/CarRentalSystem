@@ -26,7 +26,7 @@ function VerifyOtpPage() {
         setError('');
 
         if (!otpCode || otpCode.length !== 6) {
-            setError('Vui lòng nhập mã OTP 6 số');
+            setError('Please enter a 6-digit OTP code');
             return;
         }
 
@@ -37,14 +37,14 @@ function VerifyOtpPage() {
             setSuccess(true);
             setTimeout(() => {
                 navigate('/login', {
-                    state: { message: 'Xác thực email thành công! Vui lòng đăng nhập.' }
+                    state: { message: 'Email verified successfully! Please login.' }
                 });
             }, 2000);
         } catch (err) {
             console.error('OTP verification error:', err);
             setError(
                 err.response?.data?.message ||
-                'Mã OTP không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.'
+                'Invalid or expired OTP code. Please try again.'
             );
         } finally {
             setLoading(false);
@@ -62,14 +62,14 @@ function VerifyOtpPage() {
             setCountdown(60); // 60 seconds countdown
             setError('');
             // Show success message briefly
-            const successMsg = 'Mã OTP mới đã được gửi đến email của bạn!';
+            const successMsg = 'A new OTP code has been sent to your email!';
             setError(successMsg);
             setTimeout(() => setError(''), 3000);
         } catch (err) {
             console.error('Resend OTP error:', err);
             setError(
                 err.response?.data?.message ||
-                'Không thể gửi lại mã OTP. Vui lòng thử lại sau.'
+                'Failed to resend OTP. Please try again later.'
             );
         } finally {
             setResendLoading(false);
@@ -84,8 +84,8 @@ function VerifyOtpPage() {
                         <svg style={styles.successIcon} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
-                        <h2 style={styles.successTitle}>Xác thực thành công!</h2>
-                        <p style={styles.successText}>Đang chuyển đến trang đăng nhập...</p>
+                        <h2 style={styles.successTitle}>Verification Successful!</h2>
+                        <p style={styles.successText}>Redirecting to login...</p>
                     </div>
                 </div>
             </div>
@@ -101,13 +101,13 @@ function VerifyOtpPage() {
                     </svg>
                 </div>
 
-                <h2 style={styles.title}>Xác thực Email</h2>
+                <h2 style={styles.title}>Verify Email</h2>
                 <p style={styles.subtitle}>
-                    Chúng tôi đã gửi mã OTP 6 số đến email <strong>{email}</strong>
+                    We have sent a 6-digit OTP code to <strong>{email}</strong>
                 </p>
 
                 {error && (
-                    <div style={error.includes('thành công') ? styles.successMessage : styles.errorBox}>
+                    <div style={error.includes('sent') ? styles.successMessage : styles.errorBox}>
                         <svg style={styles.errorIcon} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
@@ -118,7 +118,7 @@ function VerifyOtpPage() {
                 <form onSubmit={handleSubmit}>
                     <div style={styles.formGroup}>
                         <label htmlFor="otpCode" style={styles.label}>
-                            Mã OTP
+                            OTP Code
                         </label>
                         <input
                             type="text"
@@ -136,7 +136,7 @@ function VerifyOtpPage() {
                             required
                         />
                         <p style={styles.helpText}>
-                            Nhập mã OTP 6 số từ email của bạn
+                            Enter the 6-digit OTP from your email
                         </p>
                     </div>
 
@@ -154,16 +154,16 @@ function VerifyOtpPage() {
                                     <circle style={styles.spinnerCircle} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path style={styles.spinnerPath} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Đang xác thực...
+                                Verifying...
                             </span>
                         ) : (
-                            'Xác thực'
+                            'Verify'
                         )}
                     </button>
                 </form>
 
                 <div style={styles.resendSection}>
-                    <p style={styles.resendText}>Không nhận được mã?</p>
+                    <p style={styles.resendText}>Didn't receive the code?</p>
                     <button
                         type="button"
                         onClick={handleResend}
@@ -173,13 +173,13 @@ function VerifyOtpPage() {
                             ...(resendLoading || countdown > 0 ? styles.resendButtonDisabled : {})
                         }}
                     >
-                        {resendLoading ? 'Đang gửi...' : countdown > 0 ? `Gửi lại (${countdown}s)` : 'Gửi lại mã OTP'}
+                        {resendLoading ? 'Sending...' : countdown > 0 ? `Resend (${countdown}s)` : 'Resend OTP'}
                     </button>
                 </div>
 
                 <p style={styles.footer}>
                     <a href="/login" style={styles.link}>
-                        Quay lại đăng nhập
+                        Back to Login
                     </a>
                 </p>
             </div>

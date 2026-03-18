@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { User, ChevronDown, Menu, X, CarFront } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * B2C Enterprise Header
@@ -12,6 +12,17 @@ const Header = () => {
     const { user, isAuthenticated, logout } = useAuth();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const userMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+                setUserMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const isAdmin = ['ADMIN', 'MANAGER', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(user?.role);
     const isOperator = ['OPERATOR', 'ROLE_OPERATOR'].includes(user?.role);
@@ -66,7 +77,7 @@ const Header = () => {
                 {/* User Section */}
                 <div className="hidden lg:flex items-center gap-4">
                     {isAuthenticated && user ? (
-                        <div className="relative">
+                        <div className="relative" ref={userMenuRef}>
                             <button
                                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                                 className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-full transition-colors"

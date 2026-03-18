@@ -84,7 +84,7 @@ api.interceptors.response.use(
             const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh');
 
             if (isAuthEndpoint) {
-                clearAuthAndRedirect();
+                // Don't redirect - let the login/refresh component handle the error
                 return Promise.reject(error);
             }
 

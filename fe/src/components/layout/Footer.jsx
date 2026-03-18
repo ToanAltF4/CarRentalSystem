@@ -103,7 +103,7 @@ const Footer = () => {
             <div className="border-t border-white/10">
                 <div className="container mx-auto px-4 py-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
-                        <p>© 2024 E-Fleet Vietnam. All rights reserved.</p>
+                        <p>© 2025 E-Fleet Vietnam. All rights reserved.</p>
                         <div className="flex items-center gap-6">
                             <Link to="/terms" className="hover:text-[#5fcf86] transition-colors">
                                 Terms of Use

@@ -187,7 +187,7 @@ function LoginPage() {
 
                 <div style={styles.forgotPassword}>
                     <a href="/forgot-password" style={styles.forgotLink}>
-                        Quên mật khẩu?
+                        Forgot password?
                     </a>
                 </div>
 

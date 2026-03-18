@@ -17,7 +17,7 @@ function ResetPasswordPage() {
 
     useEffect(() => {
         if (!token) {
-            setError('Link đặt lại mật khẩu không hợp lệ');
+            setError('Invalid password reset link');
         }
     }, [token]);
 
@@ -35,17 +35,17 @@ function ResetPasswordPage() {
         setError('');
 
         if (formData.newPassword !== formData.confirmPassword) {
-            setError('Mật khẩu xác nhận không khớp');
+            setError('Passwords do not match');
             return;
         }
 
         if (formData.newPassword.length < 6) {
-            setError('Mật khẩu phải có ít nhất 6 ký tự');
+            setError('Password must be at least 6 characters');
             return;
         }
 
         if (!token) {
-            setError('Link đặt lại mật khẩu không hợp lệ');
+            setError('Invalid password reset link');
             return;
         }
 
@@ -56,14 +56,14 @@ function ResetPasswordPage() {
             setSuccess(true);
             setTimeout(() => {
                 navigate('/login', {
-                    state: { message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.' }
+                    state: { message: 'Password reset successful! Please login with your new password.' }
                 });
             }, 2000);
         } catch (err) {
             console.error('Reset password error:', err);
             setError(
                 err.response?.data?.message ||
-                'Không thể đặt lại mật khẩu. Link có thể đã hết hạn hoặc đã được sử dụng.'
+                'Failed to reset password. The link may have expired or already been used.'
             );
         } finally {
             setLoading(false);
@@ -78,8 +78,8 @@ function ResetPasswordPage() {
                         <svg style={styles.successIcon} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
-                        <h2 style={styles.successTitle}>Đặt lại mật khẩu thành công!</h2>
-                        <p style={styles.successText}>Đang chuyển đến trang đăng nhập...</p>
+                        <h2 style={styles.successTitle}>Password Reset Successful!</h2>
+                        <p style={styles.successText}>Redirecting to login...</p>
                     </div>
                 </div>
             </div>
@@ -95,9 +95,9 @@ function ResetPasswordPage() {
                     </svg>
                 </div>
 
-                <h2 style={styles.title}>Đặt lại mật khẩu</h2>
+                <h2 style={styles.title}>Reset Password</h2>
                 <p style={styles.subtitle}>
-                    Nhập mật khẩu mới cho tài khoản của bạn
+                    Enter a new password for your account
                 </p>
 
                 {error && (
@@ -112,7 +112,7 @@ function ResetPasswordPage() {
                 <form onSubmit={handleSubmit}>
                     <div style={styles.formGroup}>
                         <label htmlFor="newPassword" style={styles.label}>
-                            Mật khẩu mới
+                            New Password
                         </label>
                         <input
                             type="password"
@@ -127,13 +127,13 @@ function ResetPasswordPage() {
                             required
                         />
                         <p style={styles.helpText}>
-                            Tối thiểu 6 ký tự, bao gồm chữ và số
+                            Minimum 6 characters, including letters and numbers
                         </p>
                     </div>
 
                     <div style={styles.formGroup}>
                         <label htmlFor="confirmPassword" style={styles.label}>
-                            Xác nhận mật khẩu mới
+                            Confirm New Password
                         </label>
                         <input
                             type="password"
@@ -162,17 +162,17 @@ function ResetPasswordPage() {
                                     <circle style={styles.spinnerCircle} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path style={styles.spinnerPath} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Đang xử lý...
+                                Processing...
                             </span>
                         ) : (
-                            'Đặt lại mật khẩu'
+                            'Reset Password'
                         )}
                     </button>
                 </form>
 
                 <p style={styles.footer}>
                     <a href="/login" style={styles.link}>
-                        Quay lại đăng nhập
+                        Back to Login
                     </a>
                 </p>
             </div>
