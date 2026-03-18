@@ -74,8 +74,20 @@ if not exist "node_modules" (
 echo [3/3] Starting services...
 echo.
 
-:: Start Backend with production env
+:: Load environment variables from .env file (inherited by child processes)
 cd /d "%BE_DIR%"
+if exist ".env" (
+    echo       Loading .env file...
+    for /f "usebackq eol=# tokens=1,* delims==" %%A in (".env") do (
+        set "%%A=%%B"
+    )
+    echo       .env loaded OK
+) else (
+    echo [WARN] No .env file found in %BE_DIR%
+    echo         Copy env.example to .env: copy env.example .env
+)
+
+:: Start Backend with production env
 start "EV-Fleet-Backend" cmd /c "title EV-Fleet Backend && color 0B && echo Starting Backend on port 8080... && %JAVA_CMD% -jar target\car-rental-system-be-0.0.1-SNAPSHOT.jar && pause"
 
 echo       Waiting for backend to start (15s)...
