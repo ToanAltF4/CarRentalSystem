@@ -1,0 +1,409 @@
+package com.carrentalsystem.service.impl;
+
+import com.carrentalsystem.dto.payment.VnpayCreatePaymentRequest;
+import com.carrentalsystem.dto.payment.VnpayCreatePaymentResponse;
+import com.carrentalsystem.dto.payment.VnpayReturnResponse;
+import com.carrentalsystem.entity.BookingEntity;
+import com.carrentalsystem.entity.BookingStatus;
+import com.carrentalsystem.entity.ConditionRating;
+import com.carrentalsystem.entity.InvoiceEntity;
+import com.carrentalsystem.entity.InspectionEntity;
+import com.carrentalsystem.entity.InspectionType;
+import com.carrentalsystem.entity.PaymentStatus;
+import com.carrentalsystem.entity.VehicleEntity;
+import com.carrentalsystem.entity.VehicleStatus;
+import com.carrentalsystem.exception.ResourceNotFoundException;
+import com.carrentalsystem.repository.BookingRepository;
+import com.carrentalsystem.repository.InspectionRepository;
+import com.carrentalsystem.repository.InvoiceRepository;
+import com.carrentalsystem.repository.VehicleRepository;
+import com.carrentalsystem.service.VnpayService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class VnpayServiceImpl implements VnpayService {
+
+    private final BookingRepository bookingRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InspectionRepository inspectionRepository;
+    private final VehicleRepository vehicleRepository;
+
+    @Value("${app.vnpay.tmn-code}")
+    private String tmnCode;
+
+    @Value("${app.vnpay.hash-secret}")
+    private String hashSecret;
+
+    @Value("${app.vnpay.url}")
+    private String vnpUrl;
+
+    @Value("${app.vnpay.return-url}")
+    private String returnUrl;
+
+    @Value("${app.vnpay.version:2.1.0}")
+    private String version;
+
+    @Value("${app.vnpay.command:pay}")
+    private String command;
+
+    @Value("${app.vnpay.curr-code:VND}")
+    private String currencyCode;
+
+    @Value("${app.vnpay.locale:vn}")
+    private String locale;
+
+    @Value("${app.booking.payment-timeout-minutes:15}")
+    private long paymentTimeoutMinutes;
+
+    @Override
+    @Transactional
+    public VnpayCreatePaymentResponse createPaymentUrl(VnpayCreatePaymentRequest request,
+            HttpServletRequest servletRequest) {
+        if (request.getInvoiceId() == null && request.getBookingId() == null
+                && (request.getBookingCode() == null || request.getBookingCode().isBlank())) {
+            throw new IllegalArgumentException("invoiceId, bookingId, or bookingCode is required");
+        }
+
+        String txnRef;
+        BigDecimal amount;
+
+        if (request.getInvoiceId() != null) {
+            InvoiceEntity invoice = invoiceRepository.findById(request.getInvoiceId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Invoice", "id", request.getInvoiceId()));
+            ensureInvoicePayableForPayment(invoice);
+            amount = invoice.getTotalAmount();
+            txnRef = invoice.getInvoiceNumber();
+        } else if (request.getBookingId() != null) {
+            BookingEntity booking = bookingRepository.findById(request.getBookingId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", request.getBookingId()));
+            if (booking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+                InvoiceEntity invoice = invoiceRepository.findByBookingId(booking.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Invoice", "bookingId", booking.getId()));
+                ensureInvoicePayableForPayment(invoice);
+                amount = invoice.getTotalAmount();
+                txnRef = invoice.getInvoiceNumber();
+            } else {
+                ensureBookingPayableForPayment(booking, true);
+                amount = booking.getTotalAmount();
+                txnRef = booking.getBookingCode();
+            }
+        } else {
+            BookingEntity booking = bookingRepository.findByBookingCode(request.getBookingCode())
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Booking", "bookingCode", request.getBookingCode()));
+            if (booking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+                InvoiceEntity invoice = invoiceRepository.findByBookingId(booking.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Invoice", "bookingId", booking.getId()));
+                ensureInvoicePayableForPayment(invoice);
+                amount = invoice.getTotalAmount();
+                txnRef = invoice.getInvoiceNumber();
+            } else {
+                ensureBookingPayableForPayment(booking, true);
+                amount = booking.getTotalAmount();
+                txnRef = booking.getBookingCode();
+            }
+        }
+
+        if (amount == null) {
+            throw new IllegalArgumentException("Total amount is required");
+        }
+        if (txnRef == null || txnRef.isBlank()) {
+            throw new IllegalArgumentException("Transaction reference is required");
+        }
+
+        String ipAddress = getClientIp(servletRequest);
+        String createDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String vnpTxnRef = buildUniqueTxnRef(txnRef);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("vnp_Version", version);
+        params.put("vnp_Command", command);
+        params.put("vnp_TmnCode", tmnCode);
+        params.put("vnp_Amount", amount.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .toPlainString());
+        params.put("vnp_CurrCode", currencyCode);
+        params.put("vnp_TxnRef", vnpTxnRef);
+        params.put("vnp_OrderInfo", "Payment for " + txnRef);
+        params.put("vnp_OrderType", "other");
+        params.put("vnp_Locale", locale);
+        params.put("vnp_ReturnUrl", returnUrl);
+        params.put("vnp_IpAddr", ipAddress);
+        params.put("vnp_CreateDate", createDate);
+        params.put("vnp_SecureHashType", "HmacSHA512");
+
+        String query = buildQuery(params);
+        String hashData = buildHashData(params);
+        String secureHash = hmacSHA512(hashSecret, hashData);
+        String paymentUrl = vnpUrl + "?" + query + "&vnp_SecureHash=" + secureHash;
+
+        return VnpayCreatePaymentResponse.builder()
+                .paymentUrl(paymentUrl)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public VnpayReturnResponse handleReturn(Map<String, String> params) {
+        String secureHash = params.get("vnp_SecureHash");
+        if (secureHash == null) {
+            return VnpayReturnResponse.builder()
+                    .code("99")
+                    .message("Missing secure hash")
+                    .build();
+        }
+
+        Map<String, String> filtered = params.entrySet().stream()
+                .filter(e -> e.getKey().startsWith("vnp_"))
+                .filter(e -> !"vnp_SecureHash".equals(e.getKey()))
+                .filter(e -> !"vnp_SecureHashType".equals(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        String hashData = buildHashData(filtered);
+        String calculated = hmacSHA512(hashSecret, hashData);
+        if (!calculated.equalsIgnoreCase(secureHash)) {
+            return VnpayReturnResponse.builder()
+                    .code("97")
+                    .message("Invalid signature")
+                    .build();
+        }
+
+        String txnRef = params.get("vnp_TxnRef");
+        String responseCode = params.get("vnp_ResponseCode");
+        if (txnRef == null || responseCode == null) {
+            return VnpayReturnResponse.builder()
+                    .code("99")
+                    .message("Missing required params")
+                    .build();
+        }
+
+        String baseTxnRef = extractBaseTxnRef(txnRef);
+        InvoiceEntity invoice = invoiceRepository.findByInvoiceNumber(baseTxnRef).orElse(null);
+        BookingEntity booking = invoice == null ? bookingRepository.findByBookingCode(baseTxnRef).orElse(null) : null;
+
+        if (invoice == null && booking == null) {
+            throw new ResourceNotFoundException("Transaction", "txnRef", baseTxnRef);
+        }
+
+        if ("00".equals(responseCode)) {
+            if (invoice != null) {
+                if (invoice.getPaymentStatus() == PaymentStatus.PAID) {
+                    return VnpayReturnResponse.builder()
+                            .code("00")
+                            .message("Payment success")
+                            .invoiceNumber(baseTxnRef)
+                            .paymentStatus(PaymentStatus.PAID.name())
+                            .build();
+                }
+                ensureInvoicePayableForPayment(invoice);
+                invoice.setPaymentStatus(PaymentStatus.PAID);
+                invoice.setPaidAt(LocalDateTime.now());
+                invoice.setPaymentMethod("VNPAY");
+                invoiceRepository.save(invoice);
+
+                BookingEntity invoiceBooking = invoice.getBooking();
+                if (invoiceBooking != null && invoiceBooking.getStatus() == BookingStatus.RETURN_PENDING_PAYMENT) {
+                    closeBookingAfterFinalInvoicePayment(invoiceBooking);
+                }
+            } else if (booking != null) {
+                if (booking.getStatus() == BookingStatus.CANCELLED) {
+                    return VnpayReturnResponse.builder()
+                            .code("24")
+                            .message("Đơn đặt xe đã bị hủy trước khi thanh toán hoàn tất")
+                            .invoiceNumber(baseTxnRef)
+                            .paymentStatus(booking.getStatus().name())
+                            .build();
+                }
+                if (booking.getStatus() != BookingStatus.PENDING) {
+                    return VnpayReturnResponse.builder()
+                            .code("24")
+                            .message("Đơn đặt xe không còn ở trạng thái chờ thanh toán")
+                            .invoiceNumber(baseTxnRef)
+                            .paymentStatus(booking.getStatus().name())
+                            .build();
+                }
+                if (isBookingPaymentExpired(booking)) {
+                    booking.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(booking);
+                    return VnpayReturnResponse.builder()
+                            .code("24")
+                            .message("Đơn đặt xe đã hết hạn thanh toán")
+                            .invoiceNumber(baseTxnRef)
+                            .paymentStatus(booking.getStatus().name())
+                            .build();
+                }
+
+                // Determine fees - default to 0 if null
+                BigDecimal rentalFee = booking.getRentalFee() != null ? booking.getRentalFee() : BigDecimal.ZERO;
+                BigDecimal driverFee = booking.getDriverFee() != null ? booking.getDriverFee() : BigDecimal.ZERO;
+                BigDecimal deliveryFee = booking.getDeliveryFee() != null ? booking.getDeliveryFee() : BigDecimal.ZERO;
+
+                // Create new PAID invoice for this booking
+                InvoiceEntity newInvoice = InvoiceEntity.builder()
+                        .booking(booking)
+                        .invoiceNumber(baseTxnRef) // Using booking code as invoice number
+                        .rentalFee(rentalFee)
+                        .driverFee(driverFee)
+                        .deliveryFee(deliveryFee)
+                        .totalAmount(booking.getTotalAmount() != null ? booking.getTotalAmount() : BigDecimal.ZERO)
+                        .paymentStatus(PaymentStatus.PAID)
+                        .issuedAt(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                // Manually set transient fields if needed or handle via proper DB columns
+                // Note: paidAt and paymentMethod are transient in InvoiceEntity, so they won't
+                // be saved directly
+                // unless we add columns or a separate Transaction entity.
+                // For now, we rely on paymentStatus=PAID.
+
+                invoiceRepository.save(newInvoice);
+
+                // Auto-confirm after payment
+                booking.setStatus(BookingStatus.CONFIRMED);
+                bookingRepository.save(booking);
+            }
+            return VnpayReturnResponse.builder()
+                    .code("00")
+                    .message("Payment success")
+                    .invoiceNumber(baseTxnRef)
+                    .paymentStatus(PaymentStatus.PAID.name())
+                    .build();
+        }
+
+        return VnpayReturnResponse.builder()
+                .code(responseCode)
+                .message("Payment failed")
+                .invoiceNumber(baseTxnRef)
+                .paymentStatus(invoice != null ? invoice.getPaymentStatus().name() : booking.getStatus().name())
+                .build();
+    }
+
+    private void ensureBookingPayableForPayment(BookingEntity booking, boolean autoCancelIfExpired) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalArgumentException("Đơn đặt xe đã bị hủy");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new IllegalArgumentException("Đơn đặt xe không ở trạng thái chờ thanh toán");
+        }
+        if (isBookingPaymentExpired(booking)) {
+            if (autoCancelIfExpired) {
+                booking.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(booking);
+            }
+            throw new IllegalArgumentException("Đơn đặt xe đã hết hạn thanh toán");
+        }
+    }
+
+    private void ensureInvoicePayableForPayment(InvoiceEntity invoice) {
+        if (invoice.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new IllegalArgumentException("Invoice is already paid");
+        }
+    }
+
+    private void closeBookingAfterFinalInvoicePayment(BookingEntity booking) {
+        booking.setStatus(BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+
+        VehicleEntity vehicle = booking.getVehicle();
+        if (vehicle == null || vehicle.getStatus() == VehicleStatus.INACTIVE) {
+            return;
+        }
+
+        InspectionEntity returnInspection = inspectionRepository
+                .findByBookingIdAndType(booking.getId(), InspectionType.RETURN)
+                .orElse(null);
+
+        boolean hasDamage = returnInspection != null
+                && (Boolean.TRUE.equals(returnInspection.getHasDamage())
+                        || returnInspection.getExteriorCondition() == ConditionRating.DAMAGED
+                        || returnInspection.getInteriorCondition() == ConditionRating.DAMAGED);
+
+        vehicle.setStatus(hasDamage ? VehicleStatus.MAINTENANCE : VehicleStatus.AVAILABLE);
+        vehicleRepository.save(vehicle);
+    }
+
+    private boolean isBookingPaymentExpired(BookingEntity booking) {
+        if (booking.getCreatedAt() == null) {
+            return false;
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(paymentTimeoutMinutes);
+        return booking.getCreatedAt().isBefore(cutoff);
+    }
+
+    private String buildQuery(Map<String, String> params) {
+        return params.entrySet().stream()
+                .sorted(Comparator.comparing(Map.Entry::getKey))
+                .map(e -> encodeVnp(e.getKey()) + "=" + encodeVnp(e.getValue()))
+                .collect(Collectors.joining("&"));
+    }
+
+    private String buildHashData(Map<String, String> params) {
+        return params.entrySet().stream()
+                .filter(e -> !"vnp_SecureHashType".equals(e.getKey()))
+                .sorted(Comparator.comparing(Map.Entry::getKey))
+                .map(e -> encodeVnp(e.getKey()) + "=" + encodeVnp(e.getValue()))
+                .collect(Collectors.joining("&"));
+    }
+
+    private String encodeVnp(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String hmacSHA512(String key, String data) {
+        try {
+            Mac hmac = Mac.getInstance("HmacSHA512");
+            SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+            hmac.init(keySpec);
+            byte[] bytes = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(bytes.length * 2);
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to generate HMAC", ex);
+        }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private String buildUniqueTxnRef(String baseRef) {
+        String suffix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        return baseRef + "-" + suffix;
+    }
+
+    private String extractBaseTxnRef(String txnRef) {
+        int lastDash = txnRef != null ? txnRef.lastIndexOf('-') : -1;
+        if (lastDash <= 0) {
+            return txnRef;
+        }
+        return txnRef.substring(0, lastDash);
+    }
+}

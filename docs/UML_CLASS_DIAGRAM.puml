@@ -1,0 +1,177 @@
+@startuml Car Rental System - Class Diagram (From ERD)
+
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+
+class PaymentMethod {
+  +id: Integer
+  +code: String
+  +name: String
+}
+
+class RentalType {
+  +id: Integer
+  +code: String
+  +name: String
+}
+
+class PickupMethod {
+  +id: Integer
+  +code: String
+  +name: String
+}
+
+class Role {
+  +id: Long
+  +roleName: String
+  +description: String
+}
+
+class VehicleCategory {
+  +id: Long
+  +brand: String
+  +name: String
+  +model: String
+  +seats: Integer
+  +batteryCapacityKwh: Decimal
+  +rangeKm: Integer
+  +chargingTimeHours: Decimal
+  +description: Text
+}
+
+class VehicleCategoryImage {
+  +id: Long
+  +imageUrl: String
+  +isPrimary: Boolean
+  +sortOrder: Integer
+}
+
+class Pricing {
+  +id: Long
+  +dailyPrice: Decimal
+  +weeklyPrice: Decimal
+  +monthlyPrice: Decimal
+  +overtimeFeePerHour: Decimal
+  +effectiveFrom: Date
+  +effectiveTo: Date
+  +isActive: Boolean
+}
+
+class Vehicle {
+  +id: Long
+  +licensePlate: String
+  +status: String
+  +vin: String
+  +odometer: Integer
+  +currentBatteryPercent: Integer
+}
+
+class DriverPricing {
+  +id: Long
+  +dailyFee: Decimal
+  +effectiveFrom: Date
+  +effectiveTo: Date
+  +isActive: Boolean
+}
+
+class User {
+  +id: Long
+  +fullName: String
+  +email: String
+  +phone: String
+  +licenseType: String
+  +licenseNumber: String
+  +licenseStatus: String
+  +status: String
+}
+
+class RefreshToken {
+  +id: Long
+  +userId: Long
+  +token: String
+  +expiryDate: DateTime
+}
+
+class Booking {
+  +id: Long
+  +bookingCode: String
+  +customerName: String
+  +customerEmail: String
+  +customerPhone: String
+  +startDate: Date
+  +endDate: Date
+  +selectedDates: Text
+  +totalDays: Integer
+  +dailyRate: Decimal
+  +rentalFee: Decimal
+  +driverFee: Decimal
+  +deliveryFee: Decimal
+  +insuranceFee: Decimal
+  +serviceFee: Decimal
+  +status: String
+  +totalAmount: Decimal
+  +deliveryAddress: String
+  +deliveryDistanceKm: Decimal
+  +notes: Text
+  +assignedStaffId: Long
+  +assignedBy: Long
+  +assignedAt: DateTime
+}
+
+class Inspection {
+  +id: Long
+  +inspectionType: String
+  +batteryLevel: Integer
+  +odometer: Integer
+  +chargingCablePresent: Boolean
+  +exteriorCondition: String
+  +interiorCondition: String
+  +hasDamage: Boolean
+  +damageDescription: Text
+  +damagePhotos: Text
+  +inspectionNotes: Text
+  +inspectedAt: DateTime
+}
+
+class Invoice {
+  +id: Long
+  +invoiceNumber: String
+  +rentalFee: Decimal
+  +driverFee: Decimal
+  +deliveryFee: Decimal
+  +damageFee: Decimal
+  +paymentStatus: String
+  +totalAmount: Decimal
+}
+
+class Payment {
+  +id: Long
+  +amount: Decimal
+  +paymentStatus: String
+  +createdAt: DateTime
+}
+
+Role "1" -- "0..*" User
+
+VehicleCategory "1" -- "0..*" VehicleCategoryImage
+VehicleCategory "1" -- "0..*" Pricing
+VehicleCategory "1" -- "0..*" Vehicle
+VehicleCategory "1" -- "0..*" DriverPricing
+
+User "1" -- "0..*" RefreshToken
+
+Vehicle "1" -- "0..*" Booking
+User "1" -- "0..*" Booking
+RentalType "1" -- "0..*" Booking
+PickupMethod "1" -- "0..*" Booking
+
+Booking "1" -- "0..*" Inspection
+User "0..1" -- "0..*" Inspection
+
+Booking "1" -- "0..1" Invoice
+Invoice "1" -- "0..*" Payment
+PaymentMethod "1" -- "0..*" Payment
+
+@enduml

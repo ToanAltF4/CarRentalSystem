@@ -1,0 +1,98 @@
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant FE as Frontend
+    participant BE as Backend API
+    participant DB as MySQL
+    participant VNP as VNPAY
+    participant SCH as Scheduler
+    actor OP as Operator
+    actor ST as Staff
+    actor DR as Driver
+
+    C->>FE: Enter booking information
+    FE->>BE: POST /api/v1/bookings
+    activate BE
+    BE->>DB: Validate, check availability, save booking (PENDING)
+    activate DB
+    DB-->>BE: bookingId, bookingCode
+    deactivate DB
+    BE-->>FE: 201 BookingResponse
+    deactivate BE
+
+    C->>FE: Click Pay Now
+    FE->>BE: POST /api/payments/vnpay/create
+    activate BE
+    BE-->>FE: paymentUrl
+    deactivate BE
+    FE->>VNP: Redirect to payment page
+    VNP-->>FE: GET /payment-result (return URL)
+    VNP-->>BE: POST /api/payments/vnpay/ipn (server callback)
+
+    alt [paymentSuccess]
+        activate BE
+        BE->>DB: update booking.status = CONFIRMED
+        activate DB
+        DB-->>BE: updated
+        deactivate DB
+        BE-->>FE: payment success
+        deactivate BE
+    else [paymentFailedOrCancelled]
+        activate BE
+        BE->>DB: keep PENDING or update fail state
+        activate DB
+        DB-->>BE: updated
+        deactivate DB
+        BE-->>FE: payment failed
+        deactivate BE
+    end
+
+    par Auto-cancel timeout
+        SCH->>DB: find expired PENDING bookings
+        SCH->>DB: update status = CANCELLED
+    and Operator assignment
+        OP->>BE: POST /api/v1/operator/bookings/{id}/assign
+        BE->>DB: set assignedStaffId/driverId, status = ASSIGNED
+        BE-->>OP: BookingResponse
+    end
+
+    ST->>BE: GET /api/v1/staff/tasks
+    activate BE
+    BE->>DB: query tasks by assignedStaffId/driverId
+    activate DB
+    DB-->>BE: task list
+    deactivate DB
+    BE-->>ST: List BookingResponse
+    deactivate BE
+
+    ST->>BE: POST /api/v1/staff/inspection (type = PICKUP)
+    activate BE
+    BE->>DB: save inspection + update status = IN_PROGRESS
+    activate DB
+    DB-->>BE: saved
+    deactivate DB
+    BE-->>ST: InspectionResponseDTO
+    deactivate BE
+
+    alt [withDriver]
+        DR->>BE: GET /api/v1/driver/trips
+        DR->>BE: PUT /api/v1/driver/trips/{id}/accept
+        BE->>DB: update status = CONFIRMED
+        DR->>BE: PUT /api/v1/driver/trips/{id}/start
+        BE->>DB: update status = IN_PROGRESS
+        DR->>BE: PUT /api/v1/driver/trips/{id}/complete
+        BE->>DB: update status = COMPLETED
+    else [selfDrive]
+        ST->>BE: POST /api/v1/staff/inspection (type = RETURN)
+        BE->>DB: save inspection + update status = COMPLETED
+    end
+
+    C->>FE: Open My Bookings
+    FE->>BE: GET /api/v1/bookings/customer?email=...
+    activate BE
+    BE->>DB: query bookings
+    activate DB
+    DB-->>BE: bookings
+    deactivate DB
+    BE-->>FE: final status (COMPLETED/CANCELLED/...)
+    deactivate BE

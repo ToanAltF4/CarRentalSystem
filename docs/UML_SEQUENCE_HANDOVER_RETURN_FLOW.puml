@@ -1,0 +1,79 @@
+@startuml Vehicle Handover Return Main Flow
+
+hide footbox
+autonumber
+
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontSize 13
+
+skinparam sequence {
+  ArrowThickness 1
+  ParticipantBorderThickness 1
+  LifeLineBorderThickness 1
+}
+
+scale 0.9
+
+actor Staff
+actor Customer
+participant ": StaffController" as staffController
+participant ": StaffService" as staffService
+participant ": ReturnService" as returnService
+participant ": BookingRepository" as bookingRepository
+participant ": InspectionRepository" as inspectionRepository
+participant ": VehicleRepository" as vehicleRepository
+
+
+Staff -> staffController: submit pickup inspection
+activate staffController
+staffController -> staffService: submitInspection(PICKUP)
+activate staffService
+staffService -> inspectionRepository: save(PICKUP inspection)
+activate inspectionRepository
+inspectionRepository --> staffService: inspection saved
+deactivate inspectionRepository
+staffService -> bookingRepository: save(status=IN_PROGRESS)
+activate bookingRepository
+bookingRepository --> staffService: status updated
+deactivate bookingRepository
+staffService --> staffController: InspectionResponseDTO
+deactivate staffService
+staffController --> Staff: Pickup inspection completed
+deactivate staffController
+Staff -> Customer: Handover vehicle
+
+note over Staff,Customer
+  Vehicle is used during rental period
+end note
+
+
+Customer -> Staff: Return vehicle
+Staff -> staffController: submit return inspection
+activate staffController
+staffController -> staffService: submitInspection(RETURN)
+activate staffService
+staffService -> returnService: processReturn(bookingId, returnRequest)
+activate returnService
+returnService -> inspectionRepository: save(RETURN inspection)
+activate inspectionRepository
+inspectionRepository --> returnService: inspection saved
+deactivate inspectionRepository
+returnService -> bookingRepository: save(return status)
+activate bookingRepository
+bookingRepository --> returnService: status updated
+deactivate bookingRepository
+returnService -> vehicleRepository: save(status=AVAILABLE)
+activate vehicleRepository
+vehicleRepository --> returnService: vehicle updated
+deactivate vehicleRepository
+
+returnService --> staffService: ReturnResponseDTO
+deactivate returnService
+staffService --> staffController: ReturnResponseDTO
+deactivate staffService
+staffController --> Staff: Return processed
+deactivate staffController
+Staff -> Customer: Confirm return completion
+
+@enduml

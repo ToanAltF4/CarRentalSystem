@@ -1,0 +1,103 @@
+@startuml Handover and Return Flow (Flow 2)
+
+skinparam shadowing false
+skinparam defaultFontSize 40
+skinparam activity {
+  FontSize 36
+  BackgroundColor White
+  BorderColor Black
+  BorderThickness 2
+  FontColor Black
+}
+skinparam ArrowColor Black
+skinparam ArrowThickness 4
+
+|System Handler|
+start
+:Receive booking with status = CONFIRMED;
+
+|Operator|
+:Review confirmed booking;
+:Assign staff for handover and return;
+if (Rental type = WITH_DRIVER?) then (Yes)
+  :Assign driver;
+endif
+
+|System Handler|
+:Set booking status = ASSIGNED;
+
+|Staff|
+:Prepare vehicle;
+:Record pickup inspection and photos;
+if (Handover type?) then (Store)
+  :Handover vehicle at store;
+else (Delivery)
+  :Deliver vehicle to customer location;
+endif
+
+|System Handler|
+:Set booking status = IN_PROGRESS;
+:Record actual pickup time;
+
+if (Rental type = WITH_DRIVER?) then (Yes)
+  |Driver|
+  :Accept assigned trip;
+  :Start trip;
+
+  |System Handler|
+  :Set booking status = ONGOING;
+endif
+
+|Customer|
+:Use vehicle during rental period;
+:Coordinate return with staff;
+
+|Staff|
+if (Return type?) then (Store)
+  :Receive vehicle at store;
+else (Pickup)
+  :Pick up vehicle at customer location;
+endif
+
+:Create return inspection record;
+:Record battery, odometer,\ninterior and exterior condition;
+if (Any damage found?) then (Yes)
+  :Record damage details and photos;
+else (No)
+  :Confirm no damage;
+endif
+
+|System Handler|
+:Calculate final charges\n(base + late fee + damage fee + service fee);
+if (Any remaining amount to pay?) then (Yes)
+  :Create final invoice (PENDING);
+  :Set booking status = RETURN_PENDING_PAYMENT;
+
+  |Customer|
+  :Proceed final payment;
+
+  |VNPay Gateway|
+  :Process payment transaction;
+
+  |System Handler|
+  if (Payment successful?) then (Yes)
+    :Mark invoice = PAID;
+    :Set booking status = COMPLETED;
+  else (No)
+    :Keep invoice = PENDING;
+    :Notify payment failure;
+    stop
+  endif
+else (No)
+  :Set booking status = COMPLETED;
+endif
+
+if (Return inspection has damage?) then (Yes)
+  :Set vehicle status = MAINTENANCE;
+else (No)
+  :Set vehicle status = AVAILABLE;
+endif
+
+stop
+
+@enduml

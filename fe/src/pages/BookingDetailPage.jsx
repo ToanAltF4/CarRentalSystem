@@ -1,0 +1,485 @@
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import {
+    AlertCircle,
+    Calendar,
+    Car,
+    ClipboardList,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Loader2,
+    MapPin,
+    User,
+    Eye,
+    FileText,
+    Hash,
+    Mail,
+    Phone,
+    ShieldCheck,
+    Truck
+} from 'lucide-react';
+import bookingService from '../services/bookingService';
+import { formatPrice } from '../utils/formatters';
+
+const BookingDetailPage = () => {
+    const { bookingCode } = useParams();
+    const [booking, setBooking] = useState(null);
+    const [returnDetails, setReturnDetails] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchReturnDetails = async (bookingId) => {
+            try {
+                const details = await bookingService.getReturnDetails(bookingId);
+                if (isMounted) {
+                    setReturnDetails(details);
+                }
+            } catch {
+                // Return details are optional on this page.
+            }
+        };
+
+        const fetchBooking = async () => {
+            if (!bookingCode) {
+                if (isMounted) {
+                    setError('Booking code is missing');
+                    setLoading(false);
+                }
+                return;
+            }
+
+            if (isMounted) {
+                setLoading(true);
+                setError('');
+            }
+            try {
+                const data = await bookingService.getByCode(decodeURIComponent(bookingCode));
+                if (!isMounted) return;
+
+                setBooking(data);
+                setReturnDetails(null);
+                if (data?.id && (data?.status === 'COMPLETED' || data?.status === 'RETURN_PENDING_PAYMENT')) {
+                    void fetchReturnDetails(data.id);
+                }
+            } catch (err) {
+                if (!isMounted) return;
+                console.error('Failed to fetch booking details:', err);
+                setError('Failed to load booking details');
+                setBooking(null);
+                setReturnDetails(null);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchBooking();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [bookingCode]);
+
+    const getStatusBadge = (status) => {
+        const styles = {
+            PENDING: 'bg-yellow-100 text-yellow-700',
+            CONFIRMED: 'bg-blue-100 text-blue-700',
+            IN_PROGRESS: 'bg-green-100 text-green-700',
+            ONGOING: 'bg-green-100 text-green-700',
+            ASSIGNED: 'bg-indigo-100 text-indigo-700',
+            RETURN_PENDING_PAYMENT: 'bg-amber-100 text-amber-700',
+            COMPLETED: 'bg-gray-100 text-gray-700',
+            CANCELLED: 'bg-red-100 text-red-700'
+        };
+
+        if (!status) return null;
+
+        return (
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
+                {status.replace(/_/g, ' ')}
+            </span>
+        );
+    };
+
+    const formatDate = (value) => {
+        if (!value) return '-';
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleDateString('en-GB');
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString('en-GB');
+    };
+
+    const finalInvoiceTotal = booking?.finalInvoiceTotal ?? returnDetails?.totalAmount ?? null;
+    const isReturnPending = booking?.status === 'RETURN_PENDING_PAYMENT';
+    const isCompleted = booking?.status === 'COMPLETED';
+
+    if (loading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="container mx-auto px-4 py-8 md:px-6">
+            <div className="mb-8">
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                    <Link to="/" className="hover:text-primary">Home</Link>
+                    <ChevronRight size={14} />
+                    <Link to="/my-bookings" className="hover:text-primary">My Bookings</Link>
+                    <ChevronRight size={14} />
+                    <span className="font-medium text-gray-900">Booking Details</span>
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900">Booking Details</h1>
+            </div>
+
+            {error && (
+                <div className="mb-6 flex items-center gap-2 rounded-lg bg-red-50 p-4 text-red-600">
+                    <AlertCircle size={20} />
+                    {error}
+                </div>
+            )}
+
+            {!error && booking && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex flex-col">
+                        <div className="p-6">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h2 className="text-2xl font-bold text-gray-900">{booking.vehicleName || 'Vehicle'}</h2>
+                                        {getStatusBadge(booking.status)}
+                                    </div>
+                                    <p className="text-sm text-gray-500">
+                                        Booking Code: <span className="font-mono font-semibold">{booking.bookingCode}</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div className="rounded-xl bg-gray-50 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">Rental Schedule</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={16} className="text-gray-400" />
+                                            <span>Pick-up: {formatDate(booking.startDate)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={16} className="text-gray-400" />
+                                            <span>Drop-off: {formatDate(booking.endDate)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Duration: {booking.totalDays || 0} days</span>
+                                        </div>
+                                        {Array.isArray(booking.selectedDates) && booking.selectedDates.length > 0 && (
+                                            <div className="pt-2">
+                                                <p className="text-xs text-gray-400 mb-2">Selected Dates</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {booking.selectedDates.map((date) => (
+                                                        <span key={date} className="px-2 py-1 rounded-md bg-white border border-gray-200 text-xs">
+                                                            {formatDate(date)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl bg-gray-50 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">Payment Summary</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign size={16} className="text-gray-400" />
+                                            <span>Daily Rate: {formatPrice(booking.dailyRate || 0)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign size={16} className="text-gray-400" />
+                                            <span>Rental Fee: {formatPrice(booking.rentalFee || 0)}</span>
+                                        </div>
+                                        {(booking.driverFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Driver Fee: {formatPrice(booking.driverFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {(booking.deliveryFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Delivery Fee: {formatPrice(booking.deliveryFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {(booking.insuranceFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Insurance Fee: {formatPrice(booking.insuranceFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {(booking.serviceFee || 0) > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Service Fee: {formatPrice(booking.serviceFee || 0)}</span>
+                                            </div>
+                                        )}
+                                        {isReturnPending ? (
+                                            <>
+                                                <div className="flex items-center gap-2">
+                                                    <DollarSign size={16} className="text-gray-400" />
+                                                    <span>
+                                                        Final Invoice Total:{' '}
+                                                        <span className="font-semibold text-primary">
+                                                            {finalInvoiceTotal != null ? formatPrice(finalInvoiceTotal) : '-'}
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-gray-500">
+                                                    <DollarSign size={16} className="text-gray-300" />
+                                                    <span>Rental Total (Paid): {formatPrice(booking.totalAmount || 0)}</span>
+                                                </div>
+                                            </>
+                                        ) : isCompleted ? (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>
+                                                    Total Paid:{' '}
+                                                    <span className="font-semibold text-primary">
+                                                        {finalInvoiceTotal != null
+                                                            ? formatPrice(finalInvoiceTotal)
+                                                            : formatPrice(booking.totalAmount || 0)}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>
+                                                    Total: <span className="font-semibold text-primary">{formatPrice(booking.totalAmount || 0)}</span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.invoiceNumber && (
+                                            <div className="flex items-center gap-2">
+                                                <FileText size={16} className="text-gray-400" />
+                                                <span>Invoice: <span className="font-mono">{returnDetails.invoiceNumber}</span></span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.hasDamage != null && (
+                                            <div className="flex items-center gap-2">
+                                                <ShieldCheck size={16} className="text-gray-400" />
+                                                <span>Damage Reported: {returnDetails.hasDamage ? 'Yes' : 'No'}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.damageDescription && (
+                                            <div className="flex items-start gap-2">
+                                                <ClipboardList size={16} className="text-gray-400 mt-0.5" />
+                                                <span>Damage Details: {returnDetails.damageDescription}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.damagePhotos && (
+                                            <div className="space-y-2">
+                                                <p className="text-xs text-gray-400">Damage Photos</p>
+                                                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                                                    {returnDetails.damagePhotos
+                                                        .split(',')
+                                                        .map((url) => url.trim())
+                                                        .filter(Boolean)
+                                                        .map((url, index) => (
+                                                            <a
+                                                                key={`${url}-${index}`}
+                                                                href={url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="block overflow-hidden rounded-lg border border-gray-200"
+                                                            >
+                                                                <img
+                                                                    src={url}
+                                                                    alt={`damage-${index + 1}`}
+                                                                    className="h-24 w-full object-cover"
+                                                                />
+                                                            </a>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {returnDetails?.damageFee != null && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign size={16} className="text-gray-400" />
+                                                <span>Damage Fee: {formatPrice(returnDetails.damageFee)}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.paymentStatus && (
+                                            <div className="flex items-center gap-2">
+                                                <ShieldCheck size={16} className="text-gray-400" />
+                                                <span>Payment Status: {returnDetails.paymentStatus}</span>
+                                            </div>
+                                        )}
+                                        {returnDetails?.invoiceNumber && (
+                                            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                                Invoice dispute/complaint: contact 0383927687
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl bg-gray-50 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">Booking Info</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <Car size={16} className="text-gray-400" />
+                                            <span>Rental Type: {booking.rentalTypeName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <MapPin size={16} className="text-gray-400" />
+                                            <span>Pickup Method: {booking.pickupMethodName || '-'}</span>
+                                        </div>
+                                        {booking.deliveryAddress && (
+                                            <div className="flex items-center gap-2">
+                                                <MapPin size={16} className="text-gray-400" />
+                                                <span>Delivery Address: {booking.deliveryAddress}</span>
+                                            </div>
+                                        )}
+                                        {booking.deliveryDistanceKm && (
+                                            <div className="flex items-center gap-2">
+                                                <Truck size={16} className="text-gray-400" />
+                                                <span>Delivery Distance: {booking.deliveryDistanceKm} km</span>
+                                            </div>
+                                        )}
+                                        {booking.notes && (
+                                            <div className="flex items-center gap-2">
+                                                <ClipboardList size={16} className="text-gray-400" />
+                                                <span>Note: {booking.notes}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl bg-gray-50 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">Customer & Vehicle</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Name: {booking.customerName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Email: {booking.customerEmail || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Phone: {booking.customerPhone || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Hash size={16} className="text-gray-400" />
+                                            <span>Plate: {booking.vehicleLicensePlate || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Car size={16} className="text-gray-400" />
+                                            <span>Brand/Model: {booking.vehicleBrand || '-'} {booking.vehicleModel || ''}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">Assignment</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Assigned Staff: {booking.assignedStaffName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Mail size={16} className="text-gray-400" />
+                                            <span>Staff Email: {booking.assignedStaffEmail || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Phone size={16} className="text-gray-400" />
+                                            <span>Staff Phone: {booking.assignedStaffPhone || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Driver: {booking.driverName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Mail size={16} className="text-gray-400" />
+                                            <span>Driver Email: {booking.driverEmail || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Phone size={16} className="text-gray-400" />
+                                            <span>Driver Phone: {booking.driverPhone || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User size={16} className="text-gray-400" />
+                                            <span>Assigned By: {booking.assignedByName || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Assigned At: {formatDateTime(booking.assignedAt)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                    <p className="text-xs text-gray-400 mb-2">System Info</p>
+                                    <div className="space-y-2 text-sm text-gray-700">
+                                        <div className="flex items-center gap-2">
+                                            <Hash size={16} className="text-gray-400" />
+                                            <span>Booking ID: {booking.id || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Created At: {formatDateTime(booking.createdAt)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-gray-400" />
+                                            <span>Updated At: {formatDateTime(booking.updatedAt)}</span>
+                                        </div>
+                                        {returnDetails?.actualReturnDate && (
+                                            <div className="flex items-center gap-2">
+                                                <Clock size={16} className="text-gray-400" />
+                                                <span>Actual Return: {formatDateTime(returnDetails.actualReturnDate)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-3">
+                                <Link
+                                    to="/my-bookings"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                    Back to My Bookings
+                                </Link>
+                                {booking.vehicleId && (
+                                    <Link
+                                        to={`/vehicles/${booking.vehicleId}`}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <Eye size={16} />
+                                        View Vehicle
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default BookingDetailPage;

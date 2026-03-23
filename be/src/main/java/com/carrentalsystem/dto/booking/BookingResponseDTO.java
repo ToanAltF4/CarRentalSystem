@@ -1,0 +1,83 @@
+package com.carrentalsystem.dto.booking;
+
+import com.carrentalsystem.entity.BookingStatus;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Response DTO for booking with vehicle details.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookingResponseDTO {
+    private Long id;
+    private String bookingCode;
+
+    // Vehicle details
+    private Long vehicleId;
+    private String vehicleName;
+    private String vehicleBrand;
+    private String vehicleModel;
+    private String vehicleLicensePlate;
+    private String vehicleImage;
+
+    // Customer details
+    private String customerName;
+    private String customerEmail;
+    private String customerPhone;
+
+    // Booking details
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private List<LocalDate> selectedDates;
+    private Integer totalDays;
+    private BigDecimal dailyRate;
+    private BigDecimal totalAmount;
+    private BigDecimal finalInvoiceTotal;
+    private BookingStatus status;
+    private String notes;
+
+    // Rental Type info
+    private Integer rentalTypeId;
+    private String rentalTypeName;
+
+    // Pickup Method info
+    private Integer pickupMethodId;
+    private String pickupMethodName;
+
+    // Fee breakdown
+    private BigDecimal rentalFee;
+    private BigDecimal driverFee;
+    private BigDecimal deliveryFee;
+    private BigDecimal insuranceFee;
+    private BigDecimal serviceFee;
+
+    // Delivery info
+    private String deliveryAddress;
+    private BigDecimal deliveryDistanceKm;
+
+    // Timestamps
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    // Assignment details (for operator workflow)
+    private Long assignedStaffId;
+    private String assignedStaffName;
+    private String assignedStaffEmail;
+    private String assignedStaffPhone;
+    private Long driverId;
+    private String driverName;
+    private String driverEmail;
+    private String driverPhone;
+    private LocalDateTime assignedAt;
+    private String assignedByName;
+}

@@ -1,0 +1,77 @@
+@startuml Booking and Payment Flow
+
+skinparam shadowing false
+skinparam defaultFontSize 40
+skinparam activity {
+  FontSize 36
+  BackgroundColor White
+  BorderColor Black
+  BorderThickness 2
+  FontColor Black
+}
+skinparam ArrowColor Black
+skinparam ArrowThickness 4
+
+|Customer|
+start
+:Browse vehicle catalog;
+if (Already has account?) then (Yes)
+  :Sign in;
+else (No)
+  :Register account;
+  :Sign in;
+endif
+
+:Select vehicle, rental type,\npickup method and rental dates;
+:Submit booking request;
+
+|System Handler|
+:Validate booking request;
+:Check vehicle availability;
+if (Vehicle available?) then (Yes)
+  :Create booking (status = PENDING);
+  :Calculate estimated amount;
+  :Generate VNPay payment URL;
+  :Set payment deadline;
+  :Return booking summary + payment URL;
+else (No)
+  :Reject request and return unavailable message;
+  |Customer|
+  :Adjust vehicle or rental time;
+  stop
+endif
+
+|Customer|
+while (Before payment deadline?) is (Yes)
+  :Open payment URL and attempt payment;
+
+  |VNPay Gateway|
+  :Process transaction;
+  :Return payment result to customer;
+  :Send IPN callback to system;
+
+  |System Handler|
+  :Verify callback signature and status;
+  if (Payment successful?) then (Yes)
+    :Mark booking = CONFIRMED;
+    :Set invoice/payment = PAID;
+    |Customer|
+    :Receive booking confirmation;
+    stop
+  else (No)
+    :Keep booking = PENDING;
+    :Store failed attempt for audit;
+    |Customer|
+    :Receive payment failed message;
+  endif
+endwhile (No)
+
+|System Handler|
+:Scheduler auto-cancels expired PENDING booking;
+:Mark booking = CANCELLED;
+
+|Customer|
+:Receive timeout cancellation notice;
+stop
+
+@enduml

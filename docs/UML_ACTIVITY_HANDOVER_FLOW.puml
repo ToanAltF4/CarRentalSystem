@@ -1,0 +1,137 @@
+@startuml Vehicle Handover and Return Flow
+
+skinparam shadowing false
+skinparam defaultFontSize 32
+skinparam activity {
+  FontSize 30
+  BackgroundColor White
+  BorderColor Black
+  BorderThickness 2
+  FontColor Black
+}
+
+skinparam ArrowColor Black
+
+|Operator|
+start
+:View confirmed bookings;
+:Assign staff for handover and return;
+
+if (Rental type = WITH_DRIVER?) then (Yes)
+  :Assign driver;
+endif
+
+|Driver|
+if (Driver assigned?) then (Yes)
+  :Accept assigned trip;
+
+  |System Handler|
+  :Set booking to Confirmed;
+endif
+
+|Staff|
+:Receive assignment;
+:Prepare vehicle;
+:Record initial vehicle information\n(battery level, odometer, exterior and interior condition);
+:Take and upload handover photos;
+
+if (Handover type?) then (Store)
+  :Handover vehicle to customer at store;
+else (Delivery)
+  :Deliver vehicle to customer location;
+endif
+
+|System Handler|
+:Set booking to In Progress;
+:Record handover time;
+
+if (Rental type = WITH_DRIVER?) then (Yes)
+  |Driver|
+  :Start driving trip;
+
+  |System Handler|
+  :Set booking to Ongoing;
+
+  |Driver|
+  :Drive customer during rental period;
+else (No)
+  |Customer|
+  :Use vehicle during rental period;
+endif
+
+|Customer|
+:Coordinate return with staff;
+
+|Staff|
+if (Return type?) then (Store)
+  :Receive vehicle at store;
+else (Pickup)
+  :Pick up vehicle at customer location;
+endif
+
+:Create return inspection record;
+:Fill inspection information\n(battery level, odometer,\nexterior condition, interior condition);
+
+if (Any damage found?) then (Yes)
+  :Record damage details;
+  :Upload damage photos;
+else (No)
+  :Confirm no damage;
+endif
+
+|System Handler|
+:Calculate base rental fee;
+
+if (Was the vehicle returned late?) then (Yes)
+  :Calculate overtime hours and fee;
+else (No)
+  :No overtime fee applied;
+endif
+
+if (Is there any damage?) then (Yes)
+  :Add damage fee;
+else (No)
+  :No damage fee applied;
+endif
+
+if (Was delivery or pickup service used?) then (Yes)
+  :Add delivery and pickup fee;
+else (No)
+  :No delivery and pickup fee applied;
+endif
+
+:Calculate total amount;
+:Create final invoice with payment pending;
+:Set booking to RETURN_PENDING_PAYMENT;
+
+|Customer|
+:View final invoice;
+
+if (Raise a dispute?) then (Yes)
+  :Submit dispute to operator;
+  stop
+else (No)
+  :Proceed with final payment;
+endif
+
+|Payment Gateway|
+:Process payment transaction;
+
+|System Handler|
+if (Was the payment successful?) then (Yes)
+  :Mark invoice as paid;
+  :Close the booking (Completed);
+
+  if (Did return inspection find damage?) then (Yes)
+    :Set vehicle status to Maintenance;
+  else (No)
+    :Set vehicle status to Available;
+  endif
+
+else (No)
+  :Keep invoice as pending;
+  :Notify payment failure;
+endif
+
+end
+@enduml
