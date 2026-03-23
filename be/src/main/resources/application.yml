@@ -3,6 +3,13 @@ spring:
     name: CarRentalSystem
   profiles:
     active: dev
+<<<<<<< HEAD
+=======
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+>>>>>>> dev
 
 server:
   port: 8080
@@ -19,6 +26,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
+<<<<<<< HEAD
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:defaultdb}?ssl-mode=REQUIRED&useSSL=true&requireSSL=true
     driverClassName: com.mysql.cj.jdbc.Driver
     username: ${DB_USERNAME:root}
@@ -27,11 +35,32 @@ spring:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:validate}
     show-sql: ${JPA_SHOW_SQL:true}
+=======
+    url: jdbc:mysql://${DB_HOST:52.6.255.243}:${DB_PORT:3306}/${DB_NAME:ev_fleet}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8&connectTimeout=${DB_CONNECT_TIMEOUT_MS:10000}&socketTimeout=${DB_SOCKET_TIMEOUT_MS:120000}&tcpKeepAlive=true
+    driverClassName: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:evfleet}
+    password: ${DB_PASSWORD:evfleet123}
+    hikari:
+      pool-name: CarRentalHikariPool
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:0}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:10000}
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:5000}
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:0}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:none}
+    show-sql: ${JPA_SHOW_SQL:false}
+>>>>>>> dev
     open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+<<<<<<< HEAD
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
@@ -45,3 +74,90 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_BINDER:trace}
     org.flywaydb: ${FLYWAY_LOG_LEVEL:info}
 
+=======
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 20
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    locations: classpath:db/migration
+    schemas: ${DB_NAME:ev_fleet}
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    from: ${MAIL_FROM:your-email@gmail.com}
+    from-name: ${MAIL_FROM_NAME:EV Fleet Car Rental}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+# Auth configuration
+app:
+  auth:
+    jwt:
+      secret: ${JWT_SECRET:ev-fleet-secret-key-minimum-32-characters-required-for-hs256}
+      expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    refresh-token:
+      expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS:7}
+  r2:
+    account-id: ${R2_ACCOUNT_ID:1805af38c0c83596fce6f4489d37fb73}
+    access-key-id: ${R2_ACCESS_KEY_ID:fd5f5d5075a240591bbab4f50e4d3458}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:b2572c6e7af3ef6b369b6a8b1ace160e74cbc3659a8d7cd03deb1df0765818cc}
+    bucket: ${R2_BUCKET:ev-rental-images}
+    public-base-url: ${R2_PUBLIC_BASE_URL:https://pub-d0dfae1987fc47a4adf266c21181f5e1.r2.dev}
+    endpoint: ${R2_ENDPOINT:https://1805af38c0c83596fce6f4489d37fb73.r2.cloudflarestorage.com}
+  vnpay:
+    tmn-code: ${VNP_TMN_CODE:U92KGD9Y}
+    hash-secret: ${VNP_HASH_SECRET:MDNVAVMJU76P29P852HX7OSJ841ZKSBM}
+    url: ${VNP_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    return-url: ${VNP_RETURN_URL:http://localhost:8080/api/payments/vnpay/return}
+    return-frontend: ${VNP_RETURN_FE_URL:http://localhost:5173/payment/vnpay-return}
+    version: ${VNP_VERSION:2.1.0}
+    command: ${VNP_COMMAND:pay}
+    curr-code: ${VNP_CURR_CODE:VND}
+    locale: ${VNP_LOCALE:vn}
+  cookie:
+    secure: ${APP_COOKIE_SECURE:false}
+  fe-base-url: ${FE_BASE_URL:http://localhost:5173}
+  otp:
+    expiration-minutes: ${OTP_EXPIRATION_MINUTES:10}
+  password-reset:
+    expiration-hours: ${PASSWORD_RESET_EXPIRATION_HOURS:1}
+  booking:
+    payment-timeout-minutes: ${BOOKING_PAYMENT_TIMEOUT_MINUTES:15}
+    payment-timeout-cron: ${BOOKING_PAYMENT_TIMEOUT_CRON:0 * * * * *}
+  assistant:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:30}
+  
+logging:
+  level:
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:warn}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_BINDER:off}
+    org.flywaydb: ${FLYWAY_LOG_LEVEL:info}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  show-actuator: false
+>>>>>>> dev
